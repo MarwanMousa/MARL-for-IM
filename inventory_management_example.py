@@ -1,11 +1,14 @@
-import or_gym
+'''
+Example Single-Agent environment for inventory management
+Baseline code for this files can be found at:
+https://www.datahubbs.com/how-to-use-deep-reinforcement-learning-to-improve-your-supply-chain/
+'''
 from or_gym.utils import create_env
 import ray
 from ray.rllib import agents
 from ray import tune
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
 
 def register_env(env_name, env_config={}):
     env = create_env(env_name)
@@ -16,7 +19,7 @@ def register_env(env_name, env_config={}):
 
 # Environment and RL Configuration Settings
 env_name = 'InvManagement-v1'
-env_config = {}  # Change environment parameters here
+env_config = {"periods":10}  # Change environment parameters here
 rl_config = dict(
     env=env_name,
     num_workers=4,
