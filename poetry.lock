@@ -1012,7 +1012,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.10"
-content-hash = "114f9e4fc61c688c1998d41cedc20199275f9c304ab9a48400896041cc0bba28"
+content-hash = "687b26ec5ec819eae4d5c7532a54d309ea9841b1f65913f25883acf2ddacb3b6"
 
 [metadata.files]
 absl-py = [
