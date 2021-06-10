@@ -44,8 +44,8 @@ class MultiAgentInvManagement(MultiAgentEnv):
         # observation space (Inventory position at each echelon, which is any integer value)
         self.observation_space = gym.spaces.Box(
             low=-np.zeros(3),
-            high=np.array([inv_max_obs, inv_max_obs,  inv_max_obs]),
-            dtype=np.int32,
+            high=np.array([inv_max_obs, np.inf,  inv_max_obs]),
+            dtype=np.float,
             shape=(3,))
 
         self.state = {}
@@ -78,13 +78,13 @@ class MultiAgentInvManagement(MultiAgentEnv):
         num = self.num_stages
 
         # simulation result lists
-        self.inv = np.zeros([periods, num])  # inventory at the beginning of each period
+        self.inv = np.zeros([periods + 1, num])  # inventory at the beginning of each period
         self.order_r = np.zeros([periods, num])  # replenishment order (last stage places no replenishment orders)
-        self.order_u = np.zeros([periods, num])  # Unfulfilled order
+        self.order_u = np.zeros([periods + 1, num])  # Unfulfilled order
         # self.demand = np.zeros(periods)  # demand at retailer
         self.ship = np.zeros([periods, num])  # units sold
         self.acquisition = np.zeros([periods, num])
-        self.backlog = np.zeros([periods, num])  # backlog
+        self.backlog = np.zeros([periods + 1, num])  # backlog
         self.profit = np.zeros(periods)  # profit
         self.demand = np.zeros([periods, num])
 
@@ -128,8 +128,8 @@ class MultiAgentInvManagement(MultiAgentEnv):
         m = self.num_stages
 
         # Get replenishment order at each stage
-        self.order_r[t, :] = np.array([action_dict["retailer"], action_dict["wholesaler"],
-                                       action_dict["distributor"], action_dict["factory"]])
+        self.order_r[t, :] = np.squeeze(np.array([action_dict["retailer"], action_dict["wholesaler"],
+                                       action_dict["distributor"], action_dict["factory"]]))
 
         # Demand of goods at each stage
         # Demand at first (retailer stage) is customer demand
@@ -176,11 +176,14 @@ class MultiAgentInvManagement(MultiAgentEnv):
         }
 
         info = {}
-        info['period'] = self.period
-        info['demand'] = self.demand[t, :]
-        info['ship'] = self.ship[t, :]
-        info['acquisition'] = self.acquisition[t, :]
-
+        for i in range(m):
+            meta_info = dict()
+            meta_info['period'] = self.period
+            meta_info['demand'] = self.demand[t, i]
+            meta_info['ship'] = self.ship[t, i]
+            meta_info['acquisition'] = self.acquisition[t, i]
+            stage = self.stage_names[i]
+            info[stage] = meta_info
 
         return self.state, rewards, done, info
 
@@ -190,7 +193,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         t = self.period
         for i in range(m):
             agent = self.stage_names[i]
-            reward = self.price[i] * self.ship[t, i] \
+            reward = self.price[i] * self.ship[t - 1, i] \
                      - self.stock_cost[i] * self.inv[t, i] \
                      - self.backlog_cost[i] * self.backlog[t, i]
 
