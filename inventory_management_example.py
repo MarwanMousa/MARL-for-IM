@@ -19,7 +19,8 @@ def register_env(env_name, env_config={}):
 
 # Environment and RL Configuration Settings
 env_name = 'InvManagement-v1'
-env_config = {"periods":10}  # Change environment parameters here
+periods = 50
+env_config = {"periods": periods}  # Change environment parameters here
 rl_config = dict(
     env=env_name,
     num_workers=4,
@@ -30,39 +31,36 @@ rl_config = dict(
         fcnet_activation='relu',
         fcnet_hiddens=[256, 256]
     ),
-    lr=1e-5
+    lr=1e-5,
+    seed=52
 )
 
 # Register environment
 register_env(env_name, env_config)
 
 # Initialize Ray and Build Agent
-ray.init(ignore_reinit_error=True)
+ray.init(ignore_reinit_error=True, checkpoint_at_end=True)
 agent = agents.ppo.PPOTrainer(env=env_name,
                               config=rl_config)
 
 results = []
-for i in range(200):
+for i in range(50):
     res = agent.train()
     results.append(res)
     if (i + 1) % 5 == 0:
         print('\rIter: {}\tReward: {:.2f}'.format(
             i + 1, res['episode_reward_mean']), end='')
+    if (i + 1) % 10 == 0:
+        chkpt_file = agent.save(
+            '/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/single_agent_example')
 ray.shutdown()
 
 # Unpack values from each iteration
 rewards = np.hstack([i['hist_stats']['episode_reward']
                      for i in results])
-'''
-pol_loss = [
-    i['info']['learner']['default_policy']['policy_loss']
-    for i in results]
-vf_loss = [
-    i['info']['learner']['default_policy']['vf_loss']
-    for i in results]
-'''
 
-p = 100
+
+p = 200
 mean_rewards = np.array([np.mean(rewards[i - p:i + 1])
                          if i >= p else np.mean(rewards[:i + 1])
                          for i, _ in enumerate(rewards)])
@@ -70,18 +68,17 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
                         if i >= p else np.std(rewards[:i + 1])
                         for i, _ in enumerate(rewards)])
 
-fig = plt.figure(constrained_layout=True, figsize=(20, 10))
-gs = fig.add_gridspec(2, 4)
-ax0 = fig.add_subplot(gs[:, :-2])
-ax0.fill_between(np.arange(len(mean_rewards)),
+fig, ax = plt.subplots()
+ax.fill_between(np.arange(len(mean_rewards)),
                  mean_rewards - std_rewards,
                  mean_rewards + std_rewards,
                  label='Standard Deviation', alpha=0.3)
-ax0.plot(mean_rewards, label='Mean Rewards')
-ax0.set_ylabel('Rewards')
-ax0.set_xlabel('Episode')
-ax0.set_title('Training Rewards')
-ax0.legend()
+ax.plot(mean_rewards, label='Mean Rewards')
+ax.set_ylabel('Rewards')
+ax.set_xlabel('Episode')
+ax.set_title('Training Rewards')
+ax.legend()
+plt.show()
 
 '''
 ax1 = fig.add_subplot(gs[0, 2:])
@@ -97,5 +94,24 @@ ax2.set_xlabel('Iteration')
 ax2.set_title('Value Function Loss')
 '''
 
-plt.show()
 
+InvManagement = create_env('InvManagement-v1', env_config)
+test_env = InvManagement(env_config)
+'''
+ray.init(ignore_reinit_error=True)
+# run until episode ends
+episode_reward = 0
+done = False
+agent.restore(chkpt_file)
+obs = test_env.reset()
+list_actions = []
+list_obs = []
+for i in range(periods):
+    action = agent.compute_action(obs)
+    obs, reward, done, info = test_env.step(action)
+    episode_reward += reward
+    list_actions.append(action)
+    list_obs.append(obs)
+
+ray.shutdown()
+'''
