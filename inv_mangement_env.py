@@ -23,7 +23,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.delay = config.pop("delay", np.ones(self.num_stages, dtype=np.int8))
 
         # Price of goods
-        self.price = config.pop("price", np.ones(self.num_stages))
+        self.price = config.pop("price", np.flip(np.arange(self.num_stages + 1) + 1))
 
         # Stock Holding and Backlog cost
         self.stock_cost = config.pop("stock_cost", np.ones(self.num_stages)*0.5)
@@ -69,6 +69,10 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 break
                 raise Exception('Maximum order cannot exceed maximum inventory of upstream stage')
 
+        # Check sell price of a stage product is more than sell price of upstream stage product
+        for i in range(len(self.price) - 1):
+            assert self.price[i] > self.price[i + 1]
+
         # Maximum order of last stage cannot exceed its own inventory
         assert self.order_max[self.num_stages - 1] <= self.inv_max[self.num_stages - 1]
 
@@ -94,11 +98,9 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.inv = np.zeros([periods + 1, num])  # inventory at the beginning of each period
         self.order_r = np.zeros([periods, num])  # replenishment order (last stage places no replenishment orders)
         self.order_u = np.zeros([periods + 1, num])  # Unfulfilled order
-        # self.demand = np.zeros(periods)  # demand at retailer
         self.ship = np.zeros([periods, num])  # units sold
         self.acquisition = np.zeros([periods, num])
         self.backlog = np.zeros([periods + 1, num])  # backlog
-        self.profit = np.zeros(periods)  # profit
         self.demand = np.zeros([periods, num])
 
         # initialization
@@ -142,11 +144,27 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         # Get replenishment order at each stage
         if self.num_stages == 4:
-            self.order_r[t, :] = np.squeeze(np.array([int(action_dict["retailer"]), int(action_dict["wholesaler"]),
-                                        int(action_dict["distributor"]), int(action_dict["factory"])]))
+            self.order_r[t, :] = np.minimum(
+                np.squeeze(
+                    np.array([int(action_dict["retailer"]), int(action_dict["wholesaler"]),
+                              int(action_dict["distributor"]), int(action_dict["factory"])]
+                             )
+                )
+            , self.order_max)
+
         elif self.num_stages == 3:
-            self.order_r[t, :] = np.squeeze(np.array([int(action_dict["retailer"]), int(action_dict["distributor"]),
-                                                      int(action_dict["factory"])]))
+            self.order_r[t, :] = np.minimum(
+                np.squeeze(
+                    np.array([int(action_dict["retailer"]), int(action_dict["distributor"]),
+                              int(action_dict["factory"])]
+                    )
+                )
+            , self.order_max)
+
+        for i in range(m):
+            if self.order_r[t, i] + self.order_u[t, i] > self.inv_max[i]:
+                self.order_r[t, i] = self.inv_max[i] - self.order_u[t, i]
+
         #print(f'retailer order: {self.order_r[t, 0]}')
         #print(f'wholesaler order: {self.order_r[t, 1]}')
         #print(f'distributor order: {self.order_r[t, 2]}')
@@ -225,8 +243,9 @@ class MultiAgentInvManagement(MultiAgentEnv):
         for i in range(m):
             agent = self.stage_names[i]
             reward = self.price[i] * self.ship[t - 1, i] \
-                     - self.stock_cost[i] * self.inv[t, i] \
-                     - self.backlog_cost[i] * self.backlog[t, i]
+                -self.price[i + 1] * self.order_r[t - 1, i] \
+                - self.stock_cost[i] * self.inv[t, i] \
+                - self.backlog_cost[i] * self.backlog[t, i]
 
             rewards[agent] = reward
 

@@ -4,8 +4,11 @@ from ray.rllib import agents
 from ray import tune
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
+#%% Environment and Agent Configuration
 
+# Environment creator function for environment registration
 def env_creator(configuration):
     env = MultiAgentInvManagement(configuration)
     return env
@@ -16,7 +19,11 @@ num_stages = 3
 num_periods = 50
 customer_demand = np.ones(num_periods) * 5
 init_inv = np.ones(num_stages)*50
+price = [2, 1.5, 1, 0.5]
+stock_cost = [0.5, 0.3, 0.3]
+backlog_cost = [0.1, 0.2, 0.3]
 
+# Agent/Policy ids of the 3-stage and 4-stage configurations
 if num_stages == 4:
     agent_ids = ["retailer", "wholesaler", "distributor", "factory"]
 elif num_stages == 3:
@@ -29,7 +36,10 @@ env_config = {
     "num_stages": num_stages,
     "num_periods": num_periods,
     "customer_demand": customer_demand,
-    "init_inv": init_inv
+    "init_inv": init_inv,
+    "price": price,
+    "stock_cost": stock_cost,
+    "backlog_cost": backlog_cost
 }
 CONFIG = env_config.copy()
 
@@ -78,8 +88,10 @@ rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 
+#%% Training
+
 # Training
-iters = 50
+iters = 20
 results = []
 for i in range(iters):
     res = agent.train()
@@ -91,6 +103,7 @@ for i in range(iters):
 
 ray.shutdown()
 
+#%% Reward Plots
 p = 200
 # Unpack values from each iteration
 rewards = np.hstack([i['hist_stats']['episode_reward']
@@ -137,22 +150,44 @@ fig, ax = plt.subplots()
 for i in range(num_agents):
     policy_agent = agent_ids[i]
     ax.plot(policy_mean_rewards[policy_agent], colours[i], label=agent_ids[i])
-    ax.legend
+    ax.legend()
 
 plt.show()
 
-'''
+
+#%% Test rollout
+
 # run until episode ends
 episode_reward = 0
 done = False
-agent.restore(chkpt_file)
 obs = test_env.reset()
 list_actions = []
 list_obs = []
+dict_obs = {}
+list_rewards = []
+period = 0
 while not done:
-    action = agent.compute_action(obs)
-    obs, reward, done, info = test_env.step(action)
-    episode_reward += reward
+    action = {}
+    for i in range(num_stages):
+        stage_policy = agent_ids[i]
+        action[stage_policy] = agent.compute_action(obs[stage_policy], policy_id=stage_policy)
+    obs, reward, dones, info = test_env.step(action)
+    done = dones['__all__']
+    for i in range(num_stages):
+        stage_policy = agent_ids[i]
+        episode_reward += reward[stage_policy]
+        if stage_policy not in dict_obs.keys():
+            dict_obs[stage_policy] = {}
+            dict_obs[stage_policy]['inventory'] = np.zeros(num_periods)
+            dict_obs[stage_policy]['backlog'] = np.zeros(num_periods)
+            dict_obs[stage_policy]['order_u'] = np.zeros(num_periods)
+        else:
+            dict_obs[stage_policy]['inventory'][period] = obs[stage_policy][0]
+            dict_obs[stage_policy]['backlog'][period] = obs[stage_policy][1]
+            dict_obs[stage_policy]['order_u'][period] = obs[stage_policy][2]
+    list_rewards.append(reward)
     list_actions.append(action)
     list_obs.append(obs)
-'''
+    period += 1
+
+#%% Plots
