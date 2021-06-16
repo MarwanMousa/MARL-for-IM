@@ -40,7 +40,7 @@ register_env(env_name, env_config)
 
 # Initialize Ray and Build Agent
 ray.init(ignore_reinit_error=True, checkpoint_at_end=True)
-agent = agents.ppo.PPOTrainer(env=env_name,
+agent = agents.ddpg.DDPGTrainer(env=env_name,
                               config=rl_config)
 
 results = []
@@ -80,29 +80,14 @@ ax.set_title('Training Rewards')
 ax.legend()
 plt.show()
 
-'''
-ax1 = fig.add_subplot(gs[0, 2:])
-ax1.plot(pol_loss)
-ax1.set_ylabel('Loss')
-ax1.set_xlabel('Iteration')
-ax1.set_title('Policy Loss')
-
-ax2 = fig.add_subplot(gs[1, 2:])
-ax2.plot(vf_loss)
-ax2.set_ylabel('Loss')
-ax2.set_xlabel('Iteration')
-ax2.set_title('Value Function Loss')
-'''
-
 
 InvManagement = create_env('InvManagement-v1', env_config)
 test_env = InvManagement(env_config)
-'''
-ray.init(ignore_reinit_error=True)
+
+
 # run until episode ends
 episode_reward = 0
 done = False
-agent.restore(chkpt_file)
 obs = test_env.reset()
 list_actions = []
 list_obs = []
@@ -113,5 +98,4 @@ for i in range(periods):
     list_actions.append(action)
     list_obs.append(obs)
 
-ray.shutdown()
-'''
+

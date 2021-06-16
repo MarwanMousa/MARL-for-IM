@@ -16,12 +16,12 @@ def env_creator(configuration):
 
 # Environment Configuration
 num_stages = 3
-num_periods = 50
-customer_demand = np.ones(num_periods) * 5
+num_periods = 30
+customer_demand = np.ones(num_periods) * 3
 init_inv = np.ones(num_stages)*50
 price = [2, 1.5, 1, 0.5]
-stock_cost = [0.5, 0.3, 0.3]
-backlog_cost = [0.1, 0.2, 0.3]
+stock_cost = [1, 0.3, 0.3]
+backlog_cost = [0.1, 0.5, 0.5]
 
 # Agent/Policy ids of the 3-stage and 4-stage configurations
 if num_stages == 4:
@@ -91,7 +91,7 @@ agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 #%% Training
 
 # Training
-iters = 20
+iters = 50
 results = []
 for i in range(iters):
     res = agent.train()
@@ -141,7 +141,7 @@ ax.fill_between(np.arange(len(mean_rewards)),
 ax.plot(mean_rewards, label='Mean Rewards')
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
-ax.set_title('Training Rewards')
+ax.set_title('Aggregate Training Rewards')
 ax.legend()
 plt.show()
 
@@ -150,7 +150,11 @@ fig, ax = plt.subplots()
 for i in range(num_agents):
     policy_agent = agent_ids[i]
     ax.plot(policy_mean_rewards[policy_agent], colours[i], label=agent_ids[i])
+    ax.set_title('Learning Curve (Rewards)')
+    ax.set_xlabel('Episode')
+    ax.set_ylabel('Rewards')
     ax.legend()
+
 
 plt.show()
 
@@ -161,11 +165,25 @@ plt.show()
 episode_reward = 0
 done = False
 obs = test_env.reset()
-list_actions = []
-list_obs = []
 dict_obs = {}
-list_rewards = []
+dict_actions = {}
+dict_rewards = {}
 period = 0
+
+# Dict initialisation
+for i in range(num_stages):
+    stage_policy = agent_ids[i]
+    dict_obs[stage_policy] = {}
+    dict_obs[stage_policy]['inventory'] = np.zeros(num_periods + 1)
+    dict_obs[stage_policy]['backlog'] = np.zeros(num_periods + 1)
+    dict_obs[stage_policy]['order_u'] = np.zeros(num_periods + 1)
+    dict_obs[stage_policy]['inventory'][0] = obs[stage_policy][0]
+    dict_obs[stage_policy]['backlog'][0] = obs[stage_policy][1]
+    dict_obs[stage_policy]['order_u'][0] = obs[stage_policy][2]
+    dict_actions[stage_policy] = np.zeros(num_periods)
+    dict_rewards[stage_policy] = np.zeros(num_periods)
+    dict_rewards['Total'] = np.zeros(num_periods)
+
 while not done:
     action = {}
     for i in range(num_stages):
@@ -176,18 +194,31 @@ while not done:
     for i in range(num_stages):
         stage_policy = agent_ids[i]
         episode_reward += reward[stage_policy]
-        if stage_policy not in dict_obs.keys():
-            dict_obs[stage_policy] = {}
-            dict_obs[stage_policy]['inventory'] = np.zeros(num_periods)
-            dict_obs[stage_policy]['backlog'] = np.zeros(num_periods)
-            dict_obs[stage_policy]['order_u'] = np.zeros(num_periods)
-        else:
-            dict_obs[stage_policy]['inventory'][period] = obs[stage_policy][0]
-            dict_obs[stage_policy]['backlog'][period] = obs[stage_policy][1]
-            dict_obs[stage_policy]['order_u'][period] = obs[stage_policy][2]
-    list_rewards.append(reward)
-    list_actions.append(action)
-    list_obs.append(obs)
+
+        dict_obs[stage_policy]['inventory'][period + 1] = obs[stage_policy][0]
+        dict_obs[stage_policy]['backlog'][period + 1] = obs[stage_policy][1]
+        dict_obs[stage_policy]['order_u'][period + 1] = obs[stage_policy][2]
+        dict_actions[stage_policy][period] = action[stage_policy]
+        dict_rewards[stage_policy][period] = reward[stage_policy]
+        dict_rewards['Total'][period] += reward[stage_policy]
+
     period += 1
 
 #%% Plots
+fig, axs = plt.subplots(1, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
+fig.subplots_adjust(hspace=0.1, wspace=.3)
+
+axs = axs.ravel()
+
+for i in range(num_stages):
+    stage_policy = agent_ids[i]
+    axs[i].plot(dict_obs[stage_policy]['inventory'], label='Inventory')
+    axs[i].plot(dict_obs[stage_policy]['backlog'], label='Backlog')
+    axs[i].plot(dict_obs[stage_policy]['order_u'], label='Unfulfilled orders')
+    axs[i].plot(dict_actions[stage_policy], label='Replenishment Order', color='k', alpha=0.5)
+    axs[i].legend()
+    axs[i].set_title(stage_policy)
+    axs[i].set_xlabel('Period')
+    axs[i].set_ylabel('Products')
+
+plt.show()
