@@ -1,4 +1,4 @@
-from inv_mangement_env import MultiAgentInvManagement
+from environments.MAIM_env import MultiAgentInvManagement
 import ray
 from ray.rllib import agents
 from ray import tune
