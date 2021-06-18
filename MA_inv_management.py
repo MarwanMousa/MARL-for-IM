@@ -39,7 +39,8 @@ env_config = {
     "init_inv": init_inv,
     "price": price,
     "stock_cost": stock_cost,
-    "backlog_cost": backlog_cost
+    "backlog_cost": backlog_cost,
+    "independent": False
 }
 CONFIG = env_config.copy()
 
@@ -70,7 +71,7 @@ def policy_mapping_fn(agent_id):
 
 # Training Set-up
 ray.init(ignore_reinit_error=True, local_mode=True)
-rl_config = agents.ddpg.DEFAULT_CONFIG.copy()
+rl_config = agents.ppo.DEFAULT_CONFIG.copy()
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn
@@ -86,7 +87,7 @@ rl_config["model"] = {
     }
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
-agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
+agent = agents.ppo.PPOTrainer(config=rl_config, env=MultiAgentInvManagement)
 
 #%% Training
 

@@ -10,6 +10,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.num_periods = config.pop("num_periods", 50)
 
         # Structure
+        self.independent = config.pop("independent", True)
         self.num_stages = config.pop("num_stages", 3)
         if self.num_stages == 4:
             self.stage_names = ["retailer", "wholesaler", "distributor", "factory"]
@@ -240,14 +241,22 @@ class MultiAgentInvManagement(MultiAgentEnv):
         rewards = {}
         m = self.num_stages
         t = self.period
+        reward_sum = 0
         for i in range(m):
             agent = self.stage_names[i]
             reward = self.price[i] * self.ship[t - 1, i] \
-                -self.price[i + 1] * self.order_r[t - 1, i] \
+                - self.price[i + 1] * self.order_r[t - 1, i] \
                 - self.stock_cost[i] * self.inv[t, i] \
                 - self.backlog_cost[i] * self.backlog[t, i]
 
-            rewards[agent] = reward
+            reward_sum += reward
+            if self.independent:
+                rewards[agent] = reward
+
+        if not self.independent:
+            for i in range(m):
+                agent = self.stage_names[i]
+                rewards[agent] = reward_sum
 
         return rewards
 

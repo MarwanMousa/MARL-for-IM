@@ -10,6 +10,8 @@ from ray import tune
 import numpy as np
 import matplotlib.pyplot as plt
 
+#%% Environment and Agent Configuration
+
 def register_env(env_name, env_config={}):
     env = create_env(env_name)
     tune.register_env(env_name,
@@ -19,7 +21,7 @@ def register_env(env_name, env_config={}):
 
 # Environment and RL Configuration Settings
 env_name = 'InvManagement-v1'
-periods = 50
+periods = 30
 env_config = {"periods": periods}  # Change environment parameters here
 rl_config = dict(
     env=env_name,
@@ -39,12 +41,14 @@ rl_config = dict(
 register_env(env_name, env_config)
 
 # Initialize Ray and Build Agent
-ray.init(ignore_reinit_error=True, checkpoint_at_end=True)
-agent = agents.ddpg.DDPGTrainer(env=env_name,
-                              config=rl_config)
+ray.init(ignore_reinit_error=True)
+agent = agents.ddpg.DDPGTrainer(env=env_name, config=rl_config)
+
+#%% Training
 
 results = []
-for i in range(50):
+iters = 50
+for i in range(iters):
     res = agent.train()
     results.append(res)
     if (i + 1) % 5 == 0:
@@ -55,10 +59,11 @@ for i in range(50):
             '/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/single_agent_example')
 ray.shutdown()
 
+#%% Reward Plots
+
 # Unpack values from each iteration
 rewards = np.hstack([i['hist_stats']['episode_reward']
                      for i in results])
-
 
 p = 200
 mean_rewards = np.array([np.mean(rewards[i - p:i + 1])
@@ -69,6 +74,7 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
                         for i, _ in enumerate(rewards)])
 
 fig, ax = plt.subplots()
+
 ax.fill_between(np.arange(len(mean_rewards)),
                  mean_rewards - std_rewards,
                  mean_rewards + std_rewards,
@@ -81,9 +87,11 @@ ax.legend()
 plt.show()
 
 
+
+
+#%% Test rollout
 InvManagement = create_env('InvManagement-v1', env_config)
 test_env = InvManagement(env_config)
-
 
 # run until episode ends
 episode_reward = 0
