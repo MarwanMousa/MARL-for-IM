@@ -21,6 +21,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         self.num_agents = config.pop("num_agents", self.num_stages)
         self.inv_init = config.pop("init_inv", np.ones(self.num_stages)*100)
+        self.inv_target = config.pop("inv_target", np.ones(self.num_stages) * 10)
         self.delay = config.pop("delay", np.ones(self.num_stages, dtype=np.int8))
 
         # Price of goods
@@ -77,6 +78,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         # Maximum order of last stage cannot exceed its own inventory
         assert self.order_max[self.num_stages - 1] <= self.inv_max[self.num_stages - 1]
 
+        self.reset()
 
 
     def _RESET(self):
@@ -246,7 +248,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
             agent = self.stage_names[i]
             reward = self.price[i] * self.ship[t - 1, i] \
                 - self.price[i + 1] * self.order_r[t - 1, i] \
-                - self.stock_cost[i] * self.inv[t, i] \
+                - self.stock_cost[i] * np.abs(self.inv[t, i] - self.inv_target[i]) \
                 - self.backlog_cost[i] * self.backlog[t, i]
 
             reward_sum += reward

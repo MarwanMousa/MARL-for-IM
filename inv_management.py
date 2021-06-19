@@ -58,12 +58,13 @@ rl_config["model"] = {
     }
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
+#rl_config['vf_clip_param'] = 10_000
 agent = agents.ppo.PPOTrainer(config=rl_config, env=InvManagement)
 
 #%% Training
 
 # Training
-iters = 100
+iters = 200
 results = []
 for i in range(iters):
     res = agent.train()
@@ -89,23 +90,6 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
                         if i >= p else np.std(rewards[:i + 1])
                         for i, _ in enumerate(rewards)])
 
-'''
-policy_rewards = {}
-policy_mean_rewards = {}
-policy_std_rewards = {}
-for j in range(num_stages):
-    policy_agent = agent_ids[j]
-    stat = 'policy_' + policy_agent + '_reward'
-    policy_rewards[policy_agent] = np.hstack([i['hist_stats'][stat] for i in results])
-    temp = policy_rewards[policy_agent]
-    policy_mean_rewards[policy_agent] = np.array([np.mean(temp[i - p:i + 1])
-                                                  if i >= p else np.mean(temp[:i + 1])
-                                                  for i, _ in enumerate(temp)])
-    policy_std_rewards[policy_agent] = np.array([np.std(temp[i - p:i + 1])
-                                                 if i >= p else np.std(temp[:i + 1])
-                                                 for i, _ in enumerate(temp)])
-
-'''
 
 fig, ax = plt.subplots()
 ax.fill_between(np.arange(len(mean_rewards)),
@@ -128,6 +112,10 @@ done = False
 obs = test_env.reset()
 array_obs = np.zeros((num_stages, 3, num_periods + 1))
 array_actions = np.zeros((num_stages, num_periods))
+array_profit = np.zeros((num_stages, num_periods))
+array_demand = np.zeros((num_stages, num_periods))
+array_ship = np.zeros((num_stages, num_periods))
+array_acquisition = np.zeros((num_stages, num_periods))
 array_rewards = np.zeros(num_periods)
 period = 0
 
@@ -138,6 +126,11 @@ while not done:
     obs, reward, done, info = test_env.step(action)
     array_obs[:, :, period + 1] = obs
     array_actions[:, period] = action
+    array_rewards[period] = reward
+    array_profit[:, period] = info['profit']
+    array_demand[:, period] = info['demand']
+    array_ship[:, period] = info['ship']
+    array_acquisition[:, period] = info['acquisition']
     array_rewards[period] = reward
     episode_reward += reward
     period += 1
@@ -158,5 +151,28 @@ for i in range(num_stages):
     axs[i].set_title(title)
     axs[i].set_xlabel('Period')
     axs[i].set_ylabel('Products')
+
+plt.show()
+
+fig, axs = plt.subplots(1, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
+fig.subplots_adjust(hspace=0.1, wspace=.3)
+
+axs = axs.ravel()
+
+for i in range(num_stages):
+    axs[i].plot(array_profit[i, :], label='profit')
+    axs[i].plot(array_demand[i, :], label='demand')
+    axs[i].plot(array_ship[i, :], label='shipment')
+    axs[i].plot(array_acquisition[i, :], label='Acquisition', color='k', alpha=0.5)
+    axs[i].legend()
+    title = 'Stage ' + str(i)
+    axs[i].set_title(title)
+    axs[i].set_xlabel('Period')
+    axs[i].set_ylabel('Products')
+
+plt.show()
+
+fig, ax = plt.subplots(1, 1, figsize=(15, 6), facecolor='w', edgecolor='k')
+ax.plot(array_rewards)
 
 plt.show()

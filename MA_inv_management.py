@@ -16,12 +16,12 @@ def env_creator(configuration):
 
 # Environment Configuration
 num_stages = 3
-num_periods = 30
-customer_demand = np.ones(num_periods) * 3
+num_periods = 50
+customer_demand = np.ones(num_periods) * 5
 init_inv = np.ones(num_stages)*50
-price = [2, 1.5, 1, 0.5]
-stock_cost = [1, 0.3, 0.3]
-backlog_cost = [0.1, 0.5, 0.5]
+price = [3.5, 3, 2, 1]
+stock_cost = [0.1, 0.3, 0.3]
+backlog_cost = [0.3, 0.5, 0.5]
 
 # Agent/Policy ids of the 3-stage and 4-stage configurations
 if num_stages == 4:
@@ -40,7 +40,7 @@ env_config = {
     "price": price,
     "stock_cost": stock_cost,
     "backlog_cost": backlog_cost,
-    "independent": False
+    "independent": True
 }
 CONFIG = env_config.copy()
 
@@ -71,7 +71,7 @@ def policy_mapping_fn(agent_id):
 
 # Training Set-up
 ray.init(ignore_reinit_error=True, local_mode=True)
-rl_config = agents.ppo.DEFAULT_CONFIG.copy()
+rl_config = agents.ddpg.DEFAULT_CONFIG.copy()
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn
@@ -87,7 +87,8 @@ rl_config["model"] = {
     }
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
-agent = agents.ppo.PPOTrainer(config=rl_config, env=MultiAgentInvManagement)
+#rl_config['vf_clip_param'] = 10_000
+agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 
 #%% Training
 

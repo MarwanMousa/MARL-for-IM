@@ -16,6 +16,7 @@ class InvManagement(gym.Env):
         self.price = config.pop("price", np.flip(np.arange(self.num_stages + 1) + 1))
 
         # Stock Holding and Backlog cost
+        self.inv_target = config.pop("inv_target", np.ones(self.num_stages) * 10)
         self.stock_cost = config.pop("stock_cost", np.ones(self.num_stages) * 0.5)
         self.backlog_cost = config.pop("backlog_cost", np.ones(self.num_stages))
 
@@ -52,6 +53,8 @@ class InvManagement(gym.Env):
         )
 
         self.state = np.zeros((self.num_stages, 3))
+
+        self.reset()
 
     def reset(self):
         """
@@ -157,7 +160,7 @@ class InvManagement(gym.Env):
         self._update_state()
 
         # Calculate rewards
-        rewards = self.get_rewards()
+        rewards, profit = self.get_rewards()
 
         # determine if simulation should terminate
         done = self.period >= self.num_periods
@@ -167,16 +170,18 @@ class InvManagement(gym.Env):
         info['demand'] = self.demand[t, :]
         info['ship'] = self.ship[t, :]
         info['acquisition'] = self.acquisition[t, :]
+        info['profit'] = profit
 
         return self.state, rewards, done, info
 
     def get_rewards(self):
         m = self.num_stages
         t = self.period
-        reward = np.sum(
-            self.price[0:m] * self.ship[t - 1, :] - self.price[1:m+1] * self.order_r[t - 1, :] \
-            - self.stock_cost * self.inv[t, :] - self.backlog_cost * self.backlog[t, :]
-        )
+        profit = self.price[0:m] * self.ship[t - 1, :] - self.price[1:m+1] * self.order_r[t - 1, :] \
+            - self.stock_cost * np.abs(self.inv[t, :] - self.inv_target)\
+                 - self.backlog_cost * self.backlog[t, :]
+
+        reward = np.sum(profit)
 
 
         #for i in range(m):
@@ -187,7 +192,7 @@ class InvManagement(gym.Env):
 
         #    reward += profit
 
-        return reward
+        return reward, profit
 
     def update_acquisition(self):
         """
