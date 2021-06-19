@@ -1,6 +1,7 @@
 from ray.rllib import MultiAgentEnv
 import gym
 import numpy as np
+from scipy.stats import poisson, randint
 
 
 class MultiAgentInvManagement(MultiAgentEnv):
@@ -32,7 +33,28 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.backlog_cost = config.pop("backlog_cost", np.ones(self.num_stages))
 
         # Customer demand
-        self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 80)
+        self.demand_dist = config.pop("demand_dist", "custom")
+        self.SEED = config.pop("seed", 52)
+        np.random.seed(seed=self.SEED)
+
+        # Custom customer demand
+        if self.demand_dist == "custom":
+            self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
+        # Poisson distribution
+        elif self.demand_dist == "poisson":
+            mu = config.pop("mu", 5)
+            self.customer_demand = poisson.rvs(mu, size=self.num_periods)
+
+        # Uniform distribution
+        elif self.demand_dist == "uniform":
+            lower_upper = config.pop("lower_upper", (1, 5))
+            lower = lower_upper[0]
+            upper = lower_upper[1]
+            if lower >= upper:
+                raise Exception('Lower bound cannot be larger than upper bound')
+            self.customer_demand = randint(low=lower, high=upper, size=self.num_periods)
+        else:
+            raise Exception('Unrecognised, Distribution Not Implemented')
 
         # Capacity
         self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int8)*200)

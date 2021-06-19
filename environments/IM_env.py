@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+from scipy.stats import poisson, randint
 
 class InvManagement(gym.Env):
     def __init__(self, config):
@@ -9,7 +10,7 @@ class InvManagement(gym.Env):
 
         # Structure
         self.num_stages = config.pop("num_stages", 3)
-        self.inv_init = config.pop("init_inv", np.ones(self.num_stages) * 100)
+        self.inv_init = config.pop("init_inv", np.ones(self.num_stages) * 20)
         self.delay = config.pop("delay", np.ones(self.num_stages, dtype=np.int8))
 
         # Price of goods
@@ -21,7 +22,28 @@ class InvManagement(gym.Env):
         self.backlog_cost = config.pop("backlog_cost", np.ones(self.num_stages))
 
         # Customer demand
-        self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 80)
+        self.demand_dist = config.pop("demand_dist", "custom")
+        self.seed = config.pop("seed", 52)
+        np.random.seed(seed=int(self.seed))
+
+        # Custom customer demand
+        if self.demand_dist == "custom":
+            self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
+        # Poisson distribution
+        elif self.demand_dist == "poisson":
+            mu = config.pop("mu", 5)
+            self.customer_demand = poisson.rvs(mu, size=self.num_periods)
+
+        # Uniform distribution
+        elif self.demand_dist == "uniform":
+            lower_upper = config.pop("lower_upper", (1, 5))
+            lower = lower_upper[0]
+            upper = lower_upper[1]
+            if lower >= upper:
+                raise Exception('Lower bound cannot be larger than upper bound')
+            self.customer_demand = randint(low=lower, high=upper, size=self.num_periods)
+        else:
+            raise Exception('Unrecognised, Distribution Not Implemented')
 
         # Capacity
         self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int8) * 200)
@@ -183,15 +205,6 @@ class InvManagement(gym.Env):
 
         reward = np.sum(profit)
 
-
-        #for i in range(m):
-        #    profit = self.price[i] * self.ship[t - 1, i] \
-        #             - self.price[i + 1] * self.order_r[t - 1, i] \
-        #             - self.stock_cost[i] * self.inv[t, i] \
-        #             - self.backlog_cost[i] * self.backlog[t, i]
-
-        #    reward += profit
-
         return reward, profit
 
     def update_acquisition(self):
@@ -214,3 +227,4 @@ class InvManagement(gym.Env):
                 self.acquisition[t, i] = self.ship[t - self.delay[i], i + 1]
             else:
                 self.acquisition[t, i] = self.acquisition[t, i]
+

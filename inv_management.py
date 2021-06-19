@@ -58,7 +58,7 @@ rl_config["model"] = {
     }
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
-#rl_config['vf_clip_param'] = 10_000
+rl_config['vf_clip_param'] = 10_000
 agent = agents.ppo.PPOTrainer(config=rl_config, env=InvManagement)
 
 #%% Training
@@ -136,7 +136,7 @@ while not done:
     period += 1
 
 #%% Plots
-fig, axs = plt.subplots(1, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
+fig, axs = plt.subplots(3, num_stages, figsize=(20, 8), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
 axs = axs.ravel()
@@ -144,35 +144,36 @@ axs = axs.ravel()
 for i in range(num_stages):
     axs[i].plot(array_obs[i, 0, :], label='Inventory')
     axs[i].plot(array_obs[i, 1, :], label='Backlog')
-    axs[i].plot(array_obs[i, 2, :], label='Unfulfilled orders')
-    axs[i].plot(array_actions[i, :], label='Replenishment Order', color='k', alpha=0.5)
+    axs[i].plot(np.arange(1, 51), array_obs[i, 2, 1:], label='Unfulfilled orders')
+    axs[i].plot(np.arange(1, 51), array_actions[i, :], label='Replenishment Order', color='k', alpha=0.5)
     axs[i].legend()
     title = 'Stage ' + str(i)
     axs[i].set_title(title)
-    axs[i].set_xlabel('Period')
     axs[i].set_ylabel('Products')
+    axs[i].set_xlim(0, num_periods)
+
+    axs[i+num_stages].plot(np.arange(1, 51), array_demand[i, :], label='demand')
+    axs[i+num_stages].plot(np.arange(1, 51), array_ship[i, :], label='shipment')
+    axs[i+num_stages].plot(np.arange(1, 51), array_acquisition[i, :], label='Acquisition')
+    axs[i+num_stages].legend()
+    axs[i+num_stages].set_ylabel('Products')
+    axs[i+num_stages].set_xlim(0, num_periods)
+
+    axs[i+num_stages*2].plot(np.arange(1, 51), array_profit[i, :], label='profit')
+    axs[i+num_stages*2].plot([0, num_periods], [0, 0], color='k')
+    axs[i+num_stages*2].set_xlabel('Period')
+    axs[i+num_stages*2].set_ylabel('Profit')
+    axs[i+num_stages*2].set_xlim(0, num_periods)
+
 
 plt.show()
 
-fig, axs = plt.subplots(1, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
-fig.subplots_adjust(hspace=0.1, wspace=.3)
-
-axs = axs.ravel()
-
-for i in range(num_stages):
-    axs[i].plot(array_profit[i, :], label='profit')
-    axs[i].plot(array_demand[i, :], label='demand')
-    axs[i].plot(array_ship[i, :], label='shipment')
-    axs[i].plot(array_acquisition[i, :], label='Acquisition', color='k', alpha=0.5)
-    axs[i].legend()
-    title = 'Stage ' + str(i)
-    axs[i].set_title(title)
-    axs[i].set_xlabel('Period')
-    axs[i].set_ylabel('Products')
-
-plt.show()
-
-fig, ax = plt.subplots(1, 1, figsize=(15, 6), facecolor='w', edgecolor='k')
-ax.plot(array_rewards)
+fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
+ax.plot(np.arange(1, 51), array_rewards)
+ax.plot([0, num_periods], [0, 0], color='k')
+ax.set_title('Aggregate Rewards')
+ax.set_xlabel('Period')
+ax.set_ylabel('Rewards/profit')
+ax.set_xlim(0, num_periods)
 
 plt.show()

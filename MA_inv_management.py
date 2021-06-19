@@ -18,7 +18,7 @@ def env_creator(configuration):
 num_stages = 3
 num_periods = 50
 customer_demand = np.ones(num_periods) * 5
-init_inv = np.ones(num_stages)*50
+init_inv = np.ones(num_stages)*20
 price = [3.5, 3, 2, 1]
 stock_cost = [0.1, 0.3, 0.3]
 backlog_cost = [0.3, 0.5, 0.5]
@@ -35,12 +35,14 @@ tune.register_env(env_name, env_creator)
 env_config = {
     "num_stages": num_stages,
     "num_periods": num_periods,
+    "demand_dist": "custom",
     "customer_demand": customer_demand,
     "init_inv": init_inv,
     "price": price,
     "stock_cost": stock_cost,
     "backlog_cost": backlog_cost,
-    "independent": True
+    "independent": True,
+    "seed": 52
 }
 CONFIG = env_config.copy()
 
@@ -93,7 +95,7 @@ agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 #%% Training
 
 # Training
-iters = 50
+iters = 20
 results = []
 for i in range(iters):
     res = agent.train()
@@ -168,6 +170,7 @@ episode_reward = 0
 done = False
 obs = test_env.reset()
 dict_obs = {}
+dict_info = {}
 dict_actions = {}
 dict_rewards = {}
 period = 0
@@ -176,9 +179,13 @@ period = 0
 for i in range(num_stages):
     stage_policy = agent_ids[i]
     dict_obs[stage_policy] = {}
+    dict_info[stage_policy] = {}
     dict_obs[stage_policy]['inventory'] = np.zeros(num_periods + 1)
     dict_obs[stage_policy]['backlog'] = np.zeros(num_periods + 1)
     dict_obs[stage_policy]['order_u'] = np.zeros(num_periods + 1)
+    dict_info[stage_policy]['demand'] = np.zeros(num_periods)
+    dict_info[stage_policy]['ship'] = np.zeros(num_periods)
+    dict_info[stage_policy]['acquisition'] = np.zeros(num_periods)
     dict_obs[stage_policy]['inventory'][0] = obs[stage_policy][0]
     dict_obs[stage_policy]['backlog'][0] = obs[stage_policy][1]
     dict_obs[stage_policy]['order_u'][0] = obs[stage_policy][2]
@@ -200,6 +207,9 @@ while not done:
         dict_obs[stage_policy]['inventory'][period + 1] = obs[stage_policy][0]
         dict_obs[stage_policy]['backlog'][period + 1] = obs[stage_policy][1]
         dict_obs[stage_policy]['order_u'][period + 1] = obs[stage_policy][2]
+        dict_info[stage_policy]['demand'][period] = info[stage_policy]['demand']
+        dict_info[stage_policy]['ship'][period] = info[stage_policy]['ship']
+        dict_info[stage_policy]['acquisition'][period] = info[stage_policy]['acquisition']
         dict_actions[stage_policy][period] = action[stage_policy]
         dict_rewards[stage_policy][period] = reward[stage_policy]
         dict_rewards['Total'][period] += reward[stage_policy]
@@ -207,7 +217,7 @@ while not done:
     period += 1
 
 #%% Plots
-fig, axs = plt.subplots(1, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
+fig, axs = plt.subplots(3, num_stages, figsize=(15, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
 axs = axs.ravel()
@@ -220,7 +230,20 @@ for i in range(num_stages):
     axs[i].plot(dict_actions[stage_policy], label='Replenishment Order', color='k', alpha=0.5)
     axs[i].legend()
     axs[i].set_title(stage_policy)
-    axs[i].set_xlabel('Period')
     axs[i].set_ylabel('Products')
+    axs[i].set_xlim(0, num_periods)
+
+    axs[i + num_stages].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['demand'], label='demand')
+    axs[i + num_stages].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['ship'], label='shipment')
+    axs[i + num_stages].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['acquisition'], label='Acquisition')
+    axs[i + num_stages].legend()
+    axs[i + num_stages].set_ylabel('Products')
+    axs[i + num_stages].set_xlim(0, num_periods)
+
+    axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_rewards[stage_policy], label='profit')
+    axs[i + num_stages * 2].plot([0, num_periods], [0, 0], color='k')
+    axs[i + num_stages * 2].set_xlabel('Period')
+    axs[i + num_stages * 2].set_ylabel('Profit')
+    axs[i + num_stages * 2].set_xlim(0, num_periods)
 
 plt.show()
