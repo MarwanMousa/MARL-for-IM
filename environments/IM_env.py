@@ -23,8 +23,8 @@ class InvManagement(gym.Env):
 
         # Customer demand
         self.demand_dist = config.pop("demand_dist", "custom")
-        self.seed = config.pop("seed", 52)
-        np.random.seed(seed=int(self.seed))
+        self.SEED = config.pop("seed", 52)
+        np.random.seed(seed=int(self.SEED))
 
         # Custom customer demand
         if self.demand_dist == "custom":
@@ -46,7 +46,7 @@ class InvManagement(gym.Env):
             raise Exception('Unrecognised, Distribution Not Implemented')
 
         # Capacity
-        self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int8) * 200)
+        self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int8) * 100)
         order_max = np.zeros(self.num_stages)
         for i in range(self.num_stages - 1):
             order_max[i] = self.inv_max[i + 1]
@@ -192,6 +192,7 @@ class InvManagement(gym.Env):
         info['demand'] = self.demand[t, :]
         info['ship'] = self.ship[t, :]
         info['acquisition'] = self.acquisition[t, :]
+        info['actual order'] = self.order_r[t, i]
         info['profit'] = profit
 
         return self.state, rewards, done, info
