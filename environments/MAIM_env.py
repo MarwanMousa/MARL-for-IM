@@ -103,7 +103,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.reset()
 
 
-    def _RESET(self):
+    def reset(self):
         """
         Create and initialize all variables.
         Nomenclature:
@@ -158,7 +158,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         self.state = obs.copy()
 
-    def _STEP(self, action_dict):
+    def step(self, action_dict):
         """
         Update state, transition to next state/period/time-step
         :param action_dict:
@@ -186,9 +186,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 )
             , self.order_max)
 
-        #for i in range(m):
-        #    if self.order_r[t, i] + self.order_u[t, i] > self.inv_max[i]:
-        #        self.order_r[t, i] = self.inv_max[i] - self.order_u[t, i]
+        self.order_r[t, :] = np.round(self.order_r[t, :], 0).astype(int)
 
         # Demand of goods at each stage
         # Demand at first (retailer stage) is customer demand
@@ -227,7 +225,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self._update_state()
 
         # Calculate rewards
-        rewards = self.get_rewards()
+        rewards, profit = self.get_rewards()
 
         # determine if simulation should terminate
         done = {
@@ -242,6 +240,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
             meta_info['ship'] = self.ship[t, i]
             meta_info['acquisition'] = self.acquisition[t, i]
             meta_info['actual order'] = self.order_r[t, i]
+            meta_info['profit'] = profit[i]
             stage = self.stage_names[i]
             info[stage] = meta_info
 
@@ -249,6 +248,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
     def get_rewards(self):
         rewards = {}
+        profit = np.zeros(self.num_stages)
         m = self.num_stages
         t = self.period
         reward_sum = 0
@@ -260,6 +260,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 - self.backlog_cost[i] * self.backlog[t, i]
 
             reward_sum += reward
+            profit[i] = reward
             if self.independent:
                 rewards[agent] = reward
 
@@ -268,7 +269,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 agent = self.stage_names[i]
                 rewards[agent] = reward_sum/self.num_stages
 
-        return rewards
+        return rewards, profit
 
     def update_acquisition(self):
         """
@@ -291,8 +292,3 @@ class MultiAgentInvManagement(MultiAgentEnv):
             else:
                 self.acquisition[t, i] = self.acquisition[t, i]
 
-    def reset(self):
-        return self._RESET()
-
-    def step(self, action_dict):
-        return self._STEP(action_dict)

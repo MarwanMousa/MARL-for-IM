@@ -2,6 +2,7 @@ import gym
 import numpy as np
 from scipy.stats import poisson, randint
 
+
 class InvManagement(gym.Env):
     def __init__(self, config):
 
@@ -28,20 +29,23 @@ class InvManagement(gym.Env):
 
         # Custom customer demand
         if self.demand_dist == "custom":
-            self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
+            self.customer_demand_init = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
         # Poisson distribution
         elif self.demand_dist == "poisson":
             mu = config.pop("mu", 5)
-            self.customer_demand = poisson.rvs(mu, size=self.num_periods)
-
+            self.dist = poisson
+            self.dist_param = {'mu': mu}
+            self.customer_demand_init = self.dist.rvs(size=self.num_periods, **self.dist_param)
         # Uniform distribution
         elif self.demand_dist == "uniform":
             lower_upper = config.pop("lower_upper", (1, 5))
             lower = lower_upper[0]
             upper = lower_upper[1]
+            self.dist = randint
+            self.dist_param = {'low': lower, 'high': upper}
             if lower >= upper:
                 raise Exception('Lower bound cannot be larger than upper bound')
-            self.customer_demand = randint(low=lower, high=upper, size=self.num_periods)
+            self.customer_demand_init = self.dist.rvs(size=self.num_periods, **self.dist_param)
         else:
             raise Exception('Unrecognised, Distribution Not Implemented')
 
@@ -57,8 +61,8 @@ class InvManagement(gym.Env):
         self.done = set()
 
         self.action_space = gym.spaces.Box(
-            low=np.zeros(self.num_stages),
-            high=self.inv_max,
+            low=np.int8(np.zeros(self.num_stages)),
+            high=np.int8(self.inv_max),
             dtype=np.int16,
             shape=(self.num_stages,)
         )
@@ -78,7 +82,7 @@ class InvManagement(gym.Env):
 
         self.reset()
 
-    def reset(self):
+    def reset(self, customer_demand=None):
         """
         Create and initialize all variables.
         Nomenclature:
@@ -94,6 +98,12 @@ class InvManagement(gym.Env):
         periods = self.num_periods
         num_stages = self.num_stages
 
+        if customer_demand is not None:
+            self.customer_demand = customer_demand
+        else:
+            self.customer_demand = self.customer_demand_init
+
+        #print(self.customer_demand[0])
         # simulation result lists
         self.inv = np.zeros([periods + 1, num_stages])  # inventory at the beginning of each period
         self.order_r = np.zeros([periods, num_stages])  # replenishment order (last stage places no replenishment orders)
@@ -138,7 +148,7 @@ class InvManagement(gym.Env):
 
         # Get replenishment order at each stage
 
-        self.order_r[t, :] = np.minimum(np.squeeze(action), self.order_max)
+        self.order_r[t, :] = np.round(np.minimum(np.squeeze(action), self.order_max), 0).astype(int)
 
         for i in range(m):
             if self.order_r[t, i] + self.order_u[t, i] > self.inv_max[i]:

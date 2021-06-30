@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 import json
-
+from utils import get_config, get_trainer
 
 #%% Environment and Agent Configuration
 
@@ -26,9 +26,9 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*20
 inv_target = np.ones(num_stages) * 5
 inv_max = np.ones(num_stages) * 100
-price = np.array([3.5, 3, 2, 1])
-stock_cost = np.array([0.1, 0.2, 0.3])
-backlog_cost = np.array([0.2, 0.7, 0.5])
+price = np.array([2.5, 2, 1.5, 1])
+stock_cost = np.array([0.25, 0.25, 0.25])
+backlog_cost = np.array([0.2, 0.2, 0.2])
 
 demand_distribution = "poisson"
 
@@ -93,37 +93,36 @@ def policy_mapping_fn(agent_id):
         return "factory"
 
 
+# Algorithm used
+algorithm = 'ddpg'
 # Training Set-up
 ray.init(ignore_reinit_error=True, local_mode=True)
-rl_config = agents.ddpg.DEFAULT_CONFIG.copy()
+rl_config = get_config(algorithm)
 rl_config["multiagent"] = {
     "policies": policy_graphs,
-    "policy_mapping_fn": policy_mapping_fn
+    "policy_mapping_fn": policy_mapping_fn,
+    "replay_mode": "independent"
 }
-rl_config["num_workers"] = 3
+rl_config["num_workers"] = 0
 rl_config["normalize_actions"] = False
 rl_config["env_config"] = CONFIG
 rl_config["framework"] = 'torch'
-rl_config["model"] = {
-        "vf_share_layers": False,
-        "fcnet_activation": 'relu',
-        "fcnet_hiddens": [64, 64, 64]
-    }
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 #rl_config['vf_clip_param'] = 10_000
-agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
+agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
+#agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 
 #%% Training
 
 # Training
-iters = 40
+iters = 15
 results = []
 for i in range(iters):
     res = agent.train()
     results.append(res)
-    if (i + 1) % 5 == 0:
-        chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
+    if (i + 1) % 1 == 0:
+        #chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
         print('\rIter: {}\tReward: {:.2f}'.format(
             i + 1, res['episode_reward_mean']), end='')
 
@@ -268,14 +267,13 @@ for i in range(num_stages):
     axs[i].plot(dict_obs[stage_policy]['inventory'], label='Inventory')
     axs[i].plot(dict_obs[stage_policy]['backlog'], label='Backlog')
     axs[i].plot(dict_obs[stage_policy]['order_u'], label='Unfulfilled orders')
-    axs[i].plot([0, 0], [inv_target[i], inv_target[i]], label='Target Inventory', color='k')
+    axs[i].plot([0, 0], [inv_target[i], inv_target[i]], label='Target Inventory', color='r')
     axs[i].legend()
     axs[i].set_title(stage_policy)
     axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
 
-    axs[i + num_stages].plot(dict_info[stage_policy]['actual order'], label='Actual order')
-    axs[i + num_stages].plot(dict_actions[stage_policy], label='Replenishment Order', color='k')
+    axs[i + num_stages].plot(dict_info[stage_policy]['actual order'], label='Replenishment order')
     axs[i + num_stages].plot(np.arange(1, num_periods + 1), dict_info[stage_policy]['acquisition'], label='Acquisition')
     axs[i + num_stages].legend()
     axs[i + num_stages].set_ylabel('Products')
@@ -283,13 +281,15 @@ for i in range(num_stages):
 
     axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['demand'], label='demand')
     axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['ship'], label='shipment')
-    axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['acquisition'], label='Acquisition')
+
     axs[i + num_stages * 2].legend()
     axs[i + num_stages * 2].set_ylabel('Products')
     axs[i + num_stages * 2].set_xlim(0, num_periods)
 
-    axs[i + num_stages * 3].plot(np.arange(1, num_periods+1), dict_rewards[stage_policy], label='profit')
+    axs[i + num_stages * 3].plot(np.arange(1, num_periods+1), dict_rewards[stage_policy], label='periodic profit')
+    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), np.cumsum(dict_rewards[stage_policy]), label='cumulative profit')
     axs[i + num_stages * 3].plot([0, num_periods], [0, 0], color='k')
+    axs[i + num_stages * 3].legend()
     axs[i + num_stages * 3].set_xlabel('Period')
     axs[i + num_stages * 3].set_ylabel('Profit')
     axs[i + num_stages * 3].set_xlim(0, num_periods)
@@ -300,8 +300,10 @@ plt.show()
 
 # Rewards plots
 fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-ax.plot(np.arange(1, num_periods+1), dict_rewards['Total'])
+ax.plot(np.arange(1, num_periods+1), dict_rewards['Total'], label='periodic profit')
+ax.plot(np.arange(1, num_periods+1), np.cumsum(dict_rewards['Total']), label='cumulative profit')
 ax.plot([0, num_periods], [0, 0], color='k')
+ax.legend()
 ax.set_title('Aggregate Rewards')
 ax.set_xlabel('Period')
 ax.set_ylabel('Rewards')
