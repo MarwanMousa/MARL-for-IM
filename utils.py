@@ -6,7 +6,7 @@ Helper functions for getting agents and rl configs
 from ray.rllib import agents
 
 
-def get_config(algorithm):
+def get_config(algorithm, num_periods):
     if algorithm == 'ddpg' or algorithm == 'apex' or algorithm == 'td3':
         config = agents.ddpg.DEFAULT_CONFIG.copy()
         config["twin_q"] = True
@@ -37,7 +37,7 @@ def get_config(algorithm):
             # Timesteps over which to anneal scale (from initial to final values).
             "scale_timesteps": 10000,
         }
-        config["timesteps_per_iteration"] = 1000
+        config["timesteps_per_iteration"] = num_periods*100
         config["buffer_size"] = int(1e4)
         config["prioritized_replay"] = True
         config["prioritized_replay_alpha"] = 0.6
@@ -60,9 +60,14 @@ def get_config(algorithm):
         config["model"] = {
             "vf_share_layers": False,
             "fcnet_activation": 'relu',
-            "fcnet_hiddens": [128, 128, 128]
+            "fcnet_hiddens": [128, 128]
         }
         config['vf_clip_param'] = 10_000
+        config["use_critic"] = True
+        config["use_gae"] = True
+        config["lambda"] = 1
+        config["kl_coeff"] = 0.2
+        config["train_batch_size"] = num_periods*100
 
     elif algorithm == 'a3c':
         config = agents.a3c.DEFAULT_CONFIG.copy()
@@ -94,9 +99,6 @@ def get_config(algorithm):
     elif algorithm == 'impala':
         config = agents.impala.DEFAULT_CONFIG.copy()
 
-    elif algorithm == 'pg':
-        config = agents.pg.DEFAULT_CONFIG.copy()
-
     else:
         raise Exception('Not Implemented')
 
@@ -124,9 +126,6 @@ def get_trainer(algorithm, rl_config, environment):
 
     elif algorithm == 'impala':
         agent = agents.impala.IMPALATrainer(config=rl_config, env=environment)
-
-    elif algorithm == 'pg':
-        agent = agents.pg.PGTrainer(config=rl_config, env=environment)
 
     else:
         raise Exception('Not Implemented')

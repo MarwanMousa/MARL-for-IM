@@ -35,24 +35,27 @@ class MultiAgentInvManagement(MultiAgentEnv):
         # Customer demand
         self.demand_dist = config.pop("demand_dist", "custom")
         self.SEED = config.pop("seed", 52)
-        np.random.seed(seed=self.SEED)
+        np.random.seed(seed=int(self.SEED))
 
         # Custom customer demand
         if self.demand_dist == "custom":
-            self.customer_demand = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
+            self.customer_demand_init = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int16) * 5)
         # Poisson distribution
         elif self.demand_dist == "poisson":
             mu = config.pop("mu", 5)
-            self.customer_demand = poisson.rvs(mu, size=self.num_periods)
-
+            self.dist = poisson
+            self.dist_param = {'mu': mu}
+            self.customer_demand_init = self.dist.rvs(size=self.num_periods, **self.dist_param)
         # Uniform distribution
         elif self.demand_dist == "uniform":
             lower_upper = config.pop("lower_upper", (1, 5))
             lower = lower_upper[0]
             upper = lower_upper[1]
+            self.dist = randint
+            self.dist_param = {'low': lower, 'high': upper}
             if lower >= upper:
                 raise Exception('Lower bound cannot be larger than upper bound')
-            self.customer_demand = randint(low=lower, high=upper, size=self.num_periods)
+            self.customer_demand_init = self.dist.rvs(size=self.num_periods, **self.dist_param)
         else:
             raise Exception('Unrecognised, Distribution Not Implemented')
 
@@ -65,7 +68,6 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.order_max = config.pop("order_max", order_max)
         inv_max_obs = np.max(self.inv_max)
         order_max_obs = np.max(self.order_max)
-        demand_max = np.max(self.customer_demand)
 
         self.done = set()
 
@@ -103,12 +105,12 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.reset()
 
 
-    def reset(self):
+    def reset(self, customer_demand=None):
         """
         Create and initialize all variables.
         Nomenclature:
             inv = On hand inventory at the start of each period at each stage (except last one).
-            pipe_inv = Pipeline inventory at the start of each period at each stage (except last one).
+            order_u = Pipeline inventory at the start of each period at each stage (except last one).
             order_r = Replenishment order placed at each period at each stage (except last one).
             demand = demand at each stage
             ship = Sales performed at each period at each stage.
@@ -118,6 +120,11 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         periods = self.num_periods
         num = self.num_stages
+
+        if customer_demand is not None:
+            self.customer_demand = customer_demand
+        else:
+            self.customer_demand = self.customer_demand_init
 
         # simulation result lists
         self.inv = np.zeros([periods + 1, num])  # inventory at the beginning of each period

@@ -19,16 +19,17 @@ def env_creator(configuration):
 
 # Environment Configuration
 num_stages = 3
-num_periods = 20
+num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
 lower_upper = (1, 5)
-init_inv = np.ones(num_stages)*20
-inv_target = np.ones(num_stages) * 5
-inv_max = np.ones(num_stages) * 100
-price = np.array([2.5, 2, 1.5, 1])
-stock_cost = np.array([0.25, 0.25, 0.25])
-backlog_cost = np.array([0.2, 0.2, 0.2])
+init_inv = np.ones(num_stages)*10
+inv_target = np.ones(num_stages) * 0
+inv_max = np.ones(num_stages) * 30
+price = np.array([4, 3, 2, 1])
+stock_cost = np.array([0.4, 0.4, 0.4])
+backlog_cost = np.array([0.55, 0.5, 0.45])
+delay = np.array([0, 0, 0], dtype=np.int8)
 
 demand_distribution = "poisson"
 
@@ -62,6 +63,7 @@ env_config = {
     "demand_dist": demand_distribution,
     "inv_target": inv_target,
     "inv_max": inv_max,
+    "delay": delay,
     "independent": False,
     "seed": 52,
     parameter: parameter_value
@@ -92,12 +94,11 @@ def policy_mapping_fn(agent_id):
     elif agent_id.startswith("factory"):
         return "factory"
 
-
 # Algorithm used
 algorithm = 'ddpg'
 # Training Set-up
-ray.init(ignore_reinit_error=True, local_mode=True)
-rl_config = get_config(algorithm)
+ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=4)
+rl_config = get_config(algorithm, num_periods=num_periods)
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn,
@@ -109,15 +110,19 @@ rl_config["env_config"] = CONFIG
 rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
-#rl_config['vf_clip_param'] = 10_000
+
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #agent = agents.ddpg.DDPGTrainer(config=rl_config, env=MultiAgentInvManagement)
 
 #%% Training
 
 # Training
-iters = 15
+iters = 30
 results = []
+mean_eval_rewards = np.zeros((num_stages, iters//10))
+std_eval_rewards = np.zeros((num_stages, iters//10))
+eval_num = 0
+eval_episode = []
 for i in range(iters):
     res = agent.train()
     results.append(res)
@@ -125,6 +130,29 @@ for i in range(iters):
         #chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
         print('\rIter: {}\tReward: {:.2f}'.format(
             i + 1, res['episode_reward_mean']), end='')
+
+    if (i + 1) % 10 == 0:
+        eval_episode.append(res['episodes_total'])
+        for j in range(30):
+            np.random.seed(seed=j)
+            demand = test_env.dist.rvs(size=test_env.num_periods, **test_env.dist_param)
+            obs = test_env.reset(customer_demand=demand)
+            reward_array = np.zeros((num_stages, 30))
+            done = False
+            while not done:
+                action = {}
+                for m in range(num_stages):
+                    stage_policy = agent_ids[m]
+                    action[stage_policy] = np.round(agent.compute_action(obs[stage_policy], policy_id=stage_policy), 0).astype(int)
+                obs, r, dones, info = test_env.step(action)
+                done = dones['__all__']
+                for m in range(num_stages):
+                    reward_array[m, j] += r[agent_ids[m]]
+
+        mean_eval_rewards[:, eval_num] = np.mean(reward_array, axis=1)
+        std_eval_rewards[:, eval_num] = np.std(reward_array, axis=1)
+        eval_num += 1
+        np.random.seed(seed=52)
 
 ray.shutdown()
 
@@ -140,7 +168,7 @@ with open(json_config, 'w') as fp:
     json.dump(CONFIG, fp)
 
 #%% Reward Plots
-p = 200
+p = 100
 # Unpack values from each iteration
 rewards = np.hstack([i['hist_stats']['episode_reward']
                      for i in results])
@@ -175,6 +203,7 @@ ax.fill_between(np.arange(len(mean_rewards)),
                  mean_rewards + std_rewards,
                  label='Standard Deviation', alpha=0.3)
 ax.plot(mean_rewards, label='Mean Rewards')
+ax.plot(eval_episode, np.sum(mean_eval_rewards, axis=0))
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
 ax.set_title('Aggregate Training Rewards')
@@ -190,6 +219,10 @@ fig, ax = plt.subplots()
 for i in range(num_agents):
     policy_agent = agent_ids[i]
     ax.plot(policy_mean_rewards[policy_agent], colours[i], label=agent_ids[i])
+    ax.fill_between(np.arange(len(policy_mean_rewards[policy_agent])),
+                    policy_mean_rewards[policy_agent] - policy_std_rewards[policy_agent],
+                    policy_mean_rewards[policy_agent] + policy_std_rewards[policy_agent])
+    ax.plot(eval_episode, mean_eval_rewards[i, :])
     ax.set_title('Learning Curve (Rewards)')
     ax.set_xlabel('Episode')
     ax.set_ylabel('Rewards')
@@ -197,7 +230,6 @@ for i in range(num_agents):
 
 rewards_name_policy = save_path + '/training_rewards_policy.png'
 plt.savefig(rewards_name, dpi=200)
-plt.show()
 plt.show()
 
 
@@ -273,20 +305,20 @@ for i in range(num_stages):
     axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
 
-    axs[i + num_stages].plot(dict_info[stage_policy]['actual order'], label='Replenishment order')
-    axs[i + num_stages].plot(np.arange(1, num_periods + 1), dict_info[stage_policy]['acquisition'], label='Acquisition')
+    axs[i + num_stages].plot(dict_info[stage_policy]['actual order'], label='Replenishment order', color='k')
+    axs[i + num_stages].plot(np.arange(0, num_periods), dict_info[stage_policy]['acquisition'], label='Acquisition')
     axs[i + num_stages].legend()
     axs[i + num_stages].set_ylabel('Products')
     axs[i + num_stages].set_xlim(0, num_periods)
 
-    axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['demand'], label='demand')
-    axs[i + num_stages * 2].plot(np.arange(1, num_periods+1), dict_info[stage_policy]['ship'], label='shipment')
+    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[stage_policy]['demand'], label='demand')
+    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[stage_policy]['ship'], label='shipment')
 
     axs[i + num_stages * 2].legend()
     axs[i + num_stages * 2].set_ylabel('Products')
     axs[i + num_stages * 2].set_xlim(0, num_periods)
 
-    axs[i + num_stages * 3].plot(np.arange(1, num_periods+1), dict_rewards[stage_policy], label='periodic profit')
+    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), dict_rewards[stage_policy], label='periodic profit')
     axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), np.cumsum(dict_rewards[stage_policy]), label='cumulative profit')
     axs[i + num_stages * 3].plot([0, num_periods], [0, 0], color='k')
     axs[i + num_stages * 3].legend()

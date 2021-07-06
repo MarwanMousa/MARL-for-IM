@@ -20,16 +20,17 @@ def env_creator(configuration):
 
 # Environment Configuration
 num_stages = 3
-num_periods = 50
+num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
 lower_upper = (1, 5)
-init_inv = np.ones(num_stages)*20
+init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
-inv_max = np.ones(num_stages) * 100
-price = np.array([2.5, 2, 1.5, 1])
-stock_cost = np.array([0.25, 0.25, 0.25])
-backlog_cost = np.array([0.2, 0.2, 0.2])
+inv_max = np.ones(num_stages) * 30
+price = np.array([4, 3, 2, 1])
+stock_cost = np.array([0.4, 0.4, 0.4])
+backlog_cost = np.array([0.55, 0.5, 0.45])
+delay = np.array([0, 0, 0], dtype=np.int8)
 
 demand_distribution = "poisson"
 
@@ -57,6 +58,7 @@ env_config = {
     "inv_target": inv_target,
     "inv_max": inv_max,
     "seed": 52,
+    "delay": delay,
     parameter: parameter_value
 }
 CONFIG = env_config.copy()
@@ -67,9 +69,9 @@ test_env = InvManagement(env_config)
 # Algorithm used
 algorithm = 'ppo'
 # Training Set-up
-ray.init(ignore_reinit_error=True, local_mode=True)
-rl_config = get_config(algorithm)
-rl_config["num_workers"] = 1
+ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=1)
+rl_config = get_config(algorithm, num_periods)
+rl_config["num_workers"] = 0
 rl_config["batch_mode"] = "complete_episodes"
 rl_config["normalize_actions"] = False
 rl_config["env_config"] = CONFIG
@@ -89,7 +91,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training
 
 # Training
-iters = 600
+iters = 800
 results = []
 mean_eval_rewards = []
 std_eval_rewards = []
@@ -100,11 +102,11 @@ for i in range(iters):
     if (i + 1) % 1 == 0:
         print('\rIter: {}\tReward: {:.2f}'.format(
             i + 1, res['episode_reward_mean']), end='')
-    if (i + 1) % 5 == 0:
+    if (i + 1) % 10 == 0:
         eval_episode.append(res['episodes_total'])
         list_eval_rewards = []
-        for i in range(20):
-            np.random.seed(seed=i)
+        for j in range(30):
+            np.random.seed(seed=j)
             demand = test_env.dist.rvs(size=test_env.num_periods, **test_env.dist_param)
             s = test_env.reset(customer_demand=demand)
             reward = 0
@@ -116,6 +118,7 @@ for i in range(iters):
             list_eval_rewards.append(reward)
         mean_eval_rewards.append(np.mean(list_eval_rewards))
         std_eval_rewards.append(np.std(list_eval_rewards))
+        np.random.seed(seed=52)
 
     # chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
 
@@ -206,9 +209,10 @@ plt.show()
 # run until episode ends
 episode_reward = 0
 done = False
-array_obs = np.zeros((num_stages, 3, num_periods + 1))
+array_obs = np.zeros((num_stages, 4, num_periods + 1))
 array_actions = np.zeros((num_stages, num_periods))
 array_profit = np.zeros((num_stages, num_periods))
+array_profit_sum = np.zeros(num_periods)
 array_demand = np.zeros((num_stages, num_periods))
 array_ship = np.zeros((num_stages, num_periods))
 array_acquisition = np.zeros((num_stages, num_periods))
@@ -228,6 +232,7 @@ while not done:
     array_actions[:, period] = action
     array_rewards[period] = reward
     array_profit[:, period] = info['profit']
+    array_profit_sum[period] = np.sum(info['profit'])
     array_demand[:, period] = info['demand']
     array_ship[:, period] = info['ship']
     array_acquisition[:, period] = info['acquisition']
@@ -251,14 +256,14 @@ for i in range(num_stages):
     axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
 
-    axs[i+num_stages].plot(np.arange(1, num_periods+1), array_acquisition[i, :], label='Acquisition')
+    axs[i+num_stages].plot(np.arange(0, num_periods), array_acquisition[i, :], label='Acquisition')
     axs[i+num_stages].plot(np.arange(0, num_periods), array_actions[i, :], label='Replenishment Order', color='k')
     axs[i+num_stages].legend()
     axs[i+num_stages].set_ylabel('Products')
     axs[i+num_stages].set_xlim(0, num_periods)
 
-    axs[i+num_stages*2].plot(np.arange(1, num_periods+1), array_demand[i, :], label='demand')
-    axs[i+num_stages*2].plot(np.arange(1, num_periods+1), array_ship[i, :], label='shipment')
+    axs[i+num_stages*2].plot(np.arange(0, num_periods), array_demand[i, :], label='demand')
+    axs[i+num_stages*2].plot(np.arange(0, num_periods), array_ship[i, :], label='shipment')
     axs[i+num_stages*2].legend()
     axs[i+num_stages*2].set_ylabel('Products')
     axs[i+num_stages*2].set_xlim(0, num_periods)
@@ -277,8 +282,10 @@ plt.show()
 
 # Rewards plots
 fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-ax.plot(np.arange(1, num_periods+1), array_rewards, label='periodic profit')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(array_rewards), label='cumulative profit')
+ax.plot(np.arange(1, num_periods+1), array_rewards, label='periodic reward')
+ax.plot(np.arange(1, num_periods+1), np.cumsum(array_rewards), label='cumulative reward')
+ax.plot(np.arange(1, num_periods+1), array_profit_sum, label='periodic profit')
+ax.plot(np.arange(1, num_periods+1), np.cumsum(array_profit_sum), label='cumulative profit')
 ax.plot([0, num_periods], [0, 0], color='k')
 ax.set_title('Aggregate Rewards')
 ax.set_xlabel('Period')
@@ -296,9 +303,10 @@ plt.show()
 dfo_episode_reward = 0
 
 obs = test_env.reset()
-dfo_array_obs = np.zeros((num_stages, 3, num_periods + 1))
+dfo_array_obs = np.zeros((num_stages, 4, num_periods + 1))
 dfo_array_actions = np.zeros((num_stages, num_periods))
 dfo_array_profit = np.zeros((num_stages, num_periods))
+dfo_array_profit_sum = np.zeros(num_periods)
 dfo_array_demand = np.zeros((num_stages, num_periods))
 dfo_array_ship = np.zeros((num_stages, num_periods))
 dfo_array_acquisition = np.zeros((num_stages, num_periods))
@@ -315,6 +323,7 @@ while not done:
     dfo_array_actions[:, period] = dfo_action
     dfo_array_rewards[period] = dfo_reward
     dfo_array_profit[:, period] = dfo_info['profit']
+    dfo_array_profit_sum[period] = np.sum(dfo_info['profit'])
     dfo_array_demand[:, period] = dfo_info['demand']
     dfo_array_ship[:, period] = dfo_info['ship']
     dfo_array_acquisition[:, period] = dfo_info['acquisition']
@@ -339,20 +348,20 @@ for i in range(num_stages):
     axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
 
-    axs[i+num_stages].plot(np.arange(1, num_periods+1), dfo_array_acquisition[i, :], label='Acquisition')
+    axs[i+num_stages].plot(np.arange(0, num_periods), dfo_array_acquisition[i, :], label='Acquisition')
     axs[i+num_stages].plot(np.arange(0, num_periods), dfo_array_actions[i, :], label='Replenishment Order', color='k')
     axs[i+num_stages].legend()
     axs[i+num_stages].set_ylabel('Products')
     axs[i+num_stages].set_xlim(0, num_periods)
 
-    axs[i+num_stages*2].plot(np.arange(1, num_periods+1), dfo_array_demand[i, :], label='demand')
-    axs[i+num_stages*2].plot(np.arange(1, num_periods+1), dfo_array_ship[i, :], label='shipment')
+    axs[i+num_stages*2].plot(np.arange(0, num_periods), dfo_array_demand[i, :], label='demand')
+    axs[i+num_stages*2].plot(np.arange(0, num_periods), dfo_array_ship[i, :], label='shipment')
     axs[i+num_stages*2].legend()
     axs[i+num_stages*2].set_ylabel('Products')
     axs[i+num_stages*2].set_xlim(0, num_periods)
 
     axs[i+num_stages*3].plot(np.arange(1, num_periods+1), dfo_array_profit[i, :], label='periodic profit')
-    axs[i+num_stages*3].plot(np.arange(1, num_periods + 1), np.cumsum(dfo_array_profit[i, :]), label='cumulative profit')
+    axs[i+num_stages*3].plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_profit[i, :]), label='cumulative profit')
     axs[i+num_stages*3].plot([0, num_periods], [0, 0], color='k')
     axs[i+num_stages*3].set_xlabel('Period')
     axs[i+num_stages*3].set_ylabel('Profit')
@@ -363,8 +372,10 @@ plt.show()
 
 # Rewards plots
 fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-ax.plot(np.arange(1, num_periods+1), dfo_array_rewards, label='periodic profit')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_rewards), label='cumulative profit')
+ax.plot(np.arange(1, num_periods+1), dfo_array_rewards, label='periodic reward')
+ax.plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_rewards), label='cumulative reward')
+ax.plot(np.arange(1, num_periods+1), dfo_array_profit_sum, label='periodic profit')
+ax.plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_profit_sum), label='cumulative profit')
 ax.plot([0, num_periods], [0, 0], color='k')
 ax.set_title('Aggregate Rewards DFO')
 ax.set_xlabel('Period')

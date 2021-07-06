@@ -29,7 +29,7 @@ class InvManagement(gym.Env):
 
         # Custom customer demand
         if self.demand_dist == "custom":
-            self.customer_demand_init = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int8) * 5)
+            self.customer_demand_init = config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int16) * 5)
         # Poisson distribution
         elif self.demand_dist == "poisson":
             mu = config.pop("mu", 5)
@@ -50,7 +50,7 @@ class InvManagement(gym.Env):
             raise Exception('Unrecognised, Distribution Not Implemented')
 
         # Capacity
-        self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int8) * 100)
+        self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int16) * 100)
         order_max = np.zeros(self.num_stages)
         for i in range(self.num_stages - 1):
             order_max[i] = self.inv_max[i + 1]
@@ -61,21 +61,21 @@ class InvManagement(gym.Env):
         self.done = set()
 
         self.action_space = gym.spaces.Box(
-            low=np.int8(np.zeros(self.num_stages)),
-            high=np.int8(self.inv_max),
-            dtype=np.int16,
+            low=np.int32(np.zeros(self.num_stages)),
+            high=np.int32(self.inv_max),
+            dtype=np.int32,
             shape=(self.num_stages,)
         )
 
         # observation space (Inventory position at each echelon, which is any integer value)
         self.observation_space = gym.spaces.Box(
-            low=-np.zeros((self.num_stages, 3)),
+            low=-np.zeros((self.num_stages, 4)),
             high=np.tile(
-                np.array([inv_max_obs, np.inf, inv_max_obs]),
+                np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
                 (self.num_stages, 1)
             ),
             dtype=np.float,
-            shape=(self.num_stages, 3)
+            shape=(self.num_stages, 4)
         )
 
         self.state = np.zeros((self.num_stages, 3))
@@ -111,7 +111,7 @@ class InvManagement(gym.Env):
         self.ship = np.zeros([periods, num_stages])  # units sold
         self.acquisition = np.zeros([periods, num_stages])
         self.backlog = np.zeros([periods + 1, num_stages])  # backlog
-        self.demand = np.zeros([periods, num_stages])
+        self.demand = np.zeros([periods + 1, num_stages])
 
         # initialization
         self.period = 0  # initialize time
@@ -124,16 +124,13 @@ class InvManagement(gym.Env):
         return self.state
 
     def _update_state(self):
-        # Dictionary containing observation of each agent
-        obs = np.zeros((self.num_stages, 3))
-
         t = self.period
         m = self.num_stages
-
-        for i in range(m):
-            obs[i, 0] = self.inv[t, i]
-            obs[i, 1] = self.backlog[t, i]
-            obs[i, 2] = self.order_u[t, i]
+        demand = np.zeros(m)
+        demand[0] = self.demand[t, 0]
+        if t >= 1:
+            demand[1:m] = self.demand[t - 1, 1:m]
+        obs = np.stack((self.inv[t, :], self.backlog[t, :], self.order_u[t, :], demand), axis=1)
 
         self.state = obs.copy()
 
@@ -149,10 +146,6 @@ class InvManagement(gym.Env):
         # Get replenishment order at each stage
 
         self.order_r[t, :] = np.round(np.minimum(np.squeeze(action), self.order_max), 0).astype(int)
-
-        for i in range(m):
-            if self.order_r[t, i] + self.order_u[t, i] > self.inv_max[i]:
-                self.order_r[t, i] = self.inv_max[i] - self.order_u[t, i]
 
 
         # Demand of goods at each stage
@@ -186,37 +179,39 @@ class InvManagement(gym.Env):
                 np.zeros(self.num_stages)),
             self.inv_max)
 
-        # Update period
-        self.period += 1
-        # Update state
-        self._update_state()
-
         # Calculate rewards
         rewards, profit = self.get_rewards()
-
-        # determine if simulation should terminate
-        done = self.period >= self.num_periods
 
         info = {}
         info['period'] = self.period
         info['demand'] = self.demand[t, :]
         info['ship'] = self.ship[t, :]
         info['acquisition'] = self.acquisition[t, :]
-        info['actual order'] = self.order_r[t, i]
         info['profit'] = profit
+
+        # Update period
+        self.period += 1
+        # Update state
+        self._update_state()
+
+        # determine if simulation should terminate
+        done = self.period >= self.num_periods
 
         return self.state, rewards, done, info
 
     def get_rewards(self):
         m = self.num_stages
         t = self.period
-        profit = self.price[0:m] * self.ship[t - 1, :] - self.price[1:m+1] * self.order_r[t - 1, :] \
-            - self.stock_cost * np.abs(self.inv[t, :] - self.inv_target)\
-                 - self.backlog_cost * self.backlog[t, :]
+        profit = self.price[0:m] * self.ship[t, :] - self.price[1:m+1] * self.order_r[t, :] \
+            - self.stock_cost * np.abs(self.inv[t + 1, :] - self.inv_target)\
+            - self.backlog_cost * self.backlog[t + 1, :]
 
-        reward = np.sum(profit)
+        reward = - self.stock_cost * np.abs(self.inv[t + 1, :] - self.inv_target) \
+                 - self.backlog_cost * self.backlog[t + 1, :]
 
-        return reward, profit
+        reward_sum = np.sum(profit)
+
+        return reward_sum, profit
 
     def update_acquisition(self):
         """
