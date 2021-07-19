@@ -68,6 +68,7 @@ def get_config(algorithm, num_periods):
         config["lambda"] = 1
         config["kl_coeff"] = 0.2
         config["train_batch_size"] = num_periods*100
+        config["num_sgd_iter"] = 30
 
     elif algorithm == 'a3c':
         config = agents.a3c.DEFAULT_CONFIG.copy()

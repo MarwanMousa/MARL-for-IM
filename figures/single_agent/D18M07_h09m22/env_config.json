@@ -1,0 +1,1 @@
+{"num_stages": 2, "num_periods": 30, "init_inv": [10.0, 10.0], "price": [3, 2, 1], "stock_cost": [0.4, 0.4], "backlog_cost": [0.55, 0.45], "demand_dist": "poisson", "inv_target": [0.0, 0.0], "inv_max": [30.0, 30.0], "seed": 52, "delay": [1, 1], "mu": 5, "standardise_state": true, "standardise_actions": true, "a": -1, "b": 1}
