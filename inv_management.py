@@ -22,7 +22,7 @@ def env_creator(configuration):
     return env
 
 # Environment Configuration
-num_stages = 2
+num_stages = 3
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -30,15 +30,16 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([3, 2, 1])
-stock_cost = np.array([0.4, 0.4])
-backlog_cost = np.array([0.6, 0.6])
-delay = np.array([2, 3], dtype=np.int8)
+price = np.array([4, 3, 2, 1])
+stock_cost = np.array([0.4, 0.4, 0.4])
+backlog_cost = np.array([0.6, 0.6, 0.6])
+delay = np.array([1, 1, 1], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
+use_lstm = False
 
 demand_distribution = "poisson"
 
@@ -119,12 +120,17 @@ rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = SEED
 rl_config["env"] = "InventoryManagement"
+rl_config["model"]["use_lstm"] = use_lstm
+rl_config["model"]["max_seq_len"] = num_periods
+rl_config["model"]["lstm_cell_size"] = 64
+rl_config["model"]["lstm_use_prev_action"] = True
+rl_config["model"]["lstm_use_prev_reward"] = True
 
 agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training
 
 # Training
-iters = 200  # Number of training iterations
+iters = 100  # Number of training iterations
 validation_interval = 10  # Run validation after how many training iterations
 num_validation = 100  # How many validation runs i.e. different realisation of demand
 # Create validation demand
@@ -146,14 +152,21 @@ for i in range(iters):
         list_eval_rewards = []
         for j in range(num_validation):
             demand = valid_demand[j, :]
-            s = test_env.reset(customer_demand=demand)
-            reward = 0
+            obs = test_env.reset(customer_demand=demand)
+            episode_reward = 0
             done = False
+            if use_lstm:
+                reward = 0
+                action = np.zeros(num_stages)
+                state = agent.get_policy().get_initial_state()
             while not done:
-                a = agent.compute_action(s)
-                s, r, done, _ = test_env.step(a)
-                reward += r
-            list_eval_rewards.append(reward)
+                if use_lstm:
+                    action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+                else:
+                    action = agent.compute_action(obs)
+                obs, reward, done, _ = test_env.step(action)
+                episode_reward += reward
+            list_eval_rewards.append(episode_reward)
         mean_eval_rewards.append(np.mean(list_eval_rewards))
         std_eval_rewards.append(np.std(list_eval_rewards))
 
@@ -246,9 +259,16 @@ np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests + 1, test_env.num_periods), **test_env.dist_param)
 obs = test_env.reset(customer_demand=test_demand[0, :])
 array_obs[:, :, 0] = obs
+if use_lstm:
+    reward = 0
+    action = np.zeros(num_stages)
+    state = agent.get_policy().get_initial_state()
 
 while not done:
-    action = agent.compute_action(obs)
+    if use_lstm:
+        action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+    else:
+        action = agent.compute_action(obs)
     obs, reward, done, info = test_env.step(action)
     array_obs[:, :, period + 1] = obs
     if standardise_actions:
@@ -434,16 +454,23 @@ list_test_rewards = []
 stage_rewards = np.zeros((num_stages, num_tests))
 for i in range(num_tests):
     demand = test_demand[i + 1, :]
-    s = test_env.reset(customer_demand=demand)
-    reward = 0
+    obs = test_env.reset(customer_demand=demand)
+    episode_reward = 0
     done = False
+    if use_lstm:
+        reward = 0
+        action = np.zeros(num_stages)
+        state = agent.get_policy().get_initial_state()
     while not done:
-        a = agent.compute_action(s)
-        s, r, done, info = test_env.step(a)
+        if use_lstm:
+            action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+        else:
+            action = agent.compute_action(obs)
+        obs, reward, done, info = test_env.step(action)
         for m in range(num_stages):
             stage_rewards[m, i] += info["profit"][m]
-        reward += r
-    list_test_rewards.append(reward)
+        episode_reward += reward
+    list_test_rewards.append(episode_reward)
 
 test_reward_mean = np.mean(list_test_rewards)
 test_reward_std = np.std(list_test_rewards)

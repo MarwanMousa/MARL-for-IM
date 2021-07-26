@@ -67,13 +67,13 @@ class CentralizedCriticModel(TorchModelV2, nn.Module):
         TorchModelV2.__init__(self, obs_space, action_space, num_outputs,
                               model_config, name)
         nn.Module.__init__(self)
-
+        #print(obs_space)
         self.action_model = TorchFC(
             Box(
-                low=-np.zeros(4),
-                high=np.array([30, np.inf, 30, 30]),
+                low=-np.ones(4),
+                high=np.ones(4),
                 dtype=np.float,
-                shape=(4,)),  # one-hot encoded Discrete(6)
+                shape=(4,)),
             action_space,
             num_outputs,
             model_config,
@@ -91,6 +91,7 @@ class CentralizedCriticModel(TorchModelV2, nn.Module):
         }, state, seq_lens)
 
     def value_function(self):
+        print(self._model_in[0])
         value_out, _ = self.value_model({
             "obs": self._model_in[0]
         }, self._model_in[1], self._model_in[2])
@@ -104,44 +105,50 @@ class FillInActions(DefaultCallbacks):
                                   policies, postprocessed_batch,
                                   original_batches, **kwargs):
         to_update = postprocessed_batch[SampleBatch.CUR_OBS]
-        other_id = 'stage_1' if agent_id == 'stage_0' else 'stage_0'
         action_encoder = ModelCatalog.get_preprocessor_for_space(
             Box(
-                low=-np.inf,
-                high=np.inf,
+                low=-1,
+                high=1,
                 dtype=np.float32,
                 shape=(1,)
             )
         )
+        agents = [*original_batches]
+        agents.remove(agent_id)
+        num_agents = len(agents)
+        for i in range(num_agents):
+            other_id = agents[i]
 
-        # set the opponent actions into the observation
-        _, opponent_batch = original_batches[other_id]
-        #print(opponent_batch[SampleBatch.ACTIONS])
-        #for a in opponent_batch[SampleBatch.ACTIONS]:
-            #print('Look here')
-            #print(action_encoder.transform(a))
-        opponent_actions = np.array([
-            action_encoder.transform(a)
-            for a in opponent_batch[SampleBatch.ACTIONS]
-        ])
-        to_update[:, -2:] = opponent_actions
+            # set the opponent actions into the observation
+            _, opponent_batch = original_batches[other_id]
+            opponent_actions = np.array([
+                action_encoder.transform(np.clip(a, -1, 1))
+                for a in opponent_batch[SampleBatch.ACTIONS]
+            ])
+            to_update[:, -num_agents + i] = np.squeeze(opponent_actions)  # <--------------------------
 
 
 def central_critic_observer(agent_obs, **kw):
     """Rewrites the agent obs to include opponent data for training."""
+    agents = [*agent_obs]
+    print(agents)
+    num_agents = len(agents)
+    obs_space = len(agent_obs[agents[0]])
 
-    new_obs = {
-        "stage_0": {
-            "own_obs": agent_obs["stage_0"],
-            "opponent_obs": agent_obs["stage_1"],
-            "opponent_action": np.zeros(1, dtype=np.int32),  # filled in by FillInActions
-        },
-        "stage_1": {
-            "own_obs": agent_obs["stage_1"],
-            "opponent_obs": agent_obs["stage_0"],
-            "opponent_action": np.zeros(1, dtype=np.int32),  # filled in by FillInActions
-        },
-    }
+    new_obs = dict()
+    for agent in agents:
+        new_obs[agent] = dict()
+        new_obs[agent]["opponent_obs"] = np.zeros((num_agents - 1)*obs_space)
+        new_obs[agent]["opponent_action"] = np.zeros((num_agents - 1))
+        i = 0
+        for other_agent in agents:
+            if agent == other_agent:
+                new_obs[agent]["own_obs"] = agent_obs[agent]
+            elif agent != other_agent:
+                new_obs[agent]["opponent_obs"][i*obs_space:i*obs_space + obs_space] = agent_obs[other_agent]
+                i += 1
+    print('new_obs')
+    print(new_obs)
     return new_obs
 
 

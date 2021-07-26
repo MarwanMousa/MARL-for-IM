@@ -21,7 +21,7 @@ def env_creator(configuration):
 
 
 # Environment Configuration
-num_stages = 2
+num_stages = 3
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -29,16 +29,17 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([3, 2, 1])
-stock_cost = np.array([0.4, 0.4])
-backlog_cost = np.array([0.6, 0.6])
-delay = np.array([2, 3], dtype=np.int8)
-independent = True
+price = np.array([4, 3, 2, 1])
+stock_cost = np.array([0.4, 0.4, 0.4])
+backlog_cost = np.array([0.6, 0.6, 0.6])
+delay = np.array([1, 1, 1], dtype=np.int8)
+independent = False
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
+time_dependency = False
+use_lstm = False
 
 demand_distribution = "poisson"
 
@@ -121,13 +122,18 @@ rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
+rl_config["model"]["use_lstm"] = use_lstm
+rl_config["model"]["max_seq_len"] = num_periods
+rl_config["model"]["lstm_use_prev_action"] = False
+rl_config["model"]["lstm_use_prev_reward"] = False
+
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 
 #%% Training
 
 # Training
-iters = 200
+iters = 100
 validation_interval = 10
 num_validation = 100
 results = []
@@ -151,15 +157,32 @@ for i in range(iters):
             demand = valid_demand[j]
             obs = test_env.reset(customer_demand=demand)
             done = False
-            while not done:
+            if use_lstm:
+                reward = {}
                 action = {}
+                state = {}
                 for m in range(num_stages):
-                    stage_policy = agent_ids[m]
-                    action[stage_policy] = agent.compute_action(obs[stage_policy], policy_id=stage_policy)
-                obs, r, dones, info = test_env.step(action)
+                    sp = agent_ids[m]
+                    reward[sp] = 0
+                    action[sp] = 0
+                    state[sp] = agent.get_policy(sp).get_initial_state()
+            while not done:
+                if use_lstm:
+                    for m in range(num_stages):
+                        sp = agent_ids[m]
+                        action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp],
+                                                                        prev_action=action[sp], prev_reward=reward[sp],
+                                                                        policy_id=sp)
+                else:
+                    action = {}
+                    for m in range(num_stages):
+                        sp = agent_ids[m]
+                        action[sp] = agent.compute_action(obs[sp], policy_id=sp)
+
+                obs, reward, dones, info = test_env.step(action)
                 done = dones['__all__']
                 for m in range(num_stages):
-                    reward_array[m, j] += r[agent_ids[m]]
+                    reward_array[m, j] += reward[agent_ids[m]]
 
         mean_eval_rewards[:, eval_num] = np.mean(reward_array, axis=1)
         std_eval_rewards[:, eval_num] = np.std(reward_array, axis=1)
@@ -267,82 +290,94 @@ period = 0
 
 # Dict initialisation
 for i in range(num_stages):
-    stage_policy = agent_ids[i]
-    dict_obs[stage_policy] = {}
-    dict_info[stage_policy] = {}
-    dict_obs[stage_policy]['inventory'] = np.zeros(num_periods + 1)
-    dict_obs[stage_policy]['backlog'] = np.zeros(num_periods + 1)
-    dict_obs[stage_policy]['order_u'] = np.zeros(num_periods + 1)
-    dict_obs[stage_policy]['time_dependent_s'] = np.zeros((num_periods + 1, test_env.max_delay))
-    dict_info[stage_policy]['demand'] = np.zeros(num_periods)
-    dict_info[stage_policy]['ship'] = np.zeros(num_periods)
-    dict_info[stage_policy]['acquisition'] = np.zeros(num_periods)
-    dict_info[stage_policy]['actual order'] = np.zeros(num_periods)
-    dict_info[stage_policy]['profit'] = np.zeros(num_periods)
+    sp = agent_ids[i]
+    dict_obs[sp] = {}
+    dict_info[sp] = {}
+    dict_obs[sp]['inventory'] = np.zeros(num_periods + 1)
+    dict_obs[sp]['backlog'] = np.zeros(num_periods + 1)
+    dict_obs[sp]['order_u'] = np.zeros(num_periods + 1)
+    dict_obs[sp]['time_dependent_s'] = np.zeros((num_periods + 1, test_env.max_delay))
+    dict_info[sp]['demand'] = np.zeros(num_periods)
+    dict_info[sp]['ship'] = np.zeros(num_periods)
+    dict_info[sp]['acquisition'] = np.zeros(num_periods)
+    dict_info[sp]['actual order'] = np.zeros(num_periods)
+    dict_info[sp]['profit'] = np.zeros(num_periods)
     if standardise_state:
-        dict_obs[stage_policy]['inventory'][0] = test_env.rev_scale(obs[stage_policy][0], 0, test_env.inv_max[i],
-                                                                    test_env.a, test_env.b)
-        dict_obs[stage_policy]['backlog'][0] = test_env.rev_scale(obs[stage_policy][1], 0, test_env.inv_max[i],
-                                                                  test_env.a, test_env.b)
-        dict_obs[stage_policy]['order_u'][0] = test_env.rev_scale(obs[stage_policy][2], 0, test_env.order_max[i],
-                                                                  test_env.a, test_env.b)
+        dict_obs[sp]['inventory'][0] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i], test_env.a, test_env.b)
+        dict_obs[sp]['backlog'][0] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i], test_env.a, test_env.b)
+        dict_obs[sp]['order_u'][0] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i], test_env.a, test_env.b)
         if time_dependency:
-            dict_obs[stage_policy]['time_dependent_s'][0] = test_env.rev_scale(obs[stage_policy][4:4 + test_env.max_delay],
+            dict_obs[sp]['time_dependent_s'][0] = test_env.rev_scale(obs[sp][4:4 + test_env.max_delay],
                                                                                np.zeros(test_env.max_delay),
                                                                                np.ones(test_env.max_delay)*test_env.inv_max[i],
                                                                                test_env.a, test_env.b)
     else:
-        dict_obs[stage_policy]['inventory'][0] = obs[stage_policy][0]
-        dict_obs[stage_policy]['backlog'][0] = obs[stage_policy][1]
-        dict_obs[stage_policy]['order_u'][0] = obs[stage_policy][2]
+        dict_obs[sp]['inventory'][0] = obs[sp][0]
+        dict_obs[sp]['backlog'][0] = obs[sp][1]
+        dict_obs[sp]['order_u'][0] = obs[sp][2]
         if time_dependency:
-            dict_obs[stage_policy]['time_dependent_s'][0] = obs[stage_policy][4:4 + test_env.max_delay]
-    dict_actions[stage_policy] = np.zeros(num_periods)
-    dict_rewards[stage_policy] = np.zeros(num_periods)
+            dict_obs[sp]['time_dependent_s'][0] = obs[sp][4:4 + test_env.max_delay]
+    dict_actions[sp] = np.zeros(num_periods)
+    dict_rewards[sp] = np.zeros(num_periods)
     dict_rewards['Total'] = np.zeros(num_periods)
 
-while not done:
+if use_lstm:
+    reward = {}
     action = {}
-    for i in range(num_stages):
-        stage_policy = agent_ids[i]
-        action[stage_policy] = agent.compute_action(obs[stage_policy], policy_id=stage_policy)
+    state = {}
+    for m in range(num_stages):
+        sp = agent_ids[m]
+        reward[sp] = 0
+        action[sp] = 0
+        state[sp] = agent.get_policy(sp).get_initial_state()
+while not done:
+    if use_lstm:
+        for i in range(num_stages):
+            sp = agent_ids[i]
+            action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp], prev_action=action[sp],
+                                                            prev_reward=reward[sp], policy_id=sp)
+    else:
+        action = {}
+        for i in range(num_stages):
+            sp = agent_ids[i]
+            action[sp] = agent.compute_action(obs[sp], policy_id=sp)
     obs, reward, dones, info = test_env.step(action)
     done = dones['__all__']
     for i in range(num_stages):
-        stage_policy = agent_ids[i]
-        episode_reward += reward[stage_policy]
+        sp = agent_ids[i]
+        episode_reward += reward[sp]
         if standardise_state:
-            dict_obs[stage_policy]['inventory'][period + 1] = test_env.rev_scale(obs[stage_policy][0], 0,
-                                                                             test_env.inv_max[i], test_env.a, test_env.b)
-            dict_obs[stage_policy]['backlog'][period + 1] = test_env.rev_scale(obs[stage_policy][1], 0,
-                                                                           test_env.inv_max[i], test_env.a, test_env.b)
-            dict_obs[stage_policy]['order_u'][period + 1] = test_env.rev_scale(obs[stage_policy][2], 0,
-                                                                           test_env.order_max[i], test_env.a, test_env.b)
+            dict_obs[sp]['inventory'][period + 1] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i],
+                                                                       test_env.a, test_env.b)
+            dict_obs[sp]['backlog'][period + 1] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i],
+                                                                     test_env.a, test_env.b)
+            dict_obs[sp]['order_u'][period + 1] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i],
+                                                                     test_env.a, test_env.b)
             if time_dependency:
-                dict_obs[stage_policy]['time_dependent_s'][period + 1] = test_env.rev_scale(
-                    obs[stage_policy][4:4 + test_env.max_delay],
+                dict_obs[sp]['time_dependent_s'][period + 1] = test_env.rev_scale(
+                    obs[sp][4:4 + test_env.max_delay],
                     np.zeros(test_env.max_delay),
                     np.ones(test_env.max_delay) * test_env.inv_max[i],
                     test_env.a, test_env.b)
         else:
-            dict_obs[stage_policy]['inventory'][period + 1] = obs[stage_policy][0]
-            dict_obs[stage_policy]['backlog'][period + 1] = obs[stage_policy][1]
-            dict_obs[stage_policy]['order_u'][period + 1] = obs[stage_policy][2]
+            dict_obs[sp]['inventory'][period + 1] = obs[sp][0]
+            dict_obs[sp]['backlog'][period + 1] = obs[sp][1]
+            dict_obs[sp]['order_u'][period + 1] = obs[sp][2]
             if time_dependency:
-                dict_obs[stage_policy]['time_dependent_s'][period + 1] = obs[stage_policy][4:4 + test_env.max_delay]
-        dict_info[stage_policy]['demand'][period] = info[stage_policy]['demand']
-        dict_info[stage_policy]['ship'][period] = info[stage_policy]['ship']
-        dict_info[stage_policy]['acquisition'][period] = info[stage_policy]['acquisition']
-        dict_info[stage_policy]['actual order'][period] = info[stage_policy]['actual order']
-        dict_info[stage_policy]['profit'][period] = info[stage_policy]['profit']
+                dict_obs[sp]['time_dependent_s'][period + 1] = obs[sp][4:4 + test_env.max_delay]
+        dict_info[sp]['demand'][period] = info[sp]['demand']
+        dict_info[sp]['ship'][period] = info[sp]['ship']
+        dict_info[sp]['acquisition'][period] = info[sp]['acquisition']
+        dict_info[sp]['actual order'][period] = info[sp]['actual order']
+        dict_info[sp]['profit'][period] = info[sp]['profit']
         if standardise_actions:
-            dict_actions[stage_policy][period] = np.round(
-                test_env.rev_scale(action[stage_policy], 0, test_env.order_max[i],
+            dict_actions[sp][period] = np.round(
+                test_env.rev_scale(action[sp], 0, test_env.order_max[i],
                                                                     test_env.a, test_env.b), 0)
         else:
-            dict_actions[stage_policy][period] = np.round(action[stage_policy], 0)
-        dict_rewards[stage_policy][period] = reward[stage_policy]
-        dict_rewards['Total'][period] += reward[stage_policy]
+            dict_actions[sp][period] = np.round(action[sp], 0)
+        dict_rewards[sp][period] = reward[sp]
+        dict_rewards['Total'][period] += reward[sp]
 
     period += 1
 
@@ -353,31 +388,31 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 axs = axs.ravel()
 
 for i in range(num_stages):
-    stage_policy = agent_ids[i]
-    axs[i].plot(dict_obs[stage_policy]['inventory'], label='Inventory')
-    axs[i].plot(dict_obs[stage_policy]['backlog'], label='Backlog')
-    axs[i].plot(dict_obs[stage_policy]['order_u'], label='Unfulfilled orders')
+    sp = agent_ids[i]
+    axs[i].plot(dict_obs[sp]['inventory'], label='Inventory')
+    axs[i].plot(dict_obs[sp]['backlog'], label='Backlog')
+    axs[i].plot(dict_obs[sp]['order_u'], label='Unfulfilled orders')
     axs[i].plot([0, 0], [inv_target[i], inv_target[i]], label='Target Inventory', color='r')
     axs[i].legend()
-    axs[i].set_title(stage_policy)
+    axs[i].set_title(sp)
     axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
 
-    axs[i + num_stages].plot(dict_info[stage_policy]['actual order'], label='Replenishment order', color='k')
-    axs[i + num_stages].plot(np.arange(0, num_periods), dict_info[stage_policy]['acquisition'], label='Acquisition')
+    axs[i + num_stages].plot(dict_info[sp]['actual order'], label='Replenishment order', color='k')
+    axs[i + num_stages].plot(np.arange(0, num_periods), dict_info[sp]['acquisition'], label='Acquisition')
     axs[i + num_stages].legend()
     axs[i + num_stages].set_ylabel('Products')
     axs[i + num_stages].set_xlim(0, num_periods)
 
-    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[stage_policy]['demand'], label='demand')
-    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[stage_policy]['ship'], label='shipment')
+    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[sp]['demand'], label='demand')
+    axs[i + num_stages * 2].plot(np.arange(0, num_periods), dict_info[sp]['ship'], label='shipment')
 
     axs[i + num_stages * 2].legend()
     axs[i + num_stages * 2].set_ylabel('Products')
     axs[i + num_stages * 2].set_xlim(0, num_periods)
 
-    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), dict_info[stage_policy]['profit'], label='periodic profit')
-    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), np.cumsum(dict_info[stage_policy]['profit']), label='cumulative profit')
+    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), dict_info[sp]['profit'], label='periodic profit')
+    axs[i + num_stages * 3].plot(np.arange(1, num_periods + 1), np.cumsum(dict_info[sp]['profit']), label='cumulative profit')
     axs[i + num_stages * 3].plot([0, num_periods], [0, 0], color='k')
     axs[i + num_stages * 3].legend()
     axs[i + num_stages * 3].set_xlabel('Period')
@@ -410,19 +445,34 @@ stage_rewards = np.zeros((num_stages, num_tests))
 for i in range(num_tests):
     demand = test_demand[i + 1, :]
     obs = test_env.reset(customer_demand=demand)
-    reward = 0
+    episode_reward = 0
     done = False
-    while not done:
+    if use_lstm:
+        reward = {}
         action = {}
+        state = {}
         for m in range(num_stages):
-            stage_policy = agent_ids[m]
-            action[stage_policy] = agent.compute_action(obs[stage_policy], policy_id=stage_policy)
-        obs, r, dones, info = test_env.step(action)
+            sp = agent_ids[m]
+            reward[sp] = 0
+            action[sp] = 0
+            state[sp] = agent.get_policy(sp).get_initial_state()
+    while not done:
+        if use_lstm:
+            for m in range(num_stages):
+                sp = agent_ids[m]
+                action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp], prev_action=action[sp],
+                                                                prev_reward=reward[sp], policy_id=sp)
+        else:
+            action = {}
+            for m in range(num_stages):
+                sp = agent_ids[m]
+                action[sp] = agent.compute_action(obs[sp], policy_id=sp)
+        obs, reward, dones, info = test_env.step(action)
         done = dones['__all__']
         for m in range(num_stages):
-            reward += r[agent_ids[m]]
+            episode_reward += reward[agent_ids[m]]
             stage_rewards[m, i] += info[agent_ids[m]]['profit']
-    list_test_rewards.append(reward)
+    list_test_rewards.append(episode_reward)
 
 test_reward_mean = np.mean(list_test_rewards)
 test_reward_std = np.std(list_test_rewards)

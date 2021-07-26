@@ -60,18 +60,39 @@ def get_config(algorithm, num_periods):
         config["model"] = {
             "vf_share_layers": False,
             "fcnet_activation": 'relu',
-            "fcnet_hiddens": [128, 128]
+            "fcnet_hiddens": [64, 64]
         }
-        config['vf_clip_param'] = 10_000
+        # Should use a critic as a baseline (otherwise don't use value baseline; required for using GAE).
         config["use_critic"] = True
+        # If true, use the Generalized Advantage Estimator (GAE)
         config["use_gae"] = True
-        config["lambda"] = 1
+        # The GAE (lambda) parameter.
+        config["lambda"] = 0.95
+        # Initial coefficient for KL divergence.
         config["kl_coeff"] = 0.2
+        # Number of timesteps collected for each SGD round. This defines the size of each SGD epoch.
         config["train_batch_size"] = num_periods*100
+        # Number of SGD iterations in each outer loop (i.e., number of epochs to execute per train batch).
         config["num_sgd_iter"] = 30
-
-    elif algorithm == 'a3c':
-        config = agents.a3c.DEFAULT_CONFIG.copy()
+        # Total SGD batch size across all devices for SGD. This defines the minibatch size within each epoch.
+        config["sgd_minibatch_size"] = 128
+        # Whether to shuffle sequences in the batch when training (recommended).
+        config["shuffle_sequences"] = True
+        # Coefficient of the value function loss. IMPORTANT: you must tune this if you set vf_share_layers=True inside your model's config.
+        config["vf_loss_coeff"] = 1.0
+        # Coefficient of the entropy regularizer.
+        config["entropy_coeff"] = 0.0
+        # Decay schedule for the entropy regularizer.
+        config["entropy_coeff_schedule"] = None
+        # PPO clip parameter.
+        config["clip_param"] = 0.2
+        # Clip param for the value function. Note that this is sensitive to the
+        # scale of the rewards. If your expected V is large, increase this.
+        config["vf_clip_param"] = 10_000.0
+        # If specified, clip the global norm of gradients by this amount.
+        config["grad_clip"] = None
+        # Target value for KL divergence.
+        config["kl_target"] = 0.01
 
     elif algorithm == 'sac':
         config = agents.sac.DEFAULT_CONFIG.copy()
@@ -97,8 +118,6 @@ def get_config(algorithm, num_periods):
         config["train_batch_size"] = int(256)
         config["target_network_update_freq"] = int(10)
 
-    elif algorithm == 'impala':
-        config = agents.impala.DEFAULT_CONFIG.copy()
 
     else:
         raise Exception('Not Implemented')
@@ -119,14 +138,8 @@ def get_trainer(algorithm, rl_config, environment):
     elif algorithm == 'ppo':
         agent = agents.ppo.PPOTrainer(config=rl_config, env=environment)
 
-    elif algorithm == 'a3c':
-        agent = agents.a3c.A3CTrainer(config=rl_config, env=environment)
-
     elif algorithm == 'sac':
         agent = agents.sac.SACTrainer(config=rl_config, env=environment)
-
-    elif algorithm == 'impala':
-        agent = agents.impala.IMPALATrainer(config=rl_config, env=environment)
 
     else:
         raise Exception('Not Implemented')
