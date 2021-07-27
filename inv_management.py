@@ -33,13 +33,13 @@ inv_max = np.ones(num_stages) * 30
 price = np.array([4, 3, 2, 1])
 stock_cost = np.array([0.4, 0.4, 0.4])
 backlog_cost = np.array([0.6, 0.6, 0.6])
-delay = np.array([1, 1, 1], dtype=np.int8)
+delay = np.array([0, 0, 0], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
-use_lstm = False
+use_lstm = True
 
 demand_distribution = "poisson"
 

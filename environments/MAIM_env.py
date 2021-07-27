@@ -60,7 +60,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
             self.action_space = gym.spaces.Box(
                 low=np.ones(1)*self.a,
                 high=np.ones(1)*self.b,
-                dtype=np.float32,
+                dtype=np.float64,
                 shape=(1,)
             )
         else:
@@ -77,14 +77,14 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 self.observation_space = gym.spaces.Box(
                     low=np.ones(4 + self.max_delay, dtype=np.float32)*self.a,
                     high=np.ones(4 + self.max_delay, dtype=np.float32)*self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(4 + self.max_delay,)
                 )
             else:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones(4, dtype=np.float32) * self.a,
                     high=np.ones(4, dtype=np.float32) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(4,)
                 )
         else:
@@ -94,14 +94,14 @@ class MultiAgentInvManagement(MultiAgentEnv):
                     high=np.concatenate((np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
                                          np.ones(self.max_delay)*inv_max_obs
                                          )),
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(4 + self.max_delay,)
                 )
             else:
                 self.observation_space = gym.spaces.Box(
                     low=np.zeros(4),
                     high=np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(4,)
                 )
 

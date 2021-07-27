@@ -21,7 +21,7 @@ def env_creator(configuration):
 
 
 # Environment Configuration
-num_stages = 2
+num_stages = 3
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -29,16 +29,16 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([3, 2, 1])
-stock_cost = np.array([0.4, 0.4])
-backlog_cost = np.array([0.6, 0.6])
-delay = np.array([1, 1], dtype=np.int32)
+price = np.array([4, 3, 2, 1])
+stock_cost = np.array([0.4, 0.4, 0.4])
+backlog_cost = np.array([0.6, 0.6, 0.6])
+delay = np.array([1, 1, 1], dtype=np.int32)
 independent = False
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = False
+time_dependency = True
 use_lstm = False
 
 demand_distribution = "poisson"
@@ -92,9 +92,9 @@ act_space = test_env.action_space
 num_agents = test_env.num_agents
 size = obs_space.shape[0]
 opponent_obs_space = Box(low=np.tile(obs_space.low, num_agents-1), high=np.tile(obs_space.high, num_agents-1),
-                         dtype=np.float32, shape=(obs_space.shape[0]*(num_agents-1),))
+                         dtype=np.float64, shape=(obs_space.shape[0]*(num_agents-1),))
 opponent_act_space = Box(low=np.tile(act_space.low, num_agents-1), high=np.tile(act_space.high, num_agents-1),
-                         dtype=np.float32, shape=(act_space.shape[0]*(num_agents-1),))
+                         dtype=np.float64, shape=(act_space.shape[0]*(num_agents-1),))
 cc_obs_space = Dict({
     "own_obs": obs_space,
     "opponent_obs": opponent_obs_space,
@@ -140,6 +140,8 @@ rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
 rl_config["model"]["custom_model"] = "cc_model"
 rl_config["model"]["vf_share_layers"] = False
+rl_config["model"]["attention_dim"] = 2
+rl_config["model"]["custom_model_config"] = {"state_size": obs_space.shape[0]}
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 

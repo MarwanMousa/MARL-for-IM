@@ -8,48 +8,17 @@ modifies the policy to add a centralized value function.
 """
 
 import numpy as np
-from gym.spaces import Dict, Discrete, Box
-import argparse
-import os
+from gym.spaces import Box
 
-from ray import tune
 from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.examples.env.two_step_game import TwoStepGame
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.utils.test_utils import check_learning_achieved
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.models.torch.fcnet import FullyConnectedNetwork as TorchFC
 
 torch, nn = try_import_torch()
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--framework",
-    choices=["tf", "tf2", "tfe", "torch"],
-    default="tf",
-    help="The DL framework specifier.")
-parser.add_argument(
-    "--as-test",
-    action="store_true",
-    help="Whether this script should be run as a test: --stop-reward must "
-    "be achieved within --stop-timesteps AND --stop-iters.")
-parser.add_argument(
-    "--stop-iters",
-    type=int,
-    default=100,
-    help="Number of iterations to train.")
-parser.add_argument(
-    "--stop-timesteps",
-    type=int,
-    default=100000,
-    help="Number of timesteps to train.")
-parser.add_argument(
-    "--stop-reward",
-    type=float,
-    default=7.99,
-    help="Reward at which we stop training.")
 
 class CentralizedCriticModel(TorchModelV2, nn.Module):
     """Multi-agent model that implements a centralized value function.
@@ -63,17 +32,19 @@ class CentralizedCriticModel(TorchModelV2, nn.Module):
     """
 
     def __init__(self, obs_space, action_space, num_outputs, model_config,
-                 name):
+                 name, **customized_model_kwargs):
         TorchModelV2.__init__(self, obs_space, action_space, num_outputs,
                               model_config, name)
         nn.Module.__init__(self)
-        #print(obs_space)
+
+
+        state_size = customized_model_kwargs["state_size"]
         self.action_model = TorchFC(
             Box(
-                low=-np.ones(4),
-                high=np.ones(4),
-                dtype=np.float,
-                shape=(4,)),
+                low=-np.ones(state_size),
+                high=np.ones(state_size),
+                dtype=np.float64,
+                shape=(state_size,)),
             action_space,
             num_outputs,
             model_config,
@@ -91,7 +62,7 @@ class CentralizedCriticModel(TorchModelV2, nn.Module):
         }, state, seq_lens)
 
     def value_function(self):
-        print(self._model_in[0])
+        #print(self._model_in[0])
         value_out, _ = self.value_model({
             "obs": self._model_in[0]
         }, self._model_in[1], self._model_in[2])
@@ -109,13 +80,16 @@ class FillInActions(DefaultCallbacks):
             Box(
                 low=-1,
                 high=1,
-                dtype=np.float32,
+                dtype=np.float64,
                 shape=(1,)
             )
         )
         agents = [*original_batches]
         agents.remove(agent_id)
         num_agents = len(agents)
+        #print('before updating')
+        #print(to_update[0, :])
+        #print(to_update[1, :])
         for i in range(num_agents):
             other_id = agents[i]
 
@@ -125,77 +99,31 @@ class FillInActions(DefaultCallbacks):
                 action_encoder.transform(np.clip(a, -1, 1))
                 for a in opponent_batch[SampleBatch.ACTIONS]
             ])
-            to_update[:, -num_agents + i] = np.squeeze(opponent_actions)  # <--------------------------
+            to_update[:, i] = np.squeeze(opponent_actions)  # <--------------------------
+            #print('after updating')
+            #print(to_update[0, :])
+            #print(to_update[1, :])
 
 
 def central_critic_observer(agent_obs, **kw):
     """Rewrites the agent obs to include opponent data for training."""
     agents = [*agent_obs]
-    print(agents)
+    #print(agents)
     num_agents = len(agents)
     obs_space = len(agent_obs[agents[0]])
 
     new_obs = dict()
     for agent in agents:
         new_obs[agent] = dict()
+        new_obs[agent]["own_obs"] = agent_obs[agent]
         new_obs[agent]["opponent_obs"] = np.zeros((num_agents - 1)*obs_space)
         new_obs[agent]["opponent_action"] = np.zeros((num_agents - 1))
         i = 0
         for other_agent in agents:
-            if agent == other_agent:
-                new_obs[agent]["own_obs"] = agent_obs[agent]
-            elif agent != other_agent:
+            if agent != other_agent:
                 new_obs[agent]["opponent_obs"][i*obs_space:i*obs_space + obs_space] = agent_obs[other_agent]
                 i += 1
-    print('new_obs')
-    print(new_obs)
+
+    #print('new_obs')
+    #print(new_obs)
     return new_obs
-
-
-if __name__ == "__main__":
-    args = parser.parse_args()
-
-    ModelCatalog.register_custom_model(
-        "cc_model", CentralizedCriticModel)
-
-    action_space = Discrete(2)
-    observer_space = Dict({
-        "own_obs": Discrete(6),
-        # These two fields are filled in by the CentralCriticObserver, and are
-        # not used for inference, only for training.
-        "opponent_obs": Discrete(6),
-        "opponent_action": Discrete(2),
-    })
-
-    config = {
-        "env": TwoStepGame,
-        "batch_mode": "complete_episodes",
-        "callbacks": FillInActions,
-        # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0.
-        "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", "0")),
-        "num_workers": 0,
-        "multiagent": {
-            "policies": {
-                "pol1": (None, observer_space, action_space, {}),
-                "pol2": (None, observer_space, action_space, {}),
-            },
-            "policy_mapping_fn": (
-                lambda aid, **kwargs: "pol1" if aid == 0 else "pol2"),
-            "observation_fn": central_critic_observer,
-        },
-        "model": {
-            "custom_model": "cc_model",
-        },
-        "framework": args.framework,
-    }
-
-    stop = {
-        "training_iteration": args.stop_iters,
-        "timesteps_total": args.stop_timesteps,
-        "episode_reward_mean": args.stop_reward,
-    }
-
-    results = tune.run("PPO", config=config, stop=stop, verbose=1)
-
-    if args.as_test:
-        check_learning_achieved(results, args.stop_reward)
