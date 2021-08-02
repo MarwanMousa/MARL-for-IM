@@ -20,6 +20,9 @@ class InvManagement(gym.Env):
         self.a = config.pop("a", -1)
         self.b = config.pop("b", 1)
         self.time_dependency = config.pop("time_dependency", False)
+        self.prev_actions = config.pop("prev_actions", False)
+        self.prev_demand = config.pop("prev_demand", False)
+        self.prev_length = config.pop("prev_length", 1)
         self.max_delay = np.max(self.delay)
         if self.max_delay == 0:
             self.time_dependency = False
@@ -66,49 +69,90 @@ class InvManagement(gym.Env):
 
         # observation space (Inventory position at each echelon, which is any integer value)
         if self.standardise_state:
-            if self.time_dependency:
+            if self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_stages, 4 + self.max_delay))*self.a,
-                    high=np.ones((self.num_stages, 4 + self.max_delay))*self.b,
+                    low=np.ones((self.num_stages, 3 + self.max_delay))*self.a,
+                    high=np.ones((self.num_stages, 3 + self.max_delay))*self.b,
                     dtype=np.float32,
-                    shape=(self.num_stages, 4 + self.max_delay)
+                    shape=(self.num_stages, 3 + self.max_delay)
                 )
-            else:
+            elif self.time_dependency and self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_stages, 4)) * self.a,
-                    high=np.ones((self.num_stages, 4)) * self.b,
+                    low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.b,
                     dtype=np.float32,
-                    shape=(self.num_stages, 4)
+                    shape=(self.num_stages, 3 + self.max_delay + self.prev_length)
+                )
+            elif self.time_dependency and self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length*2)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length*2)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3 + self.max_delay + self.prev_length*2)
+                )
+            elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3 + self.max_delay + self.prev_length)
+                )
+            elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3 + self.prev_length * 2)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.prev_length * 2)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3 + self.prev_length * 2)
+                )
+            elif not self.time_dependency and not self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3 + self.prev_length)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.prev_length)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3 + self.prev_length)
+                )
+            elif not self.time_dependency and self.prev_actions and not self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3 + self.prev_length)) * self.a,
+                    high=np.ones((self.num_stages, 3 + self.prev_length)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3 + self.prev_length)
+                )
+            elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones((self.num_stages, 3)) * self.a,
+                    high=np.ones((self.num_stages, 3)) * self.b,
+                    dtype=np.float32,
+                    shape=(self.num_stages, 3)
                 )
         else:
-            if self.time_dependency:
+            if not self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.zeros((self.num_stages, 4 + self.max_delay)),
+                    low=np.zeros((self.num_stages, 3)),
                     high=np.tile(
-                        np.concatenate(
-                            (np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
-                             np.ones(self.max_delay)*inv_max_obs)
-                        ),
+                        np.array([inv_max_obs, np.inf, inv_max_obs]),
                         (self.num_stages, 1)
                     ),
                     dtype=np.float32,
-                    shape=(self.num_stages, 4 + self.max_delay)
-                )
-            else:
-                self.observation_space = gym.spaces.Box(
-                    low=np.zeros((self.num_stages, 4)),
-                    high=np.tile(
-                        np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
-                        (self.num_stages, 1)
-                    ),
-                    dtype=np.float32,
-                    shape=(self.num_stages, 4)
+                    shape=(self.num_stages, 3)
                 )
 
-        if self.time_dependency:
-            self.state = np.zeros((self.num_stages, 4 + self.max_delay))
-        else:
-            self.state = np.zeros((self.num_stages, 4))
+        if self.time_dependency and not self.prev_actions and not self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.max_delay))
+        elif self.time_dependency and self.prev_actions and not self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.max_delay + self.prev_length))
+        elif self.time_dependency and not self.prev_actions and self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.max_delay + self.prev_length))
+        elif self.time_dependency and self.prev_actions and self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.max_delay + self.prev_length*2))
+        elif not self.time_dependency and self.prev_actions and self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.prev_length*2))
+        elif not self.time_dependency and not self.prev_actions and self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.prev_length))
+        elif not self.time_dependency and self.prev_actions and not self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3 + self.prev_length))
+        elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
+            self.state = np.zeros((self.num_stages, 3))
 
         self.reset()
 
@@ -136,9 +180,9 @@ class InvManagement(gym.Env):
                 self.customer_demand = self.config.pop("customer_demand", np.ones(self.num_periods, dtype=np.int16) * 5)
             # Poisson distribution
             elif self.demand_dist == "poisson":
-                mu = self.config.pop("mu", 5)
+                self.mu = self.config.pop("mu", 5)
                 self.dist = poisson
-                self.dist_param = {'mu': mu}
+                self.dist_param = {'mu': self.mu}
                 self.customer_demand = self.dist.rvs(size=self.num_periods, **self.dist_param)
             # Uniform distribution
             elif self.demand_dist == "uniform":
@@ -178,13 +222,28 @@ class InvManagement(gym.Env):
     def _update_state(self):
         t = self.period
         m = self.num_stages
-        demand = np.zeros(m)
+        if self.prev_demand:
+            demand_history = np.zeros((m, self.prev_length))
+            for i in range(self.prev_length):
+                if i < t:
+                    demand_history[:, i] = self.demand[t - 1 - i, :]
+            demand_history = self.rescale(demand_history, np.zeros((m, self.prev_length)),
+                                          np.tile(self.inv_max.reshape((-1, 1)), (1, self.prev_length)),
+                                          self.a, self.b)
+
+        if self.prev_actions:
+            order_history = np.zeros((m, self.prev_length))
+            for i in range(self.prev_length):
+                if i < t:
+                    order_history[:, i] = self.order_r[t - 1 - i, :]
+            #print(order_history)
+            order_history = self.rescale(order_history, np.zeros((m, self.prev_length)),
+                                          np.tile(self.order_max.reshape((-1, 1)), (1, self.prev_length)),
+                                          self.a, self.b)
         if self.time_dependency:
             time_dependent_state = np.zeros((m, self.max_delay))
-        if t >= 1:
-            demand[:] = self.demand[t - 1, :]
-            if self.time_dependency:
-                time_dependent_state = self.time_dependent_state[t - 1, :, :]
+        if t >= 1 and self.time_dependency:
+            time_dependent_state = self.time_dependent_state[t - 1, :, :]
 
         if self.standardise_state and self.time_dependency:
             time_dependent_state = self.rescale(time_dependent_state, np.zeros((m, self.max_delay)),
@@ -195,13 +254,24 @@ class InvManagement(gym.Env):
             inv = self.rescale(self.inv[t, :], np.zeros(self.num_stages), self.inv_max, self.a, self.b)
             backlog = self.rescale(self.backlog[t, :], np.zeros(self.num_stages), self.inv_max, self.a, self.b)
             order_u = self.rescale(self.order_u[t, :], np.zeros(self.num_stages), self.inv_max, self.a, self.b)
-            demand = self.rescale(demand, np.zeros(self.num_stages), self.inv_max, self.a, self.b)
-            obs = np.stack((inv, backlog, order_u, demand), axis=1)
+            obs = np.stack((inv, backlog, order_u), axis=1)
         else:
-            obs = np.stack((self.inv[t, :], self.backlog[t, :], self.order_u[t, :], demand), axis=1)
+            obs = np.stack((self.inv[t, :], self.backlog[t, :], self.order_u[t, :]), axis=1)
 
-        if self.time_dependency:
+        if self.time_dependency and not self.prev_actions and not self.prev_demand:
             obs = np.concatenate((obs, time_dependent_state), axis=1)
+        elif self.time_dependency and self.prev_actions and not self.prev_demand:
+            obs = np.concatenate((obs, order_history, time_dependent_state), axis=1)
+        elif self.time_dependency and not self.prev_actions and self.prev_demand:
+            obs = np.concatenate((obs, demand_history, time_dependent_state), axis=1)
+        elif self.time_dependency and self.prev_actions and self.prev_demand:
+            obs = np.concatenate((obs, demand_history, order_history, time_dependent_state), axis=1)
+        elif not self.time_dependency and not self.prev_actions and self.prev_demand:
+            obs = np.concatenate((obs, demand_history), axis=1)
+        elif not self.time_dependency and self.prev_actions and not self.prev_demand:
+            obs = np.concatenate((obs, order_history), axis=1)
+        elif not self.time_dependency and self.prev_actions and self.prev_demand:
+            obs = np.concatenate((obs, demand_history, order_history), axis=1)
 
         self.state = obs.copy()
 
@@ -218,14 +288,13 @@ class InvManagement(gym.Env):
 
         if self.standardise_actions:
             self.order_r[t, :] = self.rev_scale(np.squeeze(action), np.zeros(self.num_stages), self.order_max, self.a, self.b)
-            self.order_r[t, :] = np.round(np.minimum(self.order_r[t, :], self.order_max), 0).astype(int)
+            self.order_r[t, :] = np.round(np.minimum(np.maximum(self.order_r[t, :], np.zeros(self.num_stages)), self.order_max), 0).astype(int)
         else:
-            self.order_r[t, :] = np.round(np.minimum(np.squeeze(action), self.order_max), 0).astype(int)
-        #print(self.order_r[t, :])
+            self.order_r[t, :] = np.round(np.minimum(np.maximum(np.squeeze(action), np.zeros(self.num_stages)), self.order_max), 0).astype(int)
 
         # Demand of goods at each stage
         # Demand at first (retailer stage) is customer demand
-        self.demand[t, 0] = self.customer_demand[t]
+        self.demand[t, 0] = np.minimum(self.customer_demand[t], self.inv_max[0])
         # Demand at other stages is the replenishment order of the downstream stage
         self.demand[t, 1:m] = self.order_r[t, :m - 1]
 

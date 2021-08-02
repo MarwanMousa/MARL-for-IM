@@ -7,8 +7,9 @@ import datetime
 import os
 import json
 from utils import get_config, get_trainer
-
-#%% Environment and Agent Configuration
+from models.RNN_Model import RNNModel, SharedRNNModel
+from ray.rllib.models import ModelCatalog
+#%% Environment configuration
 
 # Set script seed
 SEED = 52
@@ -32,7 +33,7 @@ inv_max = np.ones(num_stages) * 30
 price = np.array([4, 3, 2, 1])
 stock_cost = np.array([0.4, 0.4, 0.4])
 backlog_cost = np.array([0.6, 0.6, 0.6])
-delay = np.array([1, 1, 1], dtype=np.int8)
+delay = np.array([1, 2, 1], dtype=np.int8)
 independent = True
 standardise_state = True
 standardise_actions = True
@@ -40,6 +41,9 @@ a = -1
 b = 1
 time_dependency = True
 use_lstm = False
+prev_actions = True
+prev_demand = True
+prev_length = 1
 
 demand_distribution = "poisson"
 
@@ -82,6 +86,9 @@ env_config = {
     "a": a,
     "b": b,
     "time_dependency": time_dependency,
+    "prev_demand": prev_demand,
+    "prev_actions": prev_actions,
+    "prev_length": prev_length,
 }
 CONFIG = env_config.copy()
 
@@ -91,7 +98,7 @@ obs_space = test_env.observation_space
 act_space = test_env.action_space
 num_agents = test_env.num_agents
 
-
+#%% Agent Configuration
 # Define policies to train
 policy_graphs = {}
 for i in range(num_agents):
@@ -100,10 +107,16 @@ for i in range(num_agents):
 
 # Policy Mapping function to map each agent to appropriate stage policy
 
-def policy_mapping_fn(agent_id):
+def policy_mapping_fn(agent_id, episode, **kwargs):
     for i in range(num_stages):
         if agent_id.startswith(agent_ids[i]):
             return agent_ids[i]
+
+ModelCatalog.register_custom_model(
+        "rnn_model", RNNModel)
+
+ModelCatalog.register_custom_model(
+        "shared_rnn_model", SharedRNNModel)
 
 # Algorithm used
 algorithm = 'ppo'
@@ -122,10 +135,15 @@ rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
-rl_config["model"]["use_lstm"] = use_lstm
-rl_config["model"]["max_seq_len"] = num_periods
-rl_config["model"]["lstm_use_prev_action"] = False
-rl_config["model"]["lstm_use_prev_reward"] = False
+rl_config["shuffle_sequences"] = True
+
+if use_lstm:
+    rl_config["model"]["custom_model"] = "rnn_model"
+    rl_config["model"]["fcnet_hiddens"] = [128, 128]
+    rl_config["model"]["max_seq_len"] = num_periods
+    rl_config["model"]["custom_model_config"] = {"fc_size": [64],
+                                                 "use_initial_fc": True,
+                                                 "lstm_state_size": 128}
 
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
@@ -170,14 +188,14 @@ for i in range(iters):
                 if use_lstm:
                     for m in range(num_stages):
                         sp = agent_ids[m]
-                        action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp],
+                        action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp],
                                                                         prev_action=action[sp], prev_reward=reward[sp],
                                                                         policy_id=sp)
                 else:
                     action = {}
                     for m in range(num_stages):
                         sp = agent_ids[m]
-                        action[sp] = agent.compute_action(obs[sp], policy_id=sp)
+                        action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
 
                 obs, reward, dones, info = test_env.step(action)
                 done = dones['__all__']
@@ -296,7 +314,6 @@ for i in range(num_stages):
     dict_obs[sp]['inventory'] = np.zeros(num_periods + 1)
     dict_obs[sp]['backlog'] = np.zeros(num_periods + 1)
     dict_obs[sp]['order_u'] = np.zeros(num_periods + 1)
-    dict_obs[sp]['time_dependent_s'] = np.zeros((num_periods + 1, test_env.max_delay))
     dict_info[sp]['demand'] = np.zeros(num_periods)
     dict_info[sp]['ship'] = np.zeros(num_periods)
     dict_info[sp]['acquisition'] = np.zeros(num_periods)
@@ -306,17 +323,11 @@ for i in range(num_stages):
         dict_obs[sp]['inventory'][0] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i], test_env.a, test_env.b)
         dict_obs[sp]['backlog'][0] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i], test_env.a, test_env.b)
         dict_obs[sp]['order_u'][0] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i], test_env.a, test_env.b)
-        if time_dependency:
-            dict_obs[sp]['time_dependent_s'][0] = test_env.rev_scale(obs[sp][4:4 + test_env.max_delay],
-                                                                               np.zeros(test_env.max_delay),
-                                                                               np.ones(test_env.max_delay)*test_env.inv_max[i],
-                                                                               test_env.a, test_env.b)
     else:
         dict_obs[sp]['inventory'][0] = obs[sp][0]
         dict_obs[sp]['backlog'][0] = obs[sp][1]
         dict_obs[sp]['order_u'][0] = obs[sp][2]
-        if time_dependency:
-            dict_obs[sp]['time_dependent_s'][0] = obs[sp][4:4 + test_env.max_delay]
+
     dict_actions[sp] = np.zeros(num_periods)
     dict_rewards[sp] = np.zeros(num_periods)
     dict_rewards['Total'] = np.zeros(num_periods)
@@ -334,13 +345,13 @@ while not done:
     if use_lstm:
         for i in range(num_stages):
             sp = agent_ids[i]
-            action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp], prev_action=action[sp],
+            action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
                                                             prev_reward=reward[sp], policy_id=sp)
     else:
         action = {}
         for i in range(num_stages):
             sp = agent_ids[i]
-            action[sp] = agent.compute_action(obs[sp], policy_id=sp)
+            action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
     obs, reward, dones, info = test_env.step(action)
     done = dones['__all__']
     for i in range(num_stages):
@@ -353,18 +364,11 @@ while not done:
                                                                      test_env.a, test_env.b)
             dict_obs[sp]['order_u'][period + 1] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i],
                                                                      test_env.a, test_env.b)
-            if time_dependency:
-                dict_obs[sp]['time_dependent_s'][period + 1] = test_env.rev_scale(
-                    obs[sp][4:4 + test_env.max_delay],
-                    np.zeros(test_env.max_delay),
-                    np.ones(test_env.max_delay) * test_env.inv_max[i],
-                    test_env.a, test_env.b)
         else:
             dict_obs[sp]['inventory'][period + 1] = obs[sp][0]
             dict_obs[sp]['backlog'][period + 1] = obs[sp][1]
             dict_obs[sp]['order_u'][period + 1] = obs[sp][2]
-            if time_dependency:
-                dict_obs[sp]['time_dependent_s'][period + 1] = obs[sp][4:4 + test_env.max_delay]
+
         dict_info[sp]['demand'][period] = info[sp]['demand']
         dict_info[sp]['ship'][period] = info[sp]['ship']
         dict_info[sp]['acquisition'][period] = info[sp]['acquisition']
@@ -460,13 +464,13 @@ for i in range(num_tests):
         if use_lstm:
             for m in range(num_stages):
                 sp = agent_ids[m]
-                action[sp], state[sp], _ = agent.compute_action(obs[sp], state=state[sp], prev_action=action[sp],
+                action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
                                                                 prev_reward=reward[sp], policy_id=sp)
         else:
             action = {}
             for m in range(num_stages):
                 sp = agent_ids[m]
-                action[sp] = agent.compute_action(obs[sp], policy_id=sp)
+                action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
         obs, reward, dones, info = test_env.step(action)
         done = dones['__all__']
         for m in range(num_stages):

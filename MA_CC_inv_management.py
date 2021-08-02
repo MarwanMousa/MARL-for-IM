@@ -5,7 +5,7 @@ from ray.rllib.models import ModelCatalog
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import get_config, get_trainer
-from CC_Model import CentralizedCriticModel, FillInActions, central_critic_observer
+from models.CC_Model import CentralizedCriticModel, FillInActions, central_critic_observer
 from gym.spaces import Dict, Box
 
 #%% Environment and Agent Configuration
@@ -140,7 +140,6 @@ rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
 rl_config["model"]["custom_model"] = "cc_model"
 rl_config["model"]["vf_share_layers"] = False
-rl_config["model"]["attention_dim"] = 2
 rl_config["model"]["custom_model_config"] = {"state_size": obs_space.shape[0]}
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
@@ -149,7 +148,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 
 # Training
 iters = 100
-validation_interval = 10
+validation_interval = 110
 num_validation = 100
 results = []
 mean_eval_rewards = np.zeros((num_stages, iters//validation_interval))
@@ -190,7 +189,7 @@ for i in range(iters):
                                "opponent_obs": opponent_obs,
                                "opponent_action": opponent_act})
 
-                    action[sp] = agent.compute_action(CC_Obs, policy_id=sp)
+                    action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
                 obs, r, dones, info = test_env.step(action)
                 done = dones['__all__']
                 for m in range(num_stages):
@@ -337,7 +336,7 @@ while not done:
         CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                        "opponent_obs": opponent_obs,
                        "opponent_action": opponent_act})
-        action[sp] = agent.compute_action(CC_Obs, policy_id=sp)
+        action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
     obs, reward, dones, info = test_env.step(action)
     done = dones['__all__']
     for i in range(num_stages):
@@ -459,7 +458,7 @@ for i in range(num_tests):
             CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                            "opponent_obs": opponent_obs,
                            "opponent_action": opponent_act})
-            action[sp] = agent.compute_action(CC_Obs, policy_id=sp)
+            action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
         obs, reward, dones, info = test_env.step(action)
         done = dones['__all__']
         for m in range(num_stages):

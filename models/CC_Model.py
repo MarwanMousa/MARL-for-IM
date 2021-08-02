@@ -53,7 +53,6 @@ class CentralizedCriticModel(TorchModelV2, nn.Module):
         self.value_model = TorchFC(obs_space, action_space, 1, model_config,
                                    name + "_vf")
         self._model_in = None
-
     def forward(self, input_dict, state, seq_lens):
         # Store model-input for possible `value_function()` call.
         self._model_in = [input_dict["obs_flat"], state, seq_lens]
@@ -108,7 +107,6 @@ class FillInActions(DefaultCallbacks):
 def central_critic_observer(agent_obs, **kw):
     """Rewrites the agent obs to include opponent data for training."""
     agents = [*agent_obs]
-    #print(agents)
     num_agents = len(agents)
     obs_space = len(agent_obs[agents[0]])
 
@@ -124,6 +122,4 @@ def central_critic_observer(agent_obs, **kw):
                 new_obs[agent]["opponent_obs"][i*obs_space:i*obs_space + obs_space] = agent_obs[other_agent]
                 i += 1
 
-    #print('new_obs')
-    #print(new_obs)
     return new_obs

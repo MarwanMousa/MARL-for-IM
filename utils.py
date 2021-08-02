@@ -68,14 +68,15 @@ def get_config(algorithm, num_periods):
         config["use_gae"] = True
         # The GAE (lambda) parameter.
         config["lambda"] = 0.95
+        config["gamma"] = 0.99
         # Initial coefficient for KL divergence.
         config["kl_coeff"] = 0.2
         # Number of timesteps collected for each SGD round. This defines the size of each SGD epoch.
         config["train_batch_size"] = num_periods*100
         # Number of SGD iterations in each outer loop (i.e., number of epochs to execute per train batch).
-        config["num_sgd_iter"] = 30
+        config["num_sgd_iter"] = 10
         # Total SGD batch size across all devices for SGD. This defines the minibatch size within each epoch.
-        config["sgd_minibatch_size"] = 128
+        config["sgd_minibatch_size"] = 120
         # Whether to shuffle sequences in the batch when training (recommended).
         config["shuffle_sequences"] = True
         # Coefficient of the value function loss. IMPORTANT: you must tune this if you set vf_share_layers=True inside your model's config.
@@ -128,12 +129,6 @@ def get_config(algorithm, num_periods):
 def get_trainer(algorithm, rl_config, environment):
     if algorithm == 'ddpg':
         agent = agents.ddpg.DDPGTrainer(config=rl_config, env=environment)
-
-    elif algorithm == 'apex':
-        agent = agents.ddpg.ApexDDPGTrainer(config=rl_config, env=environment)
-
-    elif algorithm == 'td3':
-        agent = agents.ddpg.TD3Trainer(config=rl_config, env=environment)
 
     elif algorithm == 'ppo':
         agent = agents.ppo.PPOTrainer(config=rl_config, env=environment)

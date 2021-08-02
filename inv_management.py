@@ -1,6 +1,5 @@
 from environments.IM_env import InvManagement
 import ray
-from ray.rllib import agents
 from ray import tune
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,8 +7,9 @@ import json
 import datetime
 import os
 from utils import get_config, get_trainer
-from scipy.stats import poisson, randint
 from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
+from models.RNN_Model import RNNModel, SharedRNNModel
+from ray.rllib.models import ModelCatalog
 #%% Environment Configuration
 
 # Set script seed
@@ -33,13 +33,16 @@ inv_max = np.ones(num_stages) * 30
 price = np.array([4, 3, 2, 1])
 stock_cost = np.array([0.4, 0.4, 0.4])
 backlog_cost = np.array([0.6, 0.6, 0.6])
-delay = np.array([0, 0, 0], dtype=np.int8)
+delay = np.array([1, 2, 1], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
 use_lstm = True
+prev_actions = True
+prev_demand = True
+prev_length = 1
 
 demand_distribution = "poisson"
 
@@ -74,28 +77,31 @@ env_config = {
     "a": a,
     "b": b,
     "time_dependency": time_dependency,
+    "prev_demand": prev_demand,
+    "prev_actions": prev_actions,
+    "prev_length": prev_length,
 }
 CONFIG = env_config.copy()
 # Configuration for the base-restock policy with DFO that has no state-action standardisation
 DFO_CONFIG = env_config.copy()
 DFO_CONFIG["standardise_state"] = False
 DFO_CONFIG["standardise_actions"] = False
-DFO_CONFIG["time_dependent_states"] = False
+DFO_CONFIG["time_dependency"] = False
 # Test environment
 test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
 
 
 #%% Derivative Free Optimization
-policy, out = optimize_inventory_policy(DFO_env, dfo_func)
+eps = 1000
+dfo_valid_demand = DFO_env.dist.rvs(size=(eps + 1, DFO_env.num_periods), **DFO_env.dist_param)
+policy, out = optimize_inventory_policy(DFO_env, dfo_func, demand=dfo_valid_demand[0, :])
 print("Re-order levels: {}".format(policy))
 print("DFO Info:\n{}".format(out))
 
-eps = 1000
-dfo_valid_demand = DFO_env.dist.rvs(size=(eps, DFO_env.num_periods), **DFO_env.dist_param)
 dfo_rewards = []
 for i in range(eps):
-    demand = dfo_valid_demand[i]
+    demand = dfo_valid_demand[i + 1, :]
     DFO_env.reset(customer_demand=demand)
     dfo_reward = 0
     done = False
@@ -105,7 +111,15 @@ for i in range(eps):
         dfo_reward += r
     dfo_rewards.append(dfo_reward)
 
+print(f'Mean DFO rewards is {np.mean(dfo_rewards)}')
+
 #%% Agent Configuration
+
+ModelCatalog.register_custom_model(
+        "rnn_model", RNNModel)
+
+ModelCatalog.register_custom_model(
+        "shared_rnn_model", SharedRNNModel)
 
 # Algorithm used
 algorithm = 'ppo'
@@ -120,18 +134,20 @@ rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = SEED
 rl_config["env"] = "InventoryManagement"
-rl_config["model"]["use_lstm"] = use_lstm
-rl_config["model"]["max_seq_len"] = num_periods
-rl_config["model"]["lstm_cell_size"] = 64
-rl_config["model"]["lstm_use_prev_action"] = True
-rl_config["model"]["lstm_use_prev_reward"] = True
+if use_lstm:
+    rl_config["model"]["custom_model"] = "rnn_model"
+    rl_config["model"]["fcnet_hiddens"] = [128, 128]
+    rl_config["model"]["max_seq_len"] = num_periods
+    rl_config["model"]["custom_model_config"] = {"fc_size": [64],
+                                                 "use_initial_fc": True,
+                                                 "lstm_state_size": 128}
 
 agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training
 
 # Training
-iters = 100  # Number of training iterations
-validation_interval = 10  # Run validation after how many training iterations
+iters = 150  # Number of training iterations
+validation_interval = 10# Run validation after how many training iterations
 num_validation = 100  # How many validation runs i.e. different realisation of demand
 # Create validation demand
 valid_demand = test_env.dist.rvs(size=(num_validation, test_env.num_periods), **test_env.dist_param)
@@ -161,9 +177,9 @@ for i in range(iters):
                 state = agent.get_policy().get_initial_state()
             while not done:
                 if use_lstm:
-                    action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+                    action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
                 else:
-                    action = agent.compute_action(obs)
+                    action = agent.compute_single_action(obs)
                 obs, reward, done, _ = test_env.step(action)
                 episode_reward += reward
             list_eval_rewards.append(episode_reward)
@@ -241,10 +257,18 @@ num_tests = 1000
 # run until episode ends
 episode_reward = 0
 done = False
-if time_dependency:
-    array_obs = np.zeros((num_stages, 4 + np.max(delay), num_periods + 1))
+if time_dependency and not prev_demand and not prev_actions:
+    array_obs = np.zeros((num_stages, 3 + np.max(delay), num_periods + 1))
+elif time_dependency and not prev_demand and prev_actions:
+    array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length, num_periods + 1))
+elif time_dependency and  prev_demand and not prev_actions:
+    array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length, num_periods + 1))
+elif time_dependency and prev_demand and prev_actions:
+    array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length*2, num_periods + 1))
+elif not time_dependency and prev_demand and prev_actions:
+    array_obs = np.zeros((num_stages, 3 + prev_length*2, num_periods + 1))
 else:
-    array_obs = np.zeros((num_stages, 4, num_periods + 1))
+    array_obs = np.zeros((num_stages, 3, num_periods + 1))
 array_actions = np.zeros((num_stages, num_periods))
 array_profit = np.zeros((num_stages, num_periods))
 array_profit_sum = np.zeros(num_periods)
@@ -266,9 +290,9 @@ if use_lstm:
 
 while not done:
     if use_lstm:
-        action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+        action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
     else:
-        action = agent.compute_action(obs)
+        action = agent.compute_single_action(obs)
     obs, reward, done, info = test_env.step(action)
     array_obs[:, :, period + 1] = obs
     if standardise_actions:
@@ -285,6 +309,7 @@ while not done:
     episode_reward += reward
     period += 1
 
+#%% rescaling
 if standardise_state:
     for i in range(num_periods + 1):
         array_obs[:, 0, i] = test_env.rev_scale(array_obs[:, 0, i], np.zeros(test_env.num_stages), test_env.inv_max,
@@ -293,14 +318,78 @@ if standardise_state:
                                                 test_env.a, test_env.b)
         array_obs[:, 2, i] = test_env.rev_scale(array_obs[:, 2, i], np.zeros(test_env.num_stages), test_env.inv_max,
                                                 test_env.a, test_env.b)
-        array_obs[:, 3, i] = test_env.rev_scale(array_obs[:, 3, i], np.zeros(test_env.num_stages), test_env.inv_max,
-                                                test_env.a, test_env.b)
-        if time_dependency:
-            array_obs[:, 4:4 + np.max(delay), i] = test_env.rev_scale(array_obs[:, 4:4 + np.max(delay), i],
-                                                                   np.zeros((test_env.num_stages, test_env.max_delay)),
+        if time_dependency and not prev_demand and not prev_actions:
+            array_obs[:, 3:3 + np.max(delay), i] = test_env.rev_scale(array_obs[:, 3:3 + np.max(delay), i],
+                                                                      np.zeros((test_env.num_stages, test_env.max_delay)),
                                                                       np.tile(test_env.inv_max.reshape((-1, 1)),
                                                                               (1, test_env.max_delay)),
-                                                    test_env.a, test_env.b)
+                                                                      test_env.a, test_env.b)
+        elif time_dependency and not prev_demand and prev_actions:
+            array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
+                                                                      np.zeros(
+                                                                          (test_env.num_stages, test_env.prev_length)),
+                                                                      np.tile(test_env.order_max.reshape((-1, 1)),
+                                                                              (1, test_env.prev_length)),
+                                                                      test_env.a, test_env.b)
+            array_obs[:, 3+prev_length:3+prev_length+np.max(delay), i] = test_env.rev_scale(array_obs[:, 3+prev_length:3+prev_length+np.max(delay) + np.max(delay), i],
+                                                                      np.zeros(
+                                                                          (test_env.num_stages, test_env.max_delay)),
+                                                                      np.tile(test_env.inv_max.reshape((-1, 1)),
+                                                                              (1, test_env.max_delay)),
+                                                                      test_env.a, test_env.b)
+        elif time_dependency and prev_demand and not prev_actions:
+            array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
+                                                                    np.zeros(
+                                                                        (test_env.num_stages, test_env.prev_length)),
+                                                                    np.tile(test_env.inv_max.reshape((-1, 1)),
+                                                                            (1, test_env.prev_length)),
+                                                                    test_env.a, test_env.b)
+            array_obs[:, 3 + prev_length:3 + prev_length + np.max(delay), i] = test_env.rev_scale(
+                array_obs[:, 3 + prev_length:3 + prev_length + np.max(delay) + np.max(delay), i],
+                np.zeros(
+                    (test_env.num_stages, test_env.max_delay)),
+                np.tile(test_env.inv_max.reshape((-1, 1)),
+                        (1, test_env.max_delay)),
+                test_env.a, test_env.b)
+        elif time_dependency and prev_demand and prev_actions:
+            array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
+                                                                    np.zeros(
+                                                                        (test_env.num_stages, test_env.prev_length)),
+                                                                    np.tile(test_env.order_max.reshape((-1, 1)),
+                                                                            (1, test_env.prev_length)),
+                                                                    test_env.a, test_env.b)
+
+            array_obs[:, 3 + prev_length:3 + prev_length * 2, i] = test_env.rev_scale(
+                array_obs[:, 3 + prev_length:3 + prev_length * 2, i],
+                np.zeros(
+                    (test_env.num_stages, test_env.prev_length)),
+                np.tile(test_env.inv_max.reshape((-1, 1)),
+                        (1, test_env.prev_length)),
+                test_env.a, test_env.b)
+
+            array_obs[:, 3 + prev_length*2:3 + prev_length*2 + np.max(delay), i] = test_env.rev_scale(
+                array_obs[:, 3 + prev_length*2:3 + prev_length*2 + np.max(delay) + np.max(delay), i],
+                np.zeros(
+                    (test_env.num_stages, test_env.max_delay)),
+                np.tile(test_env.inv_max.reshape((-1, 1)),
+                        (1, test_env.max_delay)),
+                test_env.a, test_env.b)
+        elif not time_dependency and prev_demand and prev_actions:
+            array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
+                                                                    np.zeros(
+                                                                        (test_env.num_stages, test_env.prev_length)),
+                                                                    np.tile(test_env.order_max.reshape((-1, 1)),
+                                                                            (1, test_env.prev_length)),
+                                                                    test_env.a, test_env.b)
+
+            array_obs[:, 3 + prev_length:3 + prev_length * 2, i] = test_env.rev_scale(
+                array_obs[:, 3 + prev_length:3 + prev_length * 2, i],
+                np.zeros(
+                    (test_env.num_stages, test_env.prev_length)),
+                np.tile(test_env.inv_max.reshape((-1, 1)),
+                        (1, test_env.prev_length)),
+                test_env.a, test_env.b)
+
 
 #%% Plots
 fig, axs = plt.subplots(4, num_stages, figsize=(20, 8), facecolor='w', edgecolor='k')
@@ -463,9 +552,9 @@ for i in range(num_tests):
         state = agent.get_policy().get_initial_state()
     while not done:
         if use_lstm:
-            action, state, _ = agent.compute_action(obs, state=state, prev_action=action, prev_reward=reward)
+            action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
         else:
-            action = agent.compute_action(obs)
+            action = agent.compute_single_action(obs)
         obs, reward, done, info = test_env.step(action)
         for m in range(num_stages):
             stage_rewards[m, i] += info["profit"][m]

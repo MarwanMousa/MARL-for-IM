@@ -29,6 +29,9 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.inv_target = config.pop("inv_target", np.ones(self.num_stages) * 10)
         self.delay = config.pop("delay", np.ones(self.num_stages, dtype=np.int32))
         self.time_dependency = config.pop("time_dependency", False)
+        self.prev_actions = config.pop("prev_actions", False)
+        self.prev_demand = config.pop("prev_demand", False)
+        self.prev_length = config.pop("prev_length", 1)
         self.max_delay = np.max(self.delay)
         if self.max_delay == 0:
             self.time_dependency = False
@@ -73,36 +76,67 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         # observation space (Inventory position at each echelon, which is any integer value)
         if self.standardise_state:
-            if self.time_dependency:
+            if self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(4 + self.max_delay, dtype=np.float32)*self.a,
-                    high=np.ones(4 + self.max_delay, dtype=np.float32)*self.b,
+                    low=np.ones(3 + self.max_delay, dtype=np.float32)*self.a,
+                    high=np.ones(3 + self.max_delay, dtype=np.float32)*self.b,
                     dtype=np.float64,
-                    shape=(4 + self.max_delay,)
+                    shape=(3 + self.max_delay,)
+                )
+            elif self.time_dependency and self.prev_actions and not self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.a,
+                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.b,
+                    dtype=np.float64,
+                    shape=(3 + self.max_delay + self.prev_length,)
+                )
+            elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.a,
+                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.b,
+                    dtype=np.float64,
+                    shape=(3 + self.max_delay + self.prev_length,)
+                )
+            elif self.time_dependency and self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float32) * self.a,
+                    high=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float32) * self.b,
+                    dtype=np.float64,
+                    shape=(3 + self.max_delay + self.prev_length*2,)
+                )
+            elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones(3 + self.prev_length*2, dtype=np.float32) * self.a,
+                    high=np.ones(3 + self.prev_length*2, dtype=np.float32) * self.b,
+                    dtype=np.float64,
+                    shape=(3 + self.prev_length*2,)
+                )
+
+            elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
+                self.observation_space = gym.spaces.Box(
+                    low=np.ones(3, dtype=np.float32) * self.a,
+                    high=np.ones(3, dtype=np.float32) * self.b,
+                    dtype=np.float64,
+                    shape=(3,)
                 )
             else:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones(4, dtype=np.float32) * self.a,
-                    high=np.ones(4, dtype=np.float32) * self.b,
-                    dtype=np.float64,
-                    shape=(4,)
-                )
+                raise Exception('Not Implemented')
         else:
             if self.time_dependency:
                 self.observation_space = gym.spaces.Box(
-                    low=np.zeros(4 + self.max_delay),
+                    low=np.zeros(3 + self.max_delay),
                     high=np.concatenate((np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
                                          np.ones(self.max_delay)*inv_max_obs
                                          )),
                     dtype=np.float64,
-                    shape=(4 + self.max_delay,)
+                    shape=(3 + self.max_delay,)
                 )
             else:
                 self.observation_space = gym.spaces.Box(
-                    low=np.zeros(4),
+                    low=np.zeros(3),
                     high=np.array([inv_max_obs, np.inf, inv_max_obs, inv_max_obs]),
                     dtype=np.float64,
-                    shape=(4,)
+                    shape=(3,)
                 )
 
         self.state = {}
@@ -200,37 +234,73 @@ class MultiAgentInvManagement(MultiAgentEnv):
             # Their inventory, backlog, demand received, acquired inventory from upstream stage
             # and inventory sent to downstream stage which forms an observation/state vecto
             agent = self.stage_names[i] # Get agent name
+            # Initialise state vector
+            if self.time_dependency and not self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3 + self.max_delay)
+            elif self.time_dependency and self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length + self.max_delay)
+            elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length + self.max_delay)
+            elif self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length*2 + self.max_delay)
+            elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length*2)
+            elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3)
+
+            if self.prev_demand:
+                demand_history = np.zeros(self.prev_length)
+                for j in range(self.prev_length):
+                    if j < t:
+                        demand_history[j] = self.demand[t - 1 - j, i]
+                demand_history = self.rescale(demand_history, np.zeros(self.prev_length),
+                                              np.ones(self.prev_length)*self.inv_max[i],
+                                              self.a, self.b)
+
+            if self.prev_actions:
+                order_history = np.zeros(self.prev_length)
+                for j in range(self.prev_length):
+                    if j < t:
+                        order_history[j] = self.order_r[t - 1 - j, i]
+                order_history = self.rescale(order_history, np.zeros(self.prev_length),
+                                              np.ones(self.prev_length)*self.order_max[i],
+                                              self.a, self.b)
+
             if self.time_dependency:
-                obs_vector = np.zeros(4 + self.max_delay) # Initialise state vector
-            else:
-                obs_vector = np.zeros(4)  # Initialise state vector
+                delay_states = np.zeros(self.max_delay)
+                if t >= 1:
+                    delay_states = self.time_dependent_state[t - 1, i, :]
+                delay_states = self.rescale(delay_states, np.zeros(self.max_delay),
+                                                                    np.ones(self.max_delay)*self.inv_max[i],
+                                                                    self.a, self.b)
 
             if self.standardise_state:
+
                 obs_vector[0] = self.rescale(self.inv[t, i], 0, self.inv_max[i], self.a, self.b)
                 obs_vector[1] = self.rescale(self.backlog[t, i], 0, self.inv_max[i], self.a, self.b)
                 obs_vector[2] = self.rescale(self.order_u[t, i], 0, self.order_max[i], self.a, self.b)
-                if t >= 1:
-                    obs_vector[3] = self.rescale(self.demand[t - 1, i], 0, self.inv_max[i], self.a, self.b)
-                    if self.time_dependency:
-                        obs_vector[4:4 + self.max_delay] = self.rescale(self.time_dependent_state[t - 1, i, :],
-                                                                        np.zeros(self.max_delay),
-                                                                        np.ones(self.max_delay)*self.inv_max[i],
-                                                                        self.a, self.b)
-                else:
-                    obs_vector[3] = self.rescale(obs_vector[3], 0, self.inv_max[i], self.a, self.b)
-                    if self.time_dependency:
-                        obs_vector[4:4 + self.max_delay] = self.rescale(obs_vector[4:4 + self.max_delay],
-                                                                        np.zeros(self.max_delay),
-                                                                        np.ones(self.max_delay)*self.inv_max[i],
-                                                                        self.a, self.b)
+                if self.time_dependency and not self.prev_actions and not self.prev_demand:
+                    obs_vector[3:3+self.max_delay] = delay_states
+                elif self.time_dependency and self.prev_actions and not self.prev_demand:
+                    obs_vector[3:3+self.prev_length] = order_history
+                    obs_vector[3+self.prev_length:3+self.prev_length+self.max_delay] = delay_states
+                elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                    obs_vector[3:3+self.prev_length] = demand_history
+                    obs_vector[3+self.prev_length:3+self.prev_length+self.max_delay] = delay_states
+                elif self.time_dependency and self.prev_actions and self.prev_demand:
+                    obs_vector[3:3+self.prev_length] = demand_history
+                    obs_vector[3+self.prev_length:3+self.prev_length*2] = order_history
+                    obs_vector[3+self.prev_length*2:3+self.prev_length*2+self.max_delay] = delay_states
+                elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                    obs_vector[3:3 + self.prev_length] = demand_history
+                    obs_vector[3 + self.prev_length:3 + self.prev_length * 2] = order_history
+
             else:
                 obs_vector[0] = self.inv[t, i]
                 obs_vector[1] = self.backlog[t, i]
                 obs_vector[2] = self.order_u[t, i]
-                if t >= 1:
-                    obs_vector[3] = self.demand[t - 1, i]
-                    if self.time_dependency:
-                        obs_vector[4:4 + self.max_delay] = self.time_dependent_state[t - 1, i, :]
+                if t >= 1 and self.time_dependency:
+                    obs_vector[3:3 + self.max_delay] = self.time_dependent_state[t - 1, i, :]
 
             obs[agent] = obs_vector
 
@@ -253,12 +323,11 @@ class MultiAgentInvManagement(MultiAgentEnv):
                 self.order_r[t, i] = np.round(self.order_r[t, i], 0).astype(int)
             else:
                 self.order_r[t, i] = np.round(action_dict[stage_name], 0).astype(int)
-        self.order_r[t, :] = np.minimum(self.order_r[t, :], self.order_max)
-        #self.order_r[t, :] = np.round(self.order_r[t, :], 0).astype(int)
-        #print(self.order_r[t, :])
+        self.order_r[t, :] = np.minimum(np.maximum(self.order_r[t, :], np.zeros(self.num_stages)), self.order_max)
+
         # Demand of goods at each stage
         # Demand at first (retailer stage) is customer demand
-        self.demand[t, 0] = self.customer_demand[t]
+        self.demand[t, 0] = np.minimum(self.customer_demand[t], self.inv_max[0])
         # Demand at other stages is the replenishment order of the downstream stage
         self.demand[t, 1:m] = self.order_r[t, :m - 1]
 

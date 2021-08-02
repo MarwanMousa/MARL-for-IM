@@ -10,6 +10,7 @@ def base_stock_policy(policy, env):
     '''
 
     inv_ech = env.inv[env.period, :] + env.order_u[env.period, :] - env.backlog[env.period, :]
+    #inv_ech = env.inv[env.period, :] - env.backlog[env.period, :]
 
     # Get unconstrained actions
     unc_actions = policy - inv_ech
@@ -21,13 +22,16 @@ def base_stock_policy(policy, env):
     return actions
 
 
-def dfo_func(policy, env, *args):
+def dfo_func(policy, env, demand=None, *args):
     '''
     Runs an episode based on current base-stock model
     settings. This allows us to use our environment for the
     DFO optimizer.
     '''
-    env.reset()  # Ensure env is fresh
+    if demand is None:
+        env.reset()  # Ensure env is fresh
+    else:
+        env.reset(customer_demand=demand)  # Ensure env is fresh
     rewards = []
     done = False
     while not done:
@@ -42,13 +46,16 @@ def dfo_func(policy, env, *args):
     return -1 / env.num_periods * np.sum(prob * rewards)
 
 
-def optimize_inventory_policy(env, fun, init_policy=None, method='Powell'):
+def optimize_inventory_policy(env, fun, init_policy=None, method='Powell', demand=None):
 
     if init_policy is None:
-        init_policy = np.ones(env.num_stages)
+        init_policy = np.ones(env.num_stages)*env.mu*2
 
     # Optimize policy
-    out = minimize(fun=fun, x0=init_policy, args=env, method=method)
+    if demand is None:
+        out = minimize(fun=fun, x0=init_policy, args=env, method=method)
+    else:
+        out = minimize(fun=fun, x0=init_policy, args=(env, demand), method=method)
     policy = out.x.copy()
 
     # Policy must be positive integer
