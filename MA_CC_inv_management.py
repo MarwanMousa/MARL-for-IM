@@ -110,7 +110,7 @@ for i in range(num_agents):
 
 # Policy Mapping function to map each agent to appropriate stage policy
 
-def policy_mapping_fn(agent_id):
+def policy_mapping_fn(agent_id, episode, **kwargs):
     for i in range(num_stages):
         if agent_id.startswith(agent_ids[i]):
             return agent_ids[i]
@@ -148,7 +148,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 
 # Training
 iters = 100
-validation_interval = 110
+validation_interval = 10
 num_validation = 100
 results = []
 mean_eval_rewards = np.zeros((num_stages, iters//validation_interval))
@@ -183,7 +183,7 @@ for i in range(iters):
                     for o in range(num_stages):
                         if o != m:
                             opponent_obs[counter*size:counter*size+size] = obs[agent_ids[o]]
-                            opponent_act[counter] = action[agent_ids[o]]
+                            opponent_act[counter] = np.clip(action[agent_ids[o]], a, b)
                             counter += 1
                     CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                                "opponent_obs": opponent_obs,
@@ -303,17 +303,10 @@ for i in range(num_stages):
                                                                   test_env.a, test_env.b)
         dict_obs[sp]['order_u'][0] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i],
                                                                   test_env.a, test_env.b)
-        if time_dependency:
-            dict_obs[sp]['time_dependent_s'][0] = test_env.rev_scale(obs[sp][4:4 + test_env.max_delay],
-                                                                               np.zeros(test_env.max_delay),
-                                                                               np.ones(test_env.max_delay)*test_env.inv_max[i],
-                                                                               test_env.a, test_env.b)
     else:
         dict_obs[sp]['inventory'][0] = obs[sp][0]
         dict_obs[sp]['backlog'][0] = obs[sp][1]
         dict_obs[sp]['order_u'][0] = obs[sp][2]
-        if time_dependency:
-            dict_obs[sp]['time_dependent_s'][0] = obs[sp][4:4 + test_env.max_delay]
     dict_actions[sp] = np.zeros(num_periods)
     dict_rewards[sp] = np.zeros(num_periods)
     dict_rewards['Total'] = np.zeros(num_periods)
@@ -331,7 +324,7 @@ while not done:
         for o in range(num_stages):
             if o != m:
                 opponent_obs[counter * size:counter * size + size] = obs[agent_ids[o]]
-                opponent_act[counter] = action[agent_ids[o]]
+                opponent_act[counter] = np.clip(action[agent_ids[o]], a, b)
                 counter += 1
         CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                        "opponent_obs": opponent_obs,
@@ -349,18 +342,10 @@ while not done:
                                                                            test_env.inv_max[i], test_env.a, test_env.b)
             dict_obs[sp]['order_u'][period + 1] = test_env.rev_scale(obs[sp][2], 0,
                                                                            test_env.order_max[i], test_env.a, test_env.b)
-            if time_dependency:
-                dict_obs[sp]['time_dependent_s'][period + 1] = test_env.rev_scale(
-                    obs[sp][4:4 + test_env.max_delay],
-                    np.zeros(test_env.max_delay),
-                    np.ones(test_env.max_delay) * test_env.inv_max[i],
-                    test_env.a, test_env.b)
         else:
             dict_obs[sp]['inventory'][period + 1] = obs[sp][0]
             dict_obs[sp]['backlog'][period + 1] = obs[sp][1]
             dict_obs[sp]['order_u'][period + 1] = obs[sp][2]
-            if time_dependency:
-                dict_obs[sp]['time_dependent_s'][period + 1] = obs[sp][4:4 + test_env.max_delay]
         dict_info[sp]['demand'][period] = info[sp]['demand']
         dict_info[sp]['ship'][period] = info[sp]['ship']
         dict_info[sp]['acquisition'][period] = info[sp]['acquisition']
@@ -453,7 +438,7 @@ for i in range(num_tests):
             for o in range(num_stages):
                 if o != m:
                     opponent_obs[counter * size:counter * size + size] = obs[agent_ids[o]]
-                    opponent_act[counter] = action[agent_ids[o]]
+                    opponent_act[counter] = np.clip(action[agent_ids[o]], a, b)
                     counter += 1
             CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                            "opponent_obs": opponent_obs,

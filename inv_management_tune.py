@@ -113,8 +113,8 @@ hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
 hp_mutations["env_config"]["prev_actions"] = [True, False]
 hp_mutations["env_config"]["prev_demand"] = [True, False]
 hp_mutations["env_config"]["time_dependency"] = [True, False]
-hp_mutations["model"]= dict()
-hp_mutations["model"]["fcnet_hiddens"] = [[128, 128], [64, 64], [128, 64], [256, 256]]
+#hp_mutations["model"]= dict()
+#hp_mutations["model"]["fcnet_hiddens"] = [[128, 128], [64, 64], [128, 64], [256, 256]]
 if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
     hp_mutations["model"]["custom_model_config"]["fc_size"] = [64]
@@ -157,10 +157,10 @@ rl_config["model"] = dict()
 rl_config["model"]["fcnet_hiddens"] = [64, 64]
 rl_config["env_config"]["prev_length"] = 1
 rl_config["env_config"]["time_dependency"] = True
+rl_config["num_sgd_iter"] = 20
+rl_config["sgd_minibatch_size"] = 256
+rl_config["train_batch_size"] = num_periods*100
 # These params start off randomly drawn from a set.
-rl_config["num_sgd_iter"] = tune.choice([10, 20, 30])
-rl_config["sgd_minibatch_size"] = tune.choice([128, 256])
-rl_config["train_batch_size"] = tune.choice([num_periods*50, num_periods*100, num_periods*200])
 rl_config["env_config"]["prev_actions"] = tune.choice([True, False])
 rl_config["env_config"]["prev_demand"] = tune.choice([True, False])
 if use_lstm:
@@ -179,7 +179,7 @@ analysis = tune.run(
         num_samples=8,
         metric="episode_reward_mean",
         mode="max",
-        stop={"training_iteration": 300},
+        stop={"training_iteration": 500},
         config=rl_config,
         max_failures=5)
 
