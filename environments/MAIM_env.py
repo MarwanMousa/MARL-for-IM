@@ -78,44 +78,44 @@ class MultiAgentInvManagement(MultiAgentEnv):
         if self.standardise_state:
             if self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3 + self.max_delay, dtype=np.float32)*self.a,
-                    high=np.ones(3 + self.max_delay, dtype=np.float32)*self.b,
+                    low=np.ones(3 + self.max_delay, dtype=np.float64)*self.a,
+                    high=np.ones(3 + self.max_delay, dtype=np.float64)*self.b,
                     dtype=np.float64,
                     shape=(3 + self.max_delay,)
                 )
             elif self.time_dependency and self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.a,
-                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.b,
+                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.a,
+                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.b,
                     dtype=np.float64,
                     shape=(3 + self.max_delay + self.prev_length,)
                 )
             elif self.time_dependency and not self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.a,
-                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float32) * self.b,
+                    low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.a,
+                    high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.b,
                     dtype=np.float64,
                     shape=(3 + self.max_delay + self.prev_length,)
                 )
             elif self.time_dependency and self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float32) * self.a,
-                    high=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float32) * self.b,
+                    low=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float64) * self.a,
+                    high=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float64) * self.b,
                     dtype=np.float64,
                     shape=(3 + self.max_delay + self.prev_length*2,)
                 )
             elif not self.time_dependency and self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3 + self.prev_length*2, dtype=np.float32) * self.a,
-                    high=np.ones(3 + self.prev_length*2, dtype=np.float32) * self.b,
+                    low=np.ones(3 + self.prev_length*2, dtype=np.float64) * self.a,
+                    high=np.ones(3 + self.prev_length*2, dtype=np.float64) * self.b,
                     dtype=np.float64,
                     shape=(3 + self.prev_length*2,)
                 )
 
             elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
-                    low=np.ones(3, dtype=np.float32) * self.a,
-                    high=np.ones(3, dtype=np.float32) * self.b,
+                    low=np.ones(3, dtype=np.float64) * self.a,
+                    high=np.ones(3, dtype=np.float64) * self.b,
                     dtype=np.float64,
                     shape=(3,)
                 )

@@ -54,9 +54,9 @@ class InvManagement(gym.Env):
         # Action space (Re-order amount at every tage)
         if self.standardise_actions:
             self.action_space = gym.spaces.Box(
-                low=np.ones(self.num_stages, dtype=np.float32)*self.a,
-                high=np.ones(self.num_stages, dtype=np.float32)*self.b,
-                dtype=np.float32,
+                low=np.ones(self.num_stages, dtype=np.float64)*self.a,
+                high=np.ones(self.num_stages, dtype=np.float64)*self.b,
+                dtype=np.float64,
                 shape=(self.num_stages,)
             )
         else:
@@ -73,56 +73,56 @@ class InvManagement(gym.Env):
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.max_delay))*self.a,
                     high=np.ones((self.num_stages, 3 + self.max_delay))*self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.max_delay)
                 )
             elif self.time_dependency and self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.max_delay + self.prev_length)
                 )
             elif self.time_dependency and self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length*2)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length*2)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.max_delay + self.prev_length*2)
                 )
             elif self.time_dependency and not self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.max_delay + self.prev_length)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.max_delay + self.prev_length)
                 )
             elif not self.time_dependency and self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.prev_length * 2)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.prev_length * 2)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.prev_length * 2)
                 )
             elif not self.time_dependency and not self.prev_actions and self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.prev_length)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.prev_length)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.prev_length)
                 )
             elif not self.time_dependency and self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3 + self.prev_length)) * self.a,
                     high=np.ones((self.num_stages, 3 + self.prev_length)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3 + self.prev_length)
                 )
             elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
                 self.observation_space = gym.spaces.Box(
                     low=np.ones((self.num_stages, 3)) * self.a,
                     high=np.ones((self.num_stages, 3)) * self.b,
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3)
                 )
         else:
@@ -133,7 +133,7 @@ class InvManagement(gym.Env):
                         np.array([inv_max_obs, np.inf, inv_max_obs]),
                         (self.num_stages, 1)
                     ),
-                    dtype=np.float32,
+                    dtype=np.float64,
                     shape=(self.num_stages, 3)
                 )
 

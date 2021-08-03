@@ -119,12 +119,12 @@ if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
     hp_mutations["model"]["custom_model_config"]["fc_size"] = [64]
     hp_mutations["model"]["use_initial_fc"] = True
-    hp_mutations["model"]["use_initial_fc"]["lstm_state_size"] = 128
+    hp_mutations["model"]["use_initial_fc"]["lstm_state_size"] = lambda: random.randint(64, 256)
 
 pbt = PopulationBasedTraining(
     time_attr="training_iteration",
     perturbation_interval=2,
-    resample_probability=0.3,
+    resample_probability=0.4,
     # Specifies the mutations of these hyperparams
     hyperparam_mutations=hp_mutations,
     custom_explore_fn=explore)
@@ -139,8 +139,9 @@ rl_config["framework"] = "torch"
 rl_config["seed"] = SEED
 rl_config["use_critic"] = True
 rl_config["use_gae"] = True
-rl_config["num_workers"] = 1
 rl_config["num_gpus"] = 0
+rl_config["num_workers"] = 1
+rl_config["num_cpus_per_worker"] = 1
 rl_config["shuffle_sequences"] = True
 rl_config["vf_loss_coeff"] = 1
 rl_config["grad_clip"] = None
@@ -149,12 +150,13 @@ rl_config["vf_clip_param"] = 2000
 rl_config["lambda"] = 0.95
 rl_config["gamma"] = 0.99
 rl_config["clip_param"] = 0.2
-rl_config["lr"] = 1e-4
+rl_config["lr"] = 1e-5
 rl_config["kl_coeff"] = 0.2
 rl_config["kl_target"] = 0.01
 rl_config["entropy_coeff"] = 0
 rl_config["model"] = dict()
 rl_config["model"]["fcnet_hiddens"] = [64, 64]
+rl_config["model"]["fcnet_activation"] = "relu"
 rl_config["env_config"]["prev_length"] = 1
 rl_config["env_config"]["time_dependency"] = True
 rl_config["num_sgd_iter"] = 20
@@ -184,4 +186,7 @@ analysis = tune.run(
         max_failures=5)
 
 print("best hyperparameters: ", analysis.best_config)
-np.save(('hyperparams.npy'), analysis.best_config)
+if use_lstm:
+    np.save(('single_agent_rnn_hyperparams.npy'), analysis)
+else:
+    np.save(('single_agent_hyperparams.npy'), analysis)

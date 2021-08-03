@@ -16,7 +16,7 @@ torch.manual_seed(SEED)
 
 # Environment creator function for environment registration
 def env_creator(configuration):
-    env = InvManagement(configuration)
+    env = MultiAgentInvManagement(configuration)
     return env
 
 # Register Custom models
@@ -61,7 +61,13 @@ elif demand_distribution == "uniform":
     parameter = "lower_upper"
     parameter_value = lower_upper
 
-env_name = "InventoryManagement"
+# Agent/Policy ids of the 3-stage and 4-stage configurations
+agent_ids = []
+for i in range(num_stages):
+    agent_id = "stage_" + str(i)
+    agent_ids.append(agent_id)
+
+env_name = "MultiAgentInventoryManagement"
 tune.register_env(env_name, env_creator)
 
 env_config = {
@@ -88,16 +94,6 @@ env_config = {
 }
 CONFIG = env_config.copy()
 
-# Postprocess the perturbed config to ensure it's still valid
-def explore(config):
-    # ensure we collect enough timesteps to do sgd
-    if config["train_batch_size"] < config["sgd_minibatch_size"] * 2:
-        config["train_batch_size"] = config["sgd_minibatch_size"] * 2
-    # ensure we run at least one sgd iter
-    if config["num_sgd_iter"] < 1:
-        config["num_sgd_iter"] = 1
-    return config
-
 # Test environment
 test_env = MultiAgentInvManagement(env_config)
 obs_space = test_env.observation_space
@@ -117,3 +113,13 @@ def policy_mapping_fn(agent_id, episode, **kwargs):
     for i in range(num_stages):
         if agent_id.startswith(agent_ids[i]):
             return agent_ids[i]
+
+# Postprocess the perturbed config to ensure it's still valid
+def explore(config):
+    # ensure we collect enough timesteps to do sgd
+    if config["train_batch_size"] < config["sgd_minibatch_size"] * 2:
+        config["train_batch_size"] = config["sgd_minibatch_size"] * 2
+    # ensure we run at least one sgd iter
+    if config["num_sgd_iter"] < 1:
+        config["num_sgd_iter"] = 1
+    return config
