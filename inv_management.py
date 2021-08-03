@@ -22,7 +22,7 @@ def env_creator(configuration):
     return env
 
 # Environment Configuration
-num_stages = 3
+num_stages = 4
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -30,16 +30,16 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([4, 3, 2, 1])
-stock_cost = np.array([0.4, 0.4, 0.4])
-backlog_cost = np.array([0.6, 0.6, 0.6])
-delay = np.array([1, 2, 1], dtype=np.int8)
+price = np.array([5, 4, 3, 2, 1])
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
-use_lstm = True
+use_lstm = False
 prev_actions = True
 prev_demand = True
 prev_length = 1
@@ -95,7 +95,7 @@ DFO_env = InvManagement(DFO_CONFIG)
 #%% Derivative Free Optimization
 eps = 1000
 dfo_valid_demand = DFO_env.dist.rvs(size=(eps + 1, DFO_env.num_periods), **DFO_env.dist_param)
-policy, out = optimize_inventory_policy(DFO_env, dfo_func, demand=dfo_valid_demand[0, :])
+policy, out = optimize_inventory_policy(DFO_env, dfo_func, init_policy=[13, 40, 30, 25], demand=dfo_valid_demand[0, :])
 print("Re-order levels: {}".format(policy))
 print("DFO Info:\n{}".format(out))
 
@@ -146,7 +146,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training
 
 # Training
-iters = 150  # Number of training iterations
+iters = 500  # Number of training iterations
 validation_interval = 10# Run validation after how many training iterations
 num_validation = 100  # How many validation runs i.e. different realisation of demand
 # Create validation demand

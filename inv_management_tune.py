@@ -27,7 +27,7 @@ ModelCatalog.register_custom_model(
         "shared_rnn_model", SharedRNNModel)
 
 # Environment Configuration
-num_stages = 3
+num_stages = 4
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -35,18 +35,18 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([4, 3, 2, 1])
-stock_cost = np.array([0.4, 0.4, 0.4])
-backlog_cost = np.array([0.6, 0.6, 0.6])
-delay = np.array([1, 2, 1], dtype=np.int8)
+price = np.array([5, 4, 3, 2, 1])
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
+time_dependency = False
 use_lstm = False
-prev_actions = True
-prev_demand = True
+prev_actions = False
+prev_demand = False
 prev_length = 2
 
 demand_distribution = "poisson"
@@ -110,11 +110,8 @@ hp_mutations["num_sgd_iter"] = lambda: random.randint(3, 30)
 hp_mutations["train_batch_size"] = lambda: random.randint(num_periods*50, num_periods*300)
 hp_mutations["env_config"] = dict()
 hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
-hp_mutations["env_config"]["prev_actions"] = [True, False]
-hp_mutations["env_config"]["prev_demand"] = [True, False]
-hp_mutations["env_config"]["time_dependency"] = [True, False]
-#hp_mutations["model"]= dict()
-#hp_mutations["model"]["fcnet_hiddens"] = [[128, 128], [64, 64], [128, 64], [256, 256]]
+hp_mutations["model"]= dict()
+hp_mutations["model"]["fcnet_hiddens"] = [[128, 128], [64, 64], [128, 64], [256, 256]]
 if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
     hp_mutations["model"]["custom_model_config"]["fc_size"] = [64]
@@ -146,6 +143,8 @@ rl_config["shuffle_sequences"] = True
 rl_config["vf_loss_coeff"] = 1
 rl_config["grad_clip"] = None
 rl_config["vf_clip_param"] = 2000
+rl_config["model"] = dict()
+rl_config["model"]["fcnet_activation"] = "relu"
 # These params are tuned from a fixed starting value.
 rl_config["lambda"] = 0.95
 rl_config["gamma"] = 0.99
@@ -154,17 +153,13 @@ rl_config["lr"] = 1e-5
 rl_config["kl_coeff"] = 0.2
 rl_config["kl_target"] = 0.01
 rl_config["entropy_coeff"] = 0
-rl_config["model"] = dict()
 rl_config["model"]["fcnet_hiddens"] = [64, 64]
-rl_config["model"]["fcnet_activation"] = "relu"
 rl_config["env_config"]["prev_length"] = 1
-rl_config["env_config"]["time_dependency"] = True
-rl_config["num_sgd_iter"] = 20
 rl_config["sgd_minibatch_size"] = 256
 rl_config["train_batch_size"] = num_periods*100
 # These params start off randomly drawn from a set.
-rl_config["env_config"]["prev_actions"] = tune.choice([True, False])
-rl_config["env_config"]["prev_demand"] = tune.choice([True, False])
+rl_config["num_sgd_iter"] = tune.choice([10, 20, 30])
+rl_config["train_batch_size"] = tune.choice([num_periods*50, num_periods*100, num_periods*200])
 if use_lstm:
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
@@ -178,10 +173,10 @@ analysis = tune.run(
         "PPO",
         name="pbt_InvManagement_test",
         scheduler=pbt,
-        num_samples=8,
+        num_samples=10,
         metric="episode_reward_mean",
         mode="max",
-        stop={"training_iteration": 500},
+        stop={"training_iteration": 300},
         config=rl_config,
         max_failures=5)
 

@@ -10,7 +10,6 @@ def base_stock_policy(policy, env):
     '''
 
     inv_ech = env.inv[env.period, :] + env.order_u[env.period, :] - env.backlog[env.period, :]
-    #inv_ech = env.inv[env.period, :] - env.backlog[env.period, :]
 
     # Get unconstrained actions
     unc_actions = policy - inv_ech
@@ -49,7 +48,7 @@ def dfo_func(policy, env, demand=None, *args):
 def optimize_inventory_policy(env, fun, init_policy=None, method='Powell', demand=None):
 
     if init_policy is None:
-        init_policy = np.ones(env.num_stages)*env.mu*2
+        init_policy = np.ones(env.num_stages)*env.mu
 
     # Optimize policy
     if demand is None:
