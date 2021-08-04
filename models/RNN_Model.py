@@ -17,7 +17,7 @@ class RNNModel(TorchRNN, nn.Module):
         super().__init__(obs_space, action_space, num_outputs, model_config, name)
 
         self.obs_size = get_preprocessor(obs_space)(obs_space).size
-        self.fc_size = customized_model_kwargs.pop("fc_size", [64])
+        self.fc_size = customized_model_kwargs.pop("fc_size", 64)
         self.use_initial_fc = customized_model_kwargs.pop("use_initial_fc", True)
         self.lstm_state_size = customized_model_kwargs.pop("lstm_state_size", 256)
         self.mlp_config = model_config["fcnet_hiddens"]
@@ -27,13 +27,10 @@ class RNNModel(TorchRNN, nn.Module):
 
         # Build the Module from fc + LSTM + 2xfc (action + value outs).
         if self.use_initial_fc:
-            self.fc_size.insert(0, self.obs_size)
-            self.fc_action = nn.ModuleList([nn.Linear(self.fc_size[i], self.fc_size[i + 1])
-                                            for i in range(len(self.fc_size) - 1)])
-            self.fc_value = nn.ModuleList([nn.Linear(self.fc_size[i], self.fc_size[i + 1])
-                                            for i in range(len(self.fc_size) - 1)])
-            self.lstm_action = nn.LSTM(self.fc_size[len(self.fc_size) - 1], self.lstm_state_size, batch_first=True)
-            self.lstm_value = nn.LSTM(self.fc_size[len(self.fc_size) - 1], self.lstm_state_size, batch_first=True)
+            self.fc_action = nn.Linear(self.obs_size, self.fc_size)
+            self.fc_value = nn.Linear(self.obs_size, self.fc_size)
+            self.lstm_action = nn.LSTM(self.fc_size, self.lstm_state_size, batch_first=True)
+            self.lstm_value = nn.LSTM(self.fc_size, self.lstm_state_size, batch_first=True)
         else:
             self.lstm_action = nn.LSTM(self.obs_size, self.lstm_state_size, batch_first=True)
             self.lstm_value = nn.LSTM(self.obs_size, self.lstm_state_size, batch_first=True)
@@ -61,8 +58,7 @@ class RNNModel(TorchRNN, nn.Module):
 
         x = self._input[0]
         if self.use_initial_fc:
-            for l in self.fc_value:
-                x = nn.functional.relu(l(x))
+            x = nn.functional.relu(self.fc_value(x))
 
         x, [h, c] = self.lstm_value(x, [torch.unsqueeze(self._input[1][0], 0),
                                     torch.unsqueeze(self._input[1][1], 0)])
@@ -90,8 +86,7 @@ class RNNModel(TorchRNN, nn.Module):
         x = inputs
         # Pre-RNN FCN
         if self.use_initial_fc:
-            for l in self.fc_action:
-                x = nn.functional.relu(l(x))
+            x = nn.functional.relu(self.fc_action(x))
 
         # RNN
         x, [h, c] = self.lstm_action(x, [torch.unsqueeze(state[0], 0),

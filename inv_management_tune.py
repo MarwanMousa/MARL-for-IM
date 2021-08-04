@@ -1,5 +1,6 @@
 from environments.IM_env import InvManagement
 from ray import tune
+import ray
 import numpy as np
 import random
 from ray.tune.schedulers import PopulationBasedTraining
@@ -44,7 +45,7 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = False
-use_lstm = False
+use_lstm = True
 prev_actions = False
 prev_demand = False
 prev_length = 2
@@ -108,15 +109,16 @@ hp_mutations["clip_param"] = lambda: random.uniform(0.1, 0.4)
 hp_mutations["lr"] = [1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6]
 hp_mutations["num_sgd_iter"] = lambda: random.randint(3, 30)
 hp_mutations["train_batch_size"] = lambda: random.randint(num_periods*50, num_periods*300)
+hp_mutations["sgd_minibatch_size"] = lambda: random.randint(64, 256)
 hp_mutations["env_config"] = dict()
-hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
 hp_mutations["model"]= dict()
-hp_mutations["model"]["fcnet_hiddens"] = [[128, 128], [64, 64], [128, 64], [256, 256]]
+if prev_demand or prev_actions:
+    hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
 if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
-    hp_mutations["model"]["custom_model_config"]["fc_size"] = [64]
-    hp_mutations["model"]["use_initial_fc"] = True
-    hp_mutations["model"]["use_initial_fc"]["lstm_state_size"] = lambda: random.randint(64, 256)
+    hp_mutations["model"]["custom_model_config"]["fc_size"] = lambda: random.randint(64, 256)
+    #hp_mutations["model"]["custom_model_config"]["use_initial_fc"] = True
+    hp_mutations["model"]["custom_model_config"]["lstm_state_size"] = lambda: random.randint(64, 256)
 
 pbt = PopulationBasedTraining(
     time_attr="training_iteration",
@@ -153,22 +155,21 @@ rl_config["lr"] = 1e-5
 rl_config["kl_coeff"] = 0.2
 rl_config["kl_target"] = 0.01
 rl_config["entropy_coeff"] = 0
-rl_config["model"]["fcnet_hiddens"] = [64, 64]
 rl_config["env_config"]["prev_length"] = 1
-rl_config["sgd_minibatch_size"] = 256
-rl_config["train_batch_size"] = num_periods*100
+rl_config["sgd_minibatch_size"] = 128
 # These params start off randomly drawn from a set.
-rl_config["num_sgd_iter"] = tune.choice([10, 20, 30])
-rl_config["train_batch_size"] = tune.choice([num_periods*50, num_periods*100, num_periods*200])
+rl_config["model"]["fcnet_hiddens"] = [tune.choice([64, 128, 256]), tune.choice([64, 128, 256])]
+rl_config["num_sgd_iter"] = tune.choice([10, 20])
+rl_config["train_batch_size"] = tune.choice([num_periods*100, num_periods*200])
 if use_lstm:
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
     rl_config["model"]["custom_model_config"] = dict()
-    rl_config["model"]["custom_model_config"]["fc_size"] = [64]
-    rl_config["model"]["use_initial_fc"] = True
-    rl_config["model"]["use_initial_fc"]["lstm_state_size"] = 128
+    rl_config["model"]["custom_model_config"]["fc_size"] = tune.choice([64, 128, 256])
+    rl_config["model"]["custom_model_config"]["use_initial_fc"] = tune.choice([True, False])
+    rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([64, 128, 256])
 
-
+#ray.init(num_cpus=8, num_gpus=2)
 analysis = tune.run(
         "PPO",
         name="pbt_InvManagement_test",
