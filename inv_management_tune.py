@@ -48,7 +48,7 @@ time_dependency = False
 use_lstm = True
 prev_actions = False
 prev_demand = False
-prev_length = 2
+prev_length = 1
 
 demand_distribution = "poisson"
 
@@ -111,18 +111,17 @@ hp_mutations["num_sgd_iter"] = lambda: random.randint(3, 30)
 hp_mutations["train_batch_size"] = lambda: random.randint(num_periods*50, num_periods*300)
 hp_mutations["sgd_minibatch_size"] = lambda: random.randint(64, 256)
 hp_mutations["env_config"] = dict()
-hp_mutations["model"]= dict()
+hp_mutations["model"] = dict()
 if prev_demand or prev_actions:
     hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
 if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
-    hp_mutations["model"]["custom_model_config"]["fc_size"] = lambda: random.randint(64, 256)
-    #hp_mutations["model"]["custom_model_config"]["use_initial_fc"] = True
-    hp_mutations["model"]["custom_model_config"]["lstm_state_size"] = lambda: random.randint(64, 256)
+    hp_mutations["model"]["custom_model_config"]["fc_size"] = [16, 32, 64, 128, 256]
+    hp_mutations["model"]["custom_model_config"]["lstm_state_size"] = [64, 128, 256]
 
 pbt = PopulationBasedTraining(
     time_attr="training_iteration",
-    perturbation_interval=2,
+    perturbation_interval=5,
     resample_probability=0.4,
     # Specifies the mutations of these hyperparams
     hyperparam_mutations=hp_mutations,
@@ -147,6 +146,7 @@ rl_config["grad_clip"] = None
 rl_config["vf_clip_param"] = 2000
 rl_config["model"] = dict()
 rl_config["model"]["fcnet_activation"] = "relu"
+rl_config["model"]["custom_model_config"]["use_initial_fc"] = True
 # These params are tuned from a fixed starting value.
 rl_config["lambda"] = 0.95
 rl_config["gamma"] = 0.99
@@ -155,29 +155,28 @@ rl_config["lr"] = 1e-5
 rl_config["kl_coeff"] = 0.2
 rl_config["kl_target"] = 0.01
 rl_config["entropy_coeff"] = 0
-rl_config["env_config"]["prev_length"] = 1
+rl_config["env_config"]["prev_length"] = prev_length
 rl_config["sgd_minibatch_size"] = 128
+rl_config["num_sgd_iter"] = 10
+rl_config["train_batch_size"] = num_periods*100
 # These params start off randomly drawn from a set.
 rl_config["model"]["fcnet_hiddens"] = [tune.choice([64, 128, 256]), tune.choice([64, 128, 256])]
-rl_config["num_sgd_iter"] = tune.choice([10, 20])
-rl_config["train_batch_size"] = tune.choice([num_periods*100, num_periods*200])
 if use_lstm:
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
     rl_config["model"]["custom_model_config"] = dict()
     rl_config["model"]["custom_model_config"]["fc_size"] = tune.choice([64, 128, 256])
-    rl_config["model"]["custom_model_config"]["use_initial_fc"] = tune.choice([True, False])
     rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([64, 128, 256])
 
-#ray.init(num_cpus=8, num_gpus=2)
+ray.init(num_cpus=4, num_gpus=0)
 analysis = tune.run(
         "PPO",
         name="pbt_InvManagement_test",
         scheduler=pbt,
-        num_samples=10,
+        num_samples=8,
         metric="episode_reward_mean",
         mode="max",
-        stop={"training_iteration": 300},
+        stop={"training_iteration": 200},
         config=rl_config,
         max_failures=5)
 
