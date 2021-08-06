@@ -5,7 +5,7 @@ from ray.rllib.models import ModelCatalog
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import get_config, get_trainer
-from models.CC_Model import CentralizedCriticModel, FillInActions, central_critic_observer
+from models.CC_Model import CentralizedCriticModel, CentralizedCriticModelRNN, FillInActions, central_critic_observer
 from gym.spaces import Dict, Box
 
 #%% Environment and Agent Configuration
@@ -38,8 +38,8 @@ standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
-use_lstm = False
+time_dependency = False
+use_lstm = True
 
 demand_distribution = "poisson"
 
@@ -118,6 +118,9 @@ def policy_mapping_fn(agent_id, episode, **kwargs):
 ModelCatalog.register_custom_model(
         "cc_model", CentralizedCriticModel)
 
+ModelCatalog.register_custom_model(
+        "cc_rnn_model", CentralizedCriticModelRNN)
+
 # Algorithm used
 algorithm = 'ppo'
 # Training Set-up
@@ -138,17 +141,26 @@ rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
-rl_config["model"]["custom_model"] = "cc_model"
 rl_config["model"]["vf_share_layers"] = False
-rl_config["model"]["custom_model_config"] = {"state_size": obs_space.shape[0]}
+rl_config["model"]["fcnet_hiddens"] = [128, 128]
+if not use_lstm:
+    rl_config["model"]["custom_model"] = "cc_model"
+    rl_config["model"]["custom_model_config"] = {"state_size": obs_space.shape[0]}
+else:
+    rl_config["model"]["custom_model"] = "cc_rnn_model"
+    rl_config["model"]["max_seq_len"] = num_periods
+    rl_config["model"]["custom_model_config"] = {"fc_size": 64,
+                                                 "use_initial_fc": True,
+                                                 "lstm_state_size": 128,
+                                                 "state_size": obs_space.shape[0]}
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 
 #%% Training
 
 # Training
-iters = 100
-validation_interval = 10
+iters = 150
+validation_interval = 20
 num_validation = 100
 results = []
 mean_eval_rewards = np.zeros((num_stages, iters//validation_interval))
@@ -174,6 +186,13 @@ for i in range(iters):
             # Initialise actions
             for m in range(num_stages):
                 action[agent_ids[m]] = 0
+            if use_lstm:
+                reward = {}
+                state = {}
+                for m in range(num_stages):
+                    sp = agent_ids[m]
+                    reward[sp] = 0
+                    state[sp] = agent.get_policy(sp).get_initial_state()
             while not done:
                 for m in range(num_stages):
                     sp = agent_ids[m]
@@ -188,8 +207,13 @@ for i in range(iters):
                     CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                                "opponent_obs": opponent_obs,
                                "opponent_action": opponent_act})
-
-                    action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
+                    if use_lstm:
+                        action[sp], state[sp], _ = agent.compute_single_action(CC_Obs, state=state[sp],
+                                                                               prev_action=action[sp],
+                                                                               prev_reward=reward[sp],
+                                                                               policy_id=sp)
+                    else:
+                        action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
                 obs, r, dones, info = test_env.step(action)
                 done = dones['__all__']
                 for m in range(num_stages):
@@ -315,6 +339,13 @@ action = {}
 # Initialise actions
 for m in range(num_stages):
     action[agent_ids[m]] = 0
+if use_lstm:
+    reward = {}
+    state = {}
+    for m in range(num_stages):
+        sp = agent_ids[m]
+        reward[sp] = 0
+        state[sp] = agent.get_policy(sp).get_initial_state()
 while not done:
     for m in range(num_stages):
         sp = agent_ids[m]
@@ -329,7 +360,13 @@ while not done:
         CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                        "opponent_obs": opponent_obs,
                        "opponent_action": opponent_act})
-        action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
+        if use_lstm:
+            action[sp], state[sp], _ = agent.compute_single_action(CC_Obs, state=state[sp],
+                                                                   prev_action=action[sp],
+                                                                   prev_reward=reward[sp],
+                                                                   policy_id=sp)
+        else:
+            action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
     obs, reward, dones, info = test_env.step(action)
     done = dones['__all__']
     for i in range(num_stages):
@@ -429,6 +466,13 @@ for i in range(num_tests):
     # Initialise actions
     for m in range(num_stages):
         action[agent_ids[m]] = 0
+    if use_lstm:
+        reward = {}
+        state = {}
+        for m in range(num_stages):
+            sp = agent_ids[m]
+            reward[sp] = 0
+            state[sp] = agent.get_policy(sp).get_initial_state()
     while not done:
         for m in range(num_stages):
             sp = agent_ids[m]
@@ -443,7 +487,13 @@ for i in range(num_tests):
             CC_Obs = dict({"own_obs": obs[agent_ids[m]],
                            "opponent_obs": opponent_obs,
                            "opponent_action": opponent_act})
-            action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
+            if use_lstm:
+                action[sp], state[sp], _ = agent.compute_single_action(CC_Obs, state=state[sp],
+                                                                       prev_action=action[sp],
+                                                                       prev_reward=reward[sp],
+                                                                       policy_id=sp)
+            else:
+                action[sp] = agent.compute_single_action(CC_Obs, policy_id=sp)
         obs, reward, dones, info = test_env.step(action)
         done = dones['__all__']
         for m in range(num_stages):
