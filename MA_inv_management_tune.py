@@ -159,7 +159,7 @@ rl_config["env"] = "MultiAgentInventoryManagement"
 rl_config["multiagent"] = dict()
 rl_config["multiagent"]["policies"] = policy_graphs
 rl_config["multiagent"]["policy_mapping_fn"] = policy_mapping_fn
-rl_config["multiagent"]["replay_mode"] = "independent"
+rl_config["multiagent"]["replay_mode"] = "lockstep"
 rl_config["env_config"] = CONFIG
 rl_config["batch_mode"] = "complete_episodes"
 rl_config["normalize_actions"] = False
@@ -192,6 +192,7 @@ rl_config["train_batch_size"] = num_periods*100
 # These params start off randomly drawn from a set.
 rl_config["model"]["fcnet_hiddens"] = [tune.choice([64, 128, 256]), tune.choice([64, 128, 256])]
 if use_lstm:
+    rl_config["shuffle_sequences"] = False
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
     rl_config["model"]["custom_model_config"] = dict()

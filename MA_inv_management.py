@@ -126,7 +126,7 @@ rl_config = get_config(algorithm, num_periods=num_periods)
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn,
-    "replay_mode": "independent"
+    "replay_mode": "lockstep"
 }
 rl_config["num_workers"] = 0
 rl_config["normalize_actions"] = False
@@ -138,6 +138,7 @@ rl_config["batch_mode"] = "complete_episodes"
 rl_config["shuffle_sequences"] = True
 
 if use_lstm:
+    rl_config["shuffle_sequences"] = False
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["fcnet_hiddens"] = [128, 128]
     rl_config["model"]["max_seq_len"] = num_periods

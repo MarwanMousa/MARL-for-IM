@@ -152,6 +152,7 @@ if not use_lstm:
     rl_config["model"]["custom_model"] = "cc_model"
     rl_config["model"]["custom_model_config"] = {"state_size": obs_space.shape[0]}
 else:
+    rl_config["shuffle_sequences"] = False
     rl_config["model"]["custom_model"] = "cc_rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
     rl_config["model"]["custom_model_config"] = {"fc_size": 64,
