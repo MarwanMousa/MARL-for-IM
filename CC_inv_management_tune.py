@@ -1,12 +1,13 @@
-from environments.IM_env import InvManagement
+from environments.MAIM_env import MultiAgentInvManagement
 from ray import tune
 import ray
 import numpy as np
 import random
 from ray.tune.schedulers import PopulationBasedTraining
-from models.RNN_Model import RNNModel, SharedRNNModel
 from ray.rllib.models import ModelCatalog
 import torch
+from models.CC_Model import CentralizedCriticModel, CentralizedCriticModelRNN, FillInActions, central_critic_observer
+from gym.spaces import Dict, Box
 #%% Environment Configuration
 
 # Set script seed
@@ -17,15 +18,15 @@ torch.manual_seed(SEED)
 
 # Environment creator function for environment registration
 def env_creator(configuration):
-    env = InvManagement(configuration)
+    env = MultiAgentInvManagement(configuration)
     return env
 
 # Register Custom models
 ModelCatalog.register_custom_model(
-        "rnn_model", RNNModel)
+        "cc_model", CentralizedCriticModel)
 
 ModelCatalog.register_custom_model(
-        "shared_rnn_model", SharedRNNModel)
+        "cc_rnn_model", CentralizedCriticModelRNN)
 
 # Environment Configuration
 num_stages = 4
@@ -45,10 +46,11 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = False
-use_lstm = True
+use_lstm = False
 prev_actions = False
 prev_demand = False
 prev_length = 1
+independent = False
 
 demand_distribution = "poisson"
 
@@ -62,7 +64,13 @@ elif demand_distribution == "uniform":
     parameter = "lower_upper"
     parameter_value = lower_upper
 
-env_name = "InventoryManagement"
+# Agent/Policy ids of the 3-stage and 4-stage configurations
+agent_ids = []
+for i in range(num_stages):
+    agent_id = "stage_" + str(i)
+    agent_ids.append(agent_id)
+
+env_name = "MultiAgentInventoryManagement"
 tune.register_env(env_name, env_creator)
 
 env_config = {
@@ -86,8 +94,39 @@ env_config = {
     "prev_demand": prev_demand,
     "prev_actions": prev_actions,
     "prev_length": prev_length,
+    "independent": independent
 }
 CONFIG = env_config.copy()
+
+# Test environment
+test_env = MultiAgentInvManagement(env_config)
+obs_space = test_env.observation_space
+act_space = test_env.action_space
+num_agents = test_env.num_agents
+
+opponent_obs_space = Box(low=np.tile(obs_space.low, num_agents-1), high=np.tile(obs_space.high, num_agents-1),
+                         dtype=np.float64, shape=(obs_space.shape[0]*(num_agents-1),))
+opponent_act_space = Box(low=np.tile(act_space.low, num_agents-1), high=np.tile(act_space.high, num_agents-1),
+                         dtype=np.float64, shape=(act_space.shape[0]*(num_agents-1),))
+cc_obs_space = Dict({
+    "own_obs": obs_space,
+    "opponent_obs": opponent_obs_space,
+    "opponent_action": opponent_act_space,
+})
+
+#%% Agent Configuration
+# Define policies to train
+policy_graphs = {}
+for i in range(num_agents):
+    policy_graphs[agent_ids[i]] = None, cc_obs_space, act_space, {}
+
+
+# Policy Mapping function to map each agent to appropriate stage policy
+
+def policy_mapping_fn(agent_id, episode, **kwargs):
+    for i in range(num_stages):
+        if agent_id.startswith(agent_ids[i]):
+            return agent_ids[i]
 
 # Postprocess the perturbed config to ensure it's still valid
 def explore(config):
@@ -110,18 +149,17 @@ hp_mutations["lr"] = [1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6]
 hp_mutations["num_sgd_iter"] = lambda: random.randint(3, 30)
 hp_mutations["train_batch_size"] = lambda: random.randint(num_periods*50, num_periods*300)
 hp_mutations["sgd_minibatch_size"] = lambda: random.randint(64, 256)
-hp_mutations["env_config"] = dict()
+hp_mutations["vf_clip_param"] = lambda: random.randint(20, 2000)
 hp_mutations["model"] = dict()
-if prev_demand or prev_actions:
-    hp_mutations["env_config"]["prev_length"] = [1, 2, 3]
 if use_lstm:
     hp_mutations["model"]["custom_model_config"] = dict()
     hp_mutations["model"]["custom_model_config"]["fc_size"] = [16, 32, 64, 128, 256]
+    hp_mutations["model"]["custom_model_config"]["fc_value_size"] = [16, 32, 64, 128, 256]
     hp_mutations["model"]["custom_model_config"]["lstm_state_size"] = [64, 128, 256]
 
 pbt = PopulationBasedTraining(
     time_attr="training_iteration",
-    perturbation_interval=4,
+    perturbation_interval=5,
     resample_probability=0.4,
     # Specifies the mutations of these hyperparams
     hyperparam_mutations=hp_mutations,
@@ -129,7 +167,13 @@ pbt = PopulationBasedTraining(
 
 
 rl_config = dict()
-rl_config["env"] = "InventoryManagement"
+rl_config["env"] = "MultiAgentInventoryManagement"
+rl_config["multiagent"] = dict()
+rl_config["multiagent"]["policies"] = policy_graphs
+rl_config["multiagent"]["observation_fn"] = tune.function(central_critic_observer)
+rl_config["multiagent"]["policy_mapping_fn"] = tune.function(policy_mapping_fn)
+rl_config["multiagent"]["replay_mode"] = "lockstep"
+rl_config["callbacks"] = FillInActions
 rl_config["env_config"] = CONFIG
 rl_config["batch_mode"] = "complete_episodes"
 rl_config["normalize_actions"] = False
@@ -138,16 +182,16 @@ rl_config["seed"] = SEED
 rl_config["use_critic"] = True
 rl_config["use_gae"] = True
 rl_config["num_gpus"] = 0
-rl_config["num_workers"] = 1
+rl_config["num_workers"] = 0
 rl_config["num_cpus_per_worker"] = 1
 rl_config["shuffle_sequences"] = True
 rl_config["vf_loss_coeff"] = 1
 rl_config["grad_clip"] = None
-rl_config["vf_clip_param"] = 2000
 rl_config["model"] = dict()
 rl_config["model"]["fcnet_activation"] = "relu"
 rl_config["model"]["vf_share_layers"] = False
 # These params are tuned from a fixed starting value.
+rl_config["vf_clip_param"] = 1000
 rl_config["lambda"] = 0.95
 rl_config["gamma"] = 0.99
 rl_config["clip_param"] = 0.2
@@ -160,21 +204,27 @@ rl_config["sgd_minibatch_size"] = 128
 rl_config["num_sgd_iter"] = 10
 rl_config["train_batch_size"] = num_periods*100
 # These params start off randomly drawn from a set.
+if not use_lstm:
+    rl_config["model"]["custom_model"] = "cc_model"
 rl_config["model"]["fcnet_hiddens"] = [tune.choice([64, 128, 256]), tune.choice([64, 128, 256])]
+rl_config["model"]["custom_model_config"] = dict()
+rl_config["model"]["custom_model_config"]["state_size"] = obs_space.shape[0]
 if use_lstm:
-    rl_config["model"]["custom_model"] = "rnn_model"
+    rl_config["shuffle_sequences"] = False
+    rl_config["model"]["custom_model"] = "cc_rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
-    rl_config["model"]["custom_model_config"] = dict()
     rl_config["model"]["custom_model_config"]["use_initial_fc"] = True
     rl_config["model"]["custom_model_config"]["fc_size"] = 64
-    rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([64, 128])
+    rl_config["model"]["custom_model_config"]["fc_value_size"] = 64
+    rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([128, 256])
 
-ray.init(num_cpus=4, num_gpus=0, log_to_driver=False)
+
+ray.init(num_cpus=4, num_gpus=0)
 analysis = tune.run(
         "PPO",
-        name="pbt_InvManagement_test",
+        name="pbt_CCInvManagement_test",
         scheduler=pbt,
-        num_samples=8,
+        num_samples=6,
         metric="episode_reward_mean",
         mode="max",
         stop={"training_iteration": 200},
@@ -183,6 +233,8 @@ analysis = tune.run(
 
 print("best hyperparameters: ", analysis.best_config)
 if use_lstm:
-    np.save(('single_agent_rnn_hyperparams.npy'), analysis)
+    np.save(('CC_rnn_hyperparams.npy'), analysis)
+    np.save(('CC_rnn_hyperparams_config.npy'), analysis.best_config)
 else:
-    np.save(('single_agent_hyperparams.npy'), analysis)
+    np.save(('CC_hyperparams.npy'), analysis)
+    np.save(('CC_hyperparams_config.npy'), analysis.best_config)

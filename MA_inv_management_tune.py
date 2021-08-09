@@ -45,7 +45,7 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = False
-use_lstm = False
+use_lstm = True
 prev_actions = False
 prev_demand = False
 prev_length = 1
@@ -168,7 +168,7 @@ rl_config["seed"] = SEED
 rl_config["use_critic"] = True
 rl_config["use_gae"] = True
 rl_config["num_gpus"] = 0
-rl_config["num_workers"] = 2
+rl_config["num_workers"] = 0
 rl_config["num_cpus_per_worker"] = 1
 rl_config["shuffle_sequences"] = True
 rl_config["vf_loss_coeff"] = 1
@@ -199,7 +199,7 @@ if use_lstm:
     rl_config["model"]["custom_model_config"]["fc_size"] = 64
     rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([128, 256])
 
-ray.init(num_cpus=5, num_gpus=0)
+ray.init(num_cpus=5, num_gpus=0, log_to_driver=False)
 analysis = tune.run(
         "PPO",
         name="pbt_MAInvManagement_test",

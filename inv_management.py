@@ -39,8 +39,8 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
-use_lstm = False
-prev_actions = True
+use_lstm = True
+prev_actions = False
 prev_demand = True
 prev_length = 1
 
@@ -138,7 +138,7 @@ if use_lstm:
     rl_config["model"]["custom_model"] = "rnn_model"
     rl_config["model"]["fcnet_hiddens"] = [128, 128]
     rl_config["model"]["max_seq_len"] = num_periods
-    rl_config["model"]["custom_model_config"] = {"fc_size": [64],
+    rl_config["model"]["custom_model_config"] = {"fc_size": 64,
                                                  "use_initial_fc": True,
                                                  "lstm_state_size": 128}
 
@@ -146,7 +146,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training
 
 # Training
-iters = 500  # Number of training iterations
+iters = 300  # Number of training iterations
 validation_interval = 10# Run validation after how many training iterations
 num_validation = 100  # How many validation runs i.e. different realisation of demand
 # Create validation demand
@@ -267,6 +267,10 @@ elif time_dependency and prev_demand and prev_actions:
     array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length*2, num_periods + 1))
 elif not time_dependency and prev_demand and prev_actions:
     array_obs = np.zeros((num_stages, 3 + prev_length*2, num_periods + 1))
+elif not time_dependency and prev_demand and not prev_actions:
+    array_obs = np.zeros((num_stages, 3 + prev_length, num_periods + 1))
+elif not time_dependency and not prev_demand and prev_actions:
+    array_obs = np.zeros((num_stages, 3 + prev_length, num_periods + 1))
 else:
     array_obs = np.zeros((num_stages, 3, num_periods + 1))
 array_actions = np.zeros((num_stages, num_periods))
@@ -374,6 +378,14 @@ if standardise_state:
                 np.tile(test_env.inv_max.reshape((-1, 1)),
                         (1, test_env.max_delay)),
                 test_env.a, test_env.b)
+        elif not time_dependency and prev_demand and not prev_actions:
+            array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
+                                                                    np.zeros(
+                                                                        (test_env.num_stages, test_env.prev_length)),
+                                                                    np.tile(test_env.order_max.reshape((-1, 1)),
+                                                                            (1, test_env.prev_length)),
+                                                                    test_env.a, test_env.b)
+
         elif not time_dependency and prev_demand and prev_actions:
             array_obs[:, 3:3 + prev_length, i] = test_env.rev_scale(array_obs[:, 3:3 + prev_length, i],
                                                                     np.zeros(

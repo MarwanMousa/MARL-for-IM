@@ -1,15 +1,17 @@
 from environments.MAIM_env import MultiAgentInvManagement
 import ray
 from ray import tune
+from ray.rllib.models import ModelCatalog
+from ray.rllib.agents.ppo.ppo import PPOTrainer
+from ray.rllib.policy.torch_policy import LearningRateSchedule, EntropyCoeffSchedule
+from ray.rllib.agents.ppo.ppo_torch_policy import PPOTorchPolicy, KLCoeffMixin
 import numpy as np
 import matplotlib.pyplot as plt
-import datetime
-import os
-import json
-from utils import get_config, get_trainer
-from models.RNN_Model import RNNModel, SharedRNNModel
-from ray.rllib.models import ModelCatalog
-#%% Environment configuration
+from utils import get_config
+from models.CC_Policy import CCPolicy_Model, CCPolicy_ModelRNN, CentralizedValueMixin, \
+    centralized_critic_postprocessing, loss_with_central_critic, setup_torch_mixins
+
+#%% Environment and Agent Configuration
 
 # Set script seed
 SEED = 52
@@ -39,10 +41,10 @@ standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
-use_lstm = True
+time_dependency = False
+use_lstm = False
 prev_actions = False
-prev_demand = True
+prev_demand = False
 prev_length = 1
 
 demand_distribution = "poisson"
@@ -97,8 +99,9 @@ test_env = MultiAgentInvManagement(env_config)
 obs_space = test_env.observation_space
 act_space = test_env.action_space
 num_agents = test_env.num_agents
+full_state_size = num_agents*obs_space.shape[0] + (num_agents - 1)*act_space.shape[0]
+obs_size = obs_space.shape[0]
 
-#%% Agent Configuration
 # Define policies to train
 policy_graphs = {}
 for i in range(num_agents):
@@ -106,53 +109,79 @@ for i in range(num_agents):
 
 
 # Policy Mapping function to map each agent to appropriate stage policy
-
 def policy_mapping_fn(agent_id, episode, **kwargs):
     for i in range(num_stages):
         if agent_id.startswith(agent_ids[i]):
             return agent_ids[i]
 
-ModelCatalog.register_custom_model(
-        "rnn_model", RNNModel)
 
 ModelCatalog.register_custom_model(
-        "shared_rnn_model", SharedRNNModel)
+        "cc_model", CCPolicy_Model)
+
+ModelCatalog.register_custom_model(
+        "cc_rnn_model", CCPolicy_ModelRNN)
 
 # Algorithm used
 algorithm = 'ppo'
 # Training Set-up
-ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=4)
+ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=1)
 rl_config = get_config(algorithm, num_periods=num_periods)
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn,
-    "replay_mode": "independent"
+    "replay_mode": "lockstep",
 }
 rl_config["num_workers"] = 0
 rl_config["normalize_actions"] = False
+rl_config["env"] = "MultiAgentInventoryManagement"
 rl_config["env_config"] = CONFIG
 rl_config["framework"] = 'torch'
 rl_config["lr"] = 1e-5
 rl_config["seed"] = 52
 rl_config["batch_mode"] = "complete_episodes"
-rl_config["shuffle_sequences"] = True
-
-if use_lstm:
-    rl_config["model"]["custom_model"] = "rnn_model"
-    rl_config["model"]["fcnet_hiddens"] = [128, 128]
+rl_config["model"]["vf_share_layers"] = False
+rl_config["model"]["fcnet_hiddens"] = [128, 128]
+if not use_lstm:
+    rl_config["model"]["custom_model"] = "cc_model"
+    rl_config["model"]["custom_model_config"] = {"full_state_size": full_state_size,
+                                                 "fcnet_hiddens_value": [128, 128]}
+else:
+    rl_config["shuffle_sequences"] = False
+    rl_config["model"]["custom_model"] = "cc_rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
-    rl_config["model"]["custom_model_config"] = {"fc_size": 64,
+    rl_config["model"]["custom_model_config"] = {"fc_action_size": 64,
+                                                 "fc_value_size": 64,
                                                  "use_initial_fc": True,
-                                                 "lstm_state_size": 128}
+                                                 "lstm_state_size": 128,
+                                                 "state_size": obs_size,
+                                                 "full_state_size": full_state_size,
+                                                 }
+
+CCPPOPolicy = PPOTorchPolicy.with_updates(
+    name="CCPPOPolicy",
+    postprocess_fn=centralized_critic_postprocessing,
+    loss_fn=loss_with_central_critic,
+    before_init=setup_torch_mixins,
+    mixins=[LearningRateSchedule, EntropyCoeffSchedule, KLCoeffMixin, CentralizedValueMixin]
+)
 
 
-agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
+def get_policy_class(config):
+    return CCPPOPolicy
+
+CCPPOTrainer = PPOTrainer.with_updates(
+    name="CCPPOTrainer",
+    default_policy=CCPPOPolicy,
+    get_policy_class=get_policy_class,
+)
+
+agent = CCPPOTrainer(config=rl_config, env="MultiAgentInventoryManagement")
 
 #%% Training
 
 # Training
 iters = 300
-validation_interval = 10
+validation_interval = 1
 num_validation = 100
 results = []
 mean_eval_rewards = np.zeros((num_stages, iters//validation_interval))
@@ -164,7 +193,6 @@ for i in range(iters):
     res = agent.train()
     results.append(res)
     if (i + 1) % 1 == 0:
-        #chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
         print('\rIter: {}\tReward: {:.2f}'.format(
             i + 1, res['episode_reward_mean']), end='')
 
@@ -175,50 +203,36 @@ for i in range(iters):
             demand = valid_demand[j]
             obs = test_env.reset(customer_demand=demand)
             done = False
+            action = {}
             if use_lstm:
                 reward = {}
-                action = {}
                 state = {}
                 for m in range(num_stages):
                     sp = agent_ids[m]
                     reward[sp] = 0
-                    action[sp] = 0
                     state[sp] = agent.get_policy(sp).get_initial_state()
+                    action[sp] = 0
             while not done:
-                if use_lstm:
-                    for m in range(num_stages):
-                        sp = agent_ids[m]
+                for m in range(num_stages):
+                    sp = agent_ids[m]
+                    if use_lstm:
                         action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp],
-                                                                        prev_action=action[sp], prev_reward=reward[sp],
-                                                                        policy_id=sp)
-                else:
-                    action = {}
-                    for m in range(num_stages):
-                        sp = agent_ids[m]
+                                                                               prev_action=action[sp],
+                                                                               prev_reward=reward[sp],
+                                                                               policy_id=sp)
+                    else:
                         action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
-
-                obs, reward, dones, info = test_env.step(action)
+                obs, r, dones, info = test_env.step(action)
                 done = dones['__all__']
                 for m in range(num_stages):
-                    reward_array[m, j] += reward[agent_ids[m]]
+                    reward_array[m, j] += r[agent_ids[m]]
 
         mean_eval_rewards[:, eval_num] = np.mean(reward_array, axis=1)
         std_eval_rewards[:, eval_num] = np.std(reward_array, axis=1)
         eval_num += 1
 
+
 ray.shutdown()
-
-training_time = datetime.datetime.now().strftime("D%dM%m_h%Hm%M")
-save_path = '/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/figures/multi_agent/' \
-            + training_time
-json_config = save_path + '/env_config.json'
-os.makedirs(os.path.dirname(json_config), exist_ok=True)
-with open(json_config, 'w') as fp:
-    for key, value in CONFIG.items():
-        if isinstance(value, np.ndarray):
-            CONFIG[key] = CONFIG[key].tolist()
-    json.dump(CONFIG, fp)
-
 #%% Reward Plots
 p = 100
 # Unpack values from each iteration
@@ -237,14 +251,14 @@ policy_rewards = {}
 policy_mean_rewards = {}
 policy_std_rewards = {}
 for j in range(num_stages):
-    policy_agent = agent_ids[j]
-    stat = 'policy_' + policy_agent + '_reward'
-    policy_rewards[policy_agent] = np.hstack([i['hist_stats'][stat] for i in results])
-    temp = policy_rewards[policy_agent]
-    policy_mean_rewards[policy_agent] = np.array([np.mean(temp[i - p:i + 1])
+    sp = agent_ids[j]
+    stat = 'policy_' + sp + '_reward'
+    policy_rewards[sp] = np.hstack([i['hist_stats'][stat] for i in results])
+    temp = policy_rewards[sp]
+    policy_mean_rewards[sp] = np.array([np.mean(temp[i - p:i + 1])
                                                   if i >= p else np.mean(temp[:i + 1])
                                                   for i, _ in enumerate(temp)])
-    policy_std_rewards[policy_agent] = np.array([np.std(temp[i - p:i + 1])
+    policy_std_rewards[sp] = np.array([np.std(temp[i - p:i + 1])
                                                  if i >= p else np.std(temp[:i + 1])
                                                  for i, _ in enumerate(temp)])
 
@@ -261,21 +275,18 @@ ax.set_xlabel('Episode')
 ax.set_title('Aggregate Training Rewards')
 ax.legend()
 
-rewards_name = save_path + '/training_rewards.png'
-plt.savefig(rewards_name, dpi=200)
-plt.show()
 plt.show()
 
 colours = ['r', 'g', 'b', 'k']
 fig, ax = plt.subplots()
 for i in range(num_agents):
-    policy_agent = agent_ids[i]
-    ax.plot(policy_mean_rewards[policy_agent], color=colours[i], label='Mean Training Rewards ' + policy_agent)
-    ax.fill_between(np.arange(len(policy_mean_rewards[policy_agent])),
-                    policy_mean_rewards[policy_agent] - policy_std_rewards[policy_agent],
-                    policy_mean_rewards[policy_agent] + policy_std_rewards[policy_agent],
+    sp = agent_ids[i]
+    ax.plot(policy_mean_rewards[sp], color=colours[i], label='Mean Training Rewards ' + sp)
+    ax.fill_between(np.arange(len(policy_mean_rewards[sp])),
+                    policy_mean_rewards[sp] - policy_std_rewards[sp],
+                    policy_mean_rewards[sp] + policy_std_rewards[sp],
                     color=colours[i], alpha=0.3)
-    ax.plot(eval_episode, mean_eval_rewards[i, :], label='Mean Validation Rewards ' + policy_agent)
+    ax.plot(eval_episode, mean_eval_rewards[i, :], label='Mean Validation Rewards ' + sp)
     ax.fill_between(eval_episode,
                     mean_eval_rewards[i, :] - std_eval_rewards[i, :],
                     mean_eval_rewards[i, :] + std_eval_rewards[i, :],
@@ -285,10 +296,7 @@ for i in range(num_agents):
     ax.set_ylabel('Rewards')
     ax.legend()
 
-rewards_name_policy = save_path + '/training_rewards_policy.png'
-plt.savefig(rewards_name, dpi=200)
 plt.show()
-
 
 #%% Test rollout
 
@@ -314,27 +322,30 @@ for i in range(num_stages):
     dict_obs[sp]['inventory'] = np.zeros(num_periods + 1)
     dict_obs[sp]['backlog'] = np.zeros(num_periods + 1)
     dict_obs[sp]['order_u'] = np.zeros(num_periods + 1)
+    dict_obs[sp]['time_dependent_s'] = np.zeros((num_periods + 1, test_env.max_delay))
     dict_info[sp]['demand'] = np.zeros(num_periods)
     dict_info[sp]['ship'] = np.zeros(num_periods)
     dict_info[sp]['acquisition'] = np.zeros(num_periods)
     dict_info[sp]['actual order'] = np.zeros(num_periods)
     dict_info[sp]['profit'] = np.zeros(num_periods)
     if standardise_state:
-        dict_obs[sp]['inventory'][0] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i], test_env.a, test_env.b)
-        dict_obs[sp]['backlog'][0] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i], test_env.a, test_env.b)
-        dict_obs[sp]['order_u'][0] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i], test_env.a, test_env.b)
+        dict_obs[sp]['inventory'][0] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i],
+                                                                    test_env.a, test_env.b)
+        dict_obs[sp]['backlog'][0] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i],
+                                                                  test_env.a, test_env.b)
+        dict_obs[sp]['order_u'][0] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i],
+                                                                  test_env.a, test_env.b)
     else:
         dict_obs[sp]['inventory'][0] = obs[sp][0]
         dict_obs[sp]['backlog'][0] = obs[sp][1]
         dict_obs[sp]['order_u'][0] = obs[sp][2]
-
     dict_actions[sp] = np.zeros(num_periods)
     dict_rewards[sp] = np.zeros(num_periods)
     dict_rewards['Total'] = np.zeros(num_periods)
 
+action = {}
 if use_lstm:
     reward = {}
-    action = {}
     state = {}
     for m in range(num_stages):
         sp = agent_ids[m]
@@ -342,15 +353,14 @@ if use_lstm:
         action[sp] = 0
         state[sp] = agent.get_policy(sp).get_initial_state()
 while not done:
-    if use_lstm:
-        for i in range(num_stages):
-            sp = agent_ids[i]
-            action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
-                                                            prev_reward=reward[sp], policy_id=sp)
-    else:
-        action = {}
-        for i in range(num_stages):
-            sp = agent_ids[i]
+    for m in range(num_stages):
+        sp = agent_ids[m]
+        if use_lstm:
+            action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp],
+                                                                   prev_action=action[sp],
+                                                                   prev_reward=reward[sp],
+                                                                   policy_id=sp)
+        else:
             action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
     obs, reward, dones, info = test_env.step(action)
     done = dones['__all__']
@@ -358,17 +368,16 @@ while not done:
         sp = agent_ids[i]
         episode_reward += reward[sp]
         if standardise_state:
-            dict_obs[sp]['inventory'][period + 1] = test_env.rev_scale(obs[sp][0], 0, test_env.inv_max[i],
-                                                                       test_env.a, test_env.b)
-            dict_obs[sp]['backlog'][period + 1] = test_env.rev_scale(obs[sp][1], 0, test_env.inv_max[i],
-                                                                     test_env.a, test_env.b)
-            dict_obs[sp]['order_u'][period + 1] = test_env.rev_scale(obs[sp][2], 0, test_env.order_max[i],
-                                                                     test_env.a, test_env.b)
+            dict_obs[sp]['inventory'][period + 1] = test_env.rev_scale(obs[sp][0], 0,
+                                                                             test_env.inv_max[i], test_env.a, test_env.b)
+            dict_obs[sp]['backlog'][period + 1] = test_env.rev_scale(obs[sp][1], 0,
+                                                                           test_env.inv_max[i], test_env.a, test_env.b)
+            dict_obs[sp]['order_u'][period + 1] = test_env.rev_scale(obs[sp][2], 0,
+                                                                           test_env.order_max[i], test_env.a, test_env.b)
         else:
             dict_obs[sp]['inventory'][period + 1] = obs[sp][0]
             dict_obs[sp]['backlog'][period + 1] = obs[sp][1]
             dict_obs[sp]['order_u'][period + 1] = obs[sp][2]
-
         dict_info[sp]['demand'][period] = info[sp]['demand']
         dict_info[sp]['ship'][period] = info[sp]['ship']
         dict_info[sp]['acquisition'][period] = info[sp]['acquisition']
@@ -423,8 +432,6 @@ for i in range(num_stages):
     axs[i + num_stages * 3].set_ylabel('Profit')
     axs[i + num_stages * 3].set_xlim(0, num_periods)
 
-test_name = save_path + '/test_rollout.png'
-plt.savefig(test_name, dpi=200)
 plt.show()
 
 # Rewards plots
@@ -438,8 +445,7 @@ ax.set_xlabel('Period')
 ax.set_ylabel('Rewards')
 ax.set_xlim(0, num_periods)
 
-test_rewards_name = save_path + '/test_rollout_rewards.png'
-plt.savefig(test_rewards_name, dpi=200)
+
 plt.show()
 
 #%% Test runs on final agent
@@ -451,9 +457,9 @@ for i in range(num_tests):
     obs = test_env.reset(customer_demand=demand)
     episode_reward = 0
     done = False
+    action = {}
     if use_lstm:
         reward = {}
-        action = {}
         state = {}
         for m in range(num_stages):
             sp = agent_ids[m]
@@ -461,15 +467,14 @@ for i in range(num_tests):
             action[sp] = 0
             state[sp] = agent.get_policy(sp).get_initial_state()
     while not done:
-        if use_lstm:
-            for m in range(num_stages):
-                sp = agent_ids[m]
-                action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
-                                                                prev_reward=reward[sp], policy_id=sp)
-        else:
-            action = {}
-            for m in range(num_stages):
-                sp = agent_ids[m]
+        for m in range(num_stages):
+            sp = agent_ids[m]
+            if use_lstm:
+                action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp],
+                                                                       prev_action=action[sp],
+                                                                       prev_reward=reward[sp],
+                                                                       policy_id=sp)
+            else:
                 action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
         obs, reward, dones, info = test_env.step(action)
         done = dones['__all__']

@@ -19,7 +19,6 @@ def env_creator(configuration):
     env = MultiAgentInvManagement(configuration)
     return env
 
-
 # Environment Configuration
 num_stages = 4
 num_periods = 30
@@ -39,7 +38,10 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = False
-use_lstm = True
+use_lstm = False
+prev_actions = False
+prev_demand = False
+prev_length = 1
 
 demand_distribution = "poisson"
 
@@ -82,6 +84,9 @@ env_config = {
     "a": a,
     "b": b,
     "time_dependency": time_dependency,
+    "prev_demand": prev_demand,
+    "prev_actions": prev_actions,
+    "prev_length": prev_length,
 }
 CONFIG = env_config.copy()
 
@@ -129,7 +134,7 @@ rl_config = get_config(algorithm, num_periods=num_periods)
 rl_config["multiagent"] = {
     "policies": policy_graphs,
     "policy_mapping_fn": policy_mapping_fn,
-    "replay_mode": "independent",
+    "replay_mode": "lockstep",
     "observation_fn": central_critic_observer
 }
 rl_config["num_workers"] = 0
@@ -150,6 +155,7 @@ else:
     rl_config["model"]["custom_model"] = "cc_rnn_model"
     rl_config["model"]["max_seq_len"] = num_periods
     rl_config["model"]["custom_model_config"] = {"fc_size": 64,
+                                                 "fc_value_size": 64,
                                                  "use_initial_fc": True,
                                                  "lstm_state_size": 128,
                                                  "state_size": obs_space.shape[0]}
@@ -159,7 +165,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 
 # Training
-iters = 150
+iters = 300
 validation_interval = 20
 num_validation = 100
 results = []
