@@ -236,5 +236,5 @@ if use_lstm:
     np.save(('CC_rnn_hyperparams.npy'), analysis)
     np.save(('CC_rnn_hyperparams_config.npy'), analysis.best_config)
 else:
-    np.save(('CC_hyperparams.npy'), analysis)
+    np.save(('CC_hyperparams_1.npy'), analysis)
     np.save(('CC_hyperparams_config.npy'), analysis.best_config)
