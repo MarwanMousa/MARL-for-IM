@@ -52,6 +52,18 @@ async-timeout = "*"
 hiredis = "*"
 
 [[package]]
+name = "amply"
+version = "0.1.4"
+description = "Amply allows you to load and manipulate AMPL/GLPK data as Python data structures"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.dependencies]
+docutils = ">=0.3"
+pyparsing = "*"
+
+[[package]]
 name = "astunparse"
 version = "1.6.3"
 description = "An AST unparser for Python"
@@ -188,6 +200,14 @@ python-versions = "*"
 six = ">=1.12.0"
 
 [[package]]
+name = "docutils"
+version = "0.17.1"
+description = "Docutils -- Python Documentation Utilities"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
 name = "filelock"
 version = "3.0.12"
 description = "A platform independent file lock."
@@ -210,6 +230,14 @@ description = "Python AST that abstracts the underlying Python version"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
+name = "glpk"
+version = "0.4.6"
+description = "PyGLPK, a Python module encapsulating GLPK."
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "google-api-core"
@@ -632,6 +660,14 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "ply"
+version = "3.11"
+description = "Python Lex & Yacc"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "prometheus-client"
 version = "0.10.1"
 description = "Python client for the Prometheus monitoring system."
@@ -663,6 +699,17 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [package.extras]
 test = ["ipaddress", "mock", "unittest2", "enum34", "pywin32", "wmi"]
+
+[[package]]
+name = "pulp"
+version = "2.4"
+description = "PuLP is an LP modeler written in python. PuLP can generate MPS or LP files and call GLPK, COIN CLP/CBC, CPLEX, and GUROBI to solve linear problems."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+amply = ">=0.1.2"
 
 [[package]]
 name = "py-spy"
@@ -713,6 +760,17 @@ description = "Cross-platform windowing and multimedia library"
 category = "main"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "pyomo"
+version = "6.0.1"
+description = "Pyomo: Python Optimization Modeling Objects"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+ply = "*"
 
 [[package]]
 name = "pyparsing"
@@ -1044,7 +1102,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.10"
-content-hash = "d384cba5020cb367c228ca5efb70a72ea39907373bd86915a0dfb424f454eaae"
+content-hash = "1698827c63006be577461eadf8ae41079f3a99aab91938b60fa0734d993afad9"
 
 [metadata.files]
 absl-py = [
@@ -1097,6 +1155,11 @@ aiohttp-cors = [
 aioredis = [
     {file = "aioredis-1.3.1-py3-none-any.whl", hash = "sha256:b61808d7e97b7cd5a92ed574937a079c9387fdadd22bfbfa7ad2fd319ecc26e3"},
     {file = "aioredis-1.3.1.tar.gz", hash = "sha256:15f8af30b044c771aee6787e5ec24694c048184c7b9e54c3b60c750a4b93273a"},
+]
+amply = [
+    {file = "amply-0.1.4-py3-none-any.whl", hash = "sha256:f8a846a544750493f45e75e9b44c393144be5728701df4f596b1fa5595d263fd"},
+    {file = "amply-0.1.4-py3.7.egg", hash = "sha256:baa05b059759807cdbe897624ed037e1b045e6282cd500ee87ec78b2e504a669"},
+    {file = "amply-0.1.4.tar.gz", hash = "sha256:cb12dcb49d16b168c02be128a1527ecde50211e4bd94af76ff4e67707f5a2d38"},
 ]
 astunparse = [
     {file = "astunparse-1.6.3-py2.py3-none-any.whl", hash = "sha256:c2652417f2c8b5bb325c885ae329bdf3f86424075c4fd1a128674bc6fba4b8e8"},
@@ -1170,6 +1233,10 @@ dm-tree = [
     {file = "dm_tree-0.1.6-cp39-cp39-manylinux_2_24_x86_64.whl", hash = "sha256:8425454192e954692d9a1e0f7b374b3b7030916b17b6055951dc17d58b6fe1b8"},
     {file = "dm_tree-0.1.6-cp39-cp39-win_amd64.whl", hash = "sha256:5269183f80f1ae37543a2a30a8f78e4b0460d5da74fb5ac42dc8a476ef8d707e"},
 ]
+docutils = [
+    {file = "docutils-0.17.1-py2.py3-none-any.whl", hash = "sha256:cf316c8370a737a022b72b56874f6602acf974a37a9fba42ec2876387549fc61"},
+    {file = "docutils-0.17.1.tar.gz", hash = "sha256:686577d2e4c32380bb50cbb22f575ed742d58168cee37e99117a854bcd88f125"},
+]
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},
     {file = "filelock-3.0.12.tar.gz", hash = "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59"},
@@ -1181,6 +1248,9 @@ flatbuffers = [
 gast = [
     {file = "gast-0.4.0-py3-none-any.whl", hash = "sha256:b7adcdd5adbebf1adf17378da5ba3f543684dbec47b1cda1f3997e573cd542c4"},
     {file = "gast-0.4.0.tar.gz", hash = "sha256:40feb7b8b8434785585ab224d1568b857edb18297e5a3047f1ba012bc83b42c1"},
+]
+glpk = [
+    {file = "glpk-0.4.6.tar.gz", hash = "sha256:8739fcf6513c2f225ac525c2a43c89f10de27b546983e7900235ea87c85a1b74"},
 ]
 google-api-core = [
     {file = "google-api-core-1.28.0.tar.gz", hash = "sha256:02646803bd728e12dd1f45ee1dcc31c12614c9a1ac451b9a1ce26aa65df9b957"},
@@ -1630,6 +1700,10 @@ pillow = [
     {file = "Pillow-8.2.0-pp37-pypy37_pp73-win32.whl", hash = "sha256:e98eca29a05913e82177b3ba3d198b1728e164869c613d76d0de4bde6768a50e"},
     {file = "Pillow-8.2.0.tar.gz", hash = "sha256:a787ab10d7bb5494e5f76536ac460741788f1fbce851068d73a87ca7c35fc3e1"},
 ]
+ply = [
+    {file = "ply-3.11-py2.py3-none-any.whl", hash = "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce"},
+    {file = "ply-3.11.tar.gz", hash = "sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3"},
+]
 prometheus-client = [
     {file = "prometheus_client-0.10.1-py2.py3-none-any.whl", hash = "sha256:030e4f9df5f53db2292eec37c6255957eb76168c6f974e4176c711cf91ed34aa"},
     {file = "prometheus_client-0.10.1.tar.gz", hash = "sha256:b6c5a9643e3545bcbfd9451766cbaa5d9c67e7303c7bc32c750b6fa70ecb107d"},
@@ -1688,6 +1762,10 @@ psutil = [
     {file = "psutil-5.8.0-cp39-cp39-win32.whl", hash = "sha256:ea372bcc129394485824ae3e3ddabe67dc0b118d262c568b4d2602a7070afdb0"},
     {file = "psutil-5.8.0-cp39-cp39-win_amd64.whl", hash = "sha256:f4634b033faf0d968bb9220dd1c793b897ab7f1189956e1aa9eae752527127d3"},
     {file = "psutil-5.8.0.tar.gz", hash = "sha256:0c9ccb99ab76025f2f0bbecf341d4656e9c1351db8cc8a03ccd62e318ab4b5c6"},
+]
+pulp = [
+    {file = "PuLP-2.4-py3-none-any.whl", hash = "sha256:10aa02198435ad5792b7922737fb66a19a7cb4579d49317e402c8a1e1fc099ed"},
+    {file = "PuLP-2.4.tar.gz", hash = "sha256:b2aff10989b3692e3a59301a0cb0acddeb25dcea378f8804c86007075eae55b5"},
 ]
 py-spy = [
     {file = "py_spy-0.3.7-py2.py3-none-macosx_10_9_x86_64.whl", hash = "sha256:23d9d63e5aefd5fed7eab0f48d615f22a67e1fe46f95ea7e66dde0ce603e0025"},
@@ -1754,6 +1832,21 @@ pydantic = [
 pyglet = [
     {file = "pyglet-1.5.15-py3-none-any.whl", hash = "sha256:4401cc176580e4e17e2df8bbf7536f27e691327dc3f38f209a12f1859c70aed2"},
     {file = "pyglet-1.5.15.zip", hash = "sha256:da9d8337388cedabf1f1c5dc21a45bb2b0e5327fba47f996c8573818c3dfa478"},
+]
+pyomo = [
+    {file = "Pyomo-6.0.1-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:41f6f820f44b719dad572c2d3968c98049912822ab75d03c07470cd67f625427"},
+    {file = "Pyomo-6.0.1-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:5f14d322dd0b14e82062081b13147695b3d5da5f0510964d894f70cf163334aa"},
+    {file = "Pyomo-6.0.1-cp36-cp36m-win_amd64.whl", hash = "sha256:87e24cbc64dcfadf694853355c780a4868c880ee53c0a6314a22972fb2aba090"},
+    {file = "Pyomo-6.0.1-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:649671dba5d302dc0e33da96a32fff2aa35be1e1403d5761d3e6d258b01853b6"},
+    {file = "Pyomo-6.0.1-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:1d8e612b5b44df2383a97c759ad658e174676631a6d705a05292c2416952180a"},
+    {file = "Pyomo-6.0.1-cp37-cp37m-win_amd64.whl", hash = "sha256:4b2f63bb079d8448102104461f08f420ae3555cb0cfef22cd4a61ce40b1a2d9b"},
+    {file = "Pyomo-6.0.1-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:cb9758f01217507fa0a95b63bf257002e80f0e8024cdffac41af229a4abfe33b"},
+    {file = "Pyomo-6.0.1-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:6ce367605fa10c2b7ee6522e1d382a8f0d350bb97721c5448bba67a832f9ef19"},
+    {file = "Pyomo-6.0.1-cp38-cp38-win_amd64.whl", hash = "sha256:b786f308a7eb4e163db442375881f5931e97134f9524e626e0997a82cef960b3"},
+    {file = "Pyomo-6.0.1-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:fae5f4eb05e5e37604aecddda60217d6078996eb8c2e3b5d1e2725f1955f8261"},
+    {file = "Pyomo-6.0.1-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:b79cb5db2f7c2d7dff11921a83bee524a767020023799fca5957de4c25921961"},
+    {file = "Pyomo-6.0.1-cp39-cp39-win_amd64.whl", hash = "sha256:f046b4aab1eca010d64e257489ec97488ce7dba61e3f37f045780b4958a0d436"},
+    {file = "Pyomo-6.0.1.tar.gz", hash = "sha256:4b27bc917b12a6011e7eb3442a54619f0f42f1087d4defa14b903dd985fdbe7c"},
 ]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},

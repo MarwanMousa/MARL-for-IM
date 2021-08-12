@@ -152,7 +152,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 
 # Training
-iters = 250
+iters = 300
 validation_interval = 10
 num_validation = 100
 results = []

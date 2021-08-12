@@ -47,8 +47,8 @@ a = -1
 b = 1
 time_dependency = False
 use_lstm = False
-prev_actions = False
-prev_demand = False
+prev_actions = True
+prev_demand = True
 prev_length = 1
 independent = False
 
@@ -219,12 +219,12 @@ if use_lstm:
     rl_config["model"]["custom_model_config"]["lstm_state_size"] = tune.choice([128, 256])
 
 
-ray.init(num_cpus=4, num_gpus=0)
+ray.init(num_cpus=5, num_gpus=0)
 analysis = tune.run(
         "PPO",
         name="pbt_CCInvManagement_test",
         scheduler=pbt,
-        num_samples=6,
+        num_samples=8,
         metric="episode_reward_mean",
         mode="max",
         stop={"training_iteration": 200},
@@ -233,8 +233,8 @@ analysis = tune.run(
 
 print("best hyperparameters: ", analysis.best_config)
 if use_lstm:
-    np.save(('CC_rnn_hyperparams.npy'), analysis)
     np.save(('CC_rnn_hyperparams_config.npy'), analysis.best_config)
+    np.save(('CC_rnn_hyperparams.npy'), analysis)
 else:
-    np.save(('CC_hyperparams_1.npy'), analysis)
     np.save(('CC_hyperparams_config.npy'), analysis.best_config)
+    np.save(('CC_hyperparams.npy'), analysis)

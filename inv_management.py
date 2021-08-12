@@ -10,6 +10,7 @@ from utils import get_config, get_trainer
 from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
 from models.RNN_Model import RNNModel, SharedRNNModel
 from ray.rllib.models import ModelCatalog
+from pyomo.environ import *
 #%% Environment Configuration
 
 # Set script seed
@@ -113,6 +114,7 @@ for i in range(eps):
 
 print(f'Mean DFO rewards is {np.mean(dfo_rewards)}')
 
+#%%
 #%% Agent Configuration
 
 ModelCatalog.register_custom_model(

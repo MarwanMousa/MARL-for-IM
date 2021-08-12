@@ -37,10 +37,10 @@ standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
-use_lstm = False
+time_dependency = False
+use_lstm = True
 prev_actions = False
-prev_demand = True
+prev_demand = False
 prev_length = 1
 
 demand_distribution = "poisson"
@@ -166,7 +166,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 
 # Training
-iters = 300
+iters = 250
 validation_interval = 20
 num_validation = 100
 results = []
