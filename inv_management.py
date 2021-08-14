@@ -10,7 +10,7 @@ from utils import get_config, get_trainer
 from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
 from models.RNN_Model import RNNModel, SharedRNNModel
 from ray.rllib.models import ModelCatalog
-from pyomo.environ import *
+from hyperparams import get_hyperparams
 #%% Environment Configuration
 
 # Set script seed
@@ -40,7 +40,7 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = True
-use_lstm = True
+use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
@@ -82,12 +82,26 @@ env_config = {
     "prev_actions": prev_actions,
     "prev_length": prev_length,
 }
+
+# Loading in hyperparameters from hyperparameter search
+use_optimal = True
+configuration_name = "S_4"
+
+if use_optimal:
+    o_config = get_hyperparams(configuration_name)
+    env_config = o_config["env_config"]
+    time_dependency = env_config["time_dependency"]
+    prev_demand = env_config["prev_demand"]
+    prev_actions = env_config["prev_actions"]
+    prev_length = env_config["prev_length"]
+
 CONFIG = env_config.copy()
 # Configuration for the base-restock policy with DFO that has no state-action standardisation
 DFO_CONFIG = env_config.copy()
 DFO_CONFIG["standardise_state"] = False
 DFO_CONFIG["standardise_actions"] = False
 DFO_CONFIG["time_dependency"] = False
+
 # Test environment
 test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
@@ -113,8 +127,6 @@ for i in range(eps):
     dfo_rewards.append(dfo_reward)
 
 print(f'Mean DFO rewards is {np.mean(dfo_rewards)}')
-
-#%%
 #%% Agent Configuration
 
 ModelCatalog.register_custom_model(
@@ -143,6 +155,12 @@ if use_lstm:
     rl_config["model"]["custom_model_config"] = {"fc_size": 64,
                                                  "use_initial_fc": True,
                                                  "lstm_state_size": 128}
+
+if use_optimal:
+    rl_config = o_config
+    rl_config["env_config"] = CONFIG
+    rl_config["num_workers"] = 0
+    rl_config["num_gpus"] = 0
 
 agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 #%% RL Training

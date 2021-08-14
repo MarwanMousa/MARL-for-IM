@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from utils import get_config, get_trainer
 from models.CC_Model import CentralizedCriticModel, CentralizedCriticModelRNN, FillInActions, central_critic_observer
 from gym.spaces import Dict, Box
-
+from hyperparams import get_hyperparams
 #%% Environment and Agent Configuration
 
 # Set script seed
@@ -88,6 +88,20 @@ env_config = {
     "prev_actions": prev_actions,
     "prev_length": prev_length,
 }
+
+# Loading in hyperparameters from hyperparameter search
+use_optimal = True
+configuration_name = "CC_1"
+
+if use_optimal:
+    o_config = get_hyperparams(configuration_name)
+    env_config = o_config["env_config"]
+    time_dependency = env_config["time_dependency"]
+    prev_demand = env_config["prev_demand"]
+    prev_actions = env_config["prev_actions"]
+    prev_length = env_config["prev_length"]
+
+
 CONFIG = env_config.copy()
 
 # Test environment
@@ -160,6 +174,21 @@ else:
                                                  "use_initial_fc": True,
                                                  "lstm_state_size": 128,
                                                  "state_size": obs_space.shape[0]}
+
+# Overwrite default parameters
+if use_optimal:
+    rl_config = o_config
+    rl_config["env_config"] = CONFIG
+    rl_config["num_workers"] = 0
+    rl_config["num_gpus"] = 0
+    rl_config["multiagent"] = {
+        "policies": policy_graphs,
+        "policy_mapping_fn": policy_mapping_fn,
+        "replay_mode": "lockstep",
+        "observation_fn": central_critic_observer
+    }
+    rl_config["callbacks"] = FillInActions
+
 
 agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 

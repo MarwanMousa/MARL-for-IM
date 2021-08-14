@@ -236,7 +236,7 @@ class InvManagement(gym.Env):
             for i in range(self.prev_length):
                 if i < t:
                     order_history[:, i] = self.order_r[t - 1 - i, :]
-            #print(order_history)
+
             order_history = self.rescale(order_history, np.zeros((m, self.prev_length)),
                                           np.tile(self.order_max.reshape((-1, 1)), (1, self.prev_length)),
                                           self.a, self.b)
