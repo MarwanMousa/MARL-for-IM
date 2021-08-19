@@ -4,7 +4,7 @@ Helper functions for getting agents and rl configs
 
 
 from ray.rllib import agents
-
+import os
 
 def get_config(algorithm, num_periods):
     if algorithm == 'ddpg' or algorithm == 'apex' or algorithm == 'td3':
@@ -141,3 +141,7 @@ def get_trainer(algorithm, rl_config, environment):
 
     return agent
 
+def ensure_dir(file_path):
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)

@@ -216,15 +216,15 @@ def get_hyperparams(configuration):
                'vf_clip_param': 2000,
                'model': {'fcnet_activation': 'relu', 'fcnet_hiddens': [256, 256], 'custom_model': 'rnn_model', 'max_seq_len': 30, 'custom_model_config': {'use_initial_fc': True, 'fc_size': 64, 'lstm_state_size': 256}},
                'lambda': 0.95, #1.14,
-               'gamma': 0.975735736239372,
+               'gamma': 0.99, #0.975735736239372,
                'clip_param': 0.15243085036384377,
                'lr': 5e-06,
                'kl_coeff': 0.42483543248805977,
                'kl_target': 0.012,
                'entropy_coeff': 0,
-               'sgd_minibatch_size': 102,
-               'num_sgd_iter': 3,
-               'train_batch_size': 2400}
+               'sgd_minibatch_size': 100,
+               'num_sgd_iter': 10,#3,
+               'train_batch_size': 3000}#2400}
         return S_8
     if configuration == "S_9":
         S_9 = {'env': 'InventoryManagement',
@@ -356,7 +356,7 @@ def get_hyperparams(configuration):
                 'grad_clip': None,
                 'vf_clip_param': 2000,
                 'model': {'fcnet_activation': 'relu', 'vf_share_layers': False, 'fcnet_hiddens': [64, 256]},
-                'lambda': 0.9043852639846904,
+                'lambda': 0.95, #0.9043852639846904,
                 'gamma': 0.99, #1.3890281596279561,
                 'clip_param': 0.375303413484271,
                 'lr': 0.001,
@@ -365,7 +365,7 @@ def get_hyperparams(configuration):
                 'entropy_coeff': 0,
                 'sgd_minibatch_size': 60,
                 'num_sgd_iter': 17,
-                'train_batch_size': 8884}
+                'train_batch_size': 6000}
         return MA_1
     if configuration == "MA_2":
         MA_2 = {'env': 'MultiAgentInventoryManagement',
@@ -499,9 +499,9 @@ def get_hyperparams(configuration):
                 'lambda': 0.95, #0.7828566279659254,
                 'gamma': 0.99,#1.1475372607792695,
                 'clip_param': 0.20924745029798408,
-                'lr': 0.001,
-                'kl_coeff': 0.19200000000000003,
-                'kl_target': 0.006137242357467739,
+                'lr': 1e-5, #0.001,
+                'kl_coeff': 0.19,
+                'kl_target': 0.006,
                 'entropy_coeff': 0,
                 'sgd_minibatch_size': 180,
                 'num_sgd_iter': 14,
@@ -617,7 +617,7 @@ def get_hyperparams(configuration):
                  'entropy_coeff': 0,
                  'sgd_minibatch_size': 153,
                  'num_sgd_iter': 12,
-                 'train_batch_size': 7904}
+                 'train_batch_size': 6000}#7904}
         return MA_10
     if configuration == "MA_11":
         MA_11 = {'env': 'MultiAgentInventoryManagement',
@@ -696,13 +696,13 @@ def get_hyperparams(configuration):
                 'lambda': 0.95, #0.7349540721256149,
                 'gamma': 0.99,#0.7809868261815535,
                 'clip_param': 0.10900302505434384,
-                'lr': 5e-06,
+                'lr': 1e-05,#5e-06,
                 'kl_coeff': 0.13955455352328974,
                 'kl_target': 0.016887526380556767,
                 'entropy_coeff': 0,
                 'sgd_minibatch_size': 180,
                 'num_sgd_iter': 9,
-                'train_batch_size': 6433}
+                'train_batch_size': 6000}#6433}
         return CC_1
     if configuration == "CC_2":
         CC_2 = {'env': 'MultiAgentInventoryManagement',
@@ -777,16 +777,16 @@ def get_hyperparams(configuration):
                 'grad_clip': None,
                 'model': {'fcnet_activation': 'relu', 'vf_share_layers': False, 'custom_model': 'cc_model', 'fcnet_hiddens': [64, 256], 'custom_model_config': {'state_size': 4}},
                 'vf_clip_param': 921,
-                'lambda': 0.9085827525459961,
-                'gamma': 0.9477924464974665,
-                'clip_param': 0.5104301439247286,
-                'lr': 5e-06,
+                'lambda': 0.95,#0.9085827525459961,
+                'gamma': 0.99, #0.9477924464974665,
+                'clip_param': 0.5,
+                'lr': 1e-05, #5e-06,
                 'kl_coeff': 0.3754018694760135,
                 'kl_target': 0.020736,
                 'entropy_coeff': 0,
                 'sgd_minibatch_size': 206,
                 'num_sgd_iter': 22,
-                'train_batch_size': 2764}
+                'train_batch_size': 3000}#2764}
         return CC_4
     if configuration == "CC_5":
         CC_5 = {'env': 'MultiAgentInventoryManagement',
@@ -817,6 +817,32 @@ def get_hyperparams(configuration):
                        'train_batch_size': 4147}
         return CC_5
     if configuration == "CC_6":
+        CC_6  = {'env': 'MultiAgentInventoryManagement',
+                 'env_config': {'num_stages': 4, 'num_periods': 30, 'init_inv': np.array([10., 10., 10., 10.]), 'price': np.array([5, 4, 3, 2, 1]), 'stock_cost': np.array([0.35, 0.3 , 0.4 , 0.2 ]), 'backlog_cost': np.array([0.5, 0.7, 0.6, 0.9]), 'demand_dist': 'poisson', 'inv_target': np.array([0., 0., 0., 0.]), 'inv_max': np.array([30., 30., 30., 30.]), 'seed': 52, 'delay': np.array([1, 2, 3, 1], dtype=np.int8), 'mu': 5, 'standardise_state': True, 'standardise_actions': True, 'a': -1, 'b': 1, 'time_dependency': True, 'prev_demand': True, 'prev_actions': False, 'prev_length': 1, 'independent': False},
+                 'batch_mode': 'complete_episodes',
+                 'normalize_actions': False,
+                 'framework': 'torch',
+                 'seed': 52,
+                 'use_critic': True,
+                 'use_gae': True,
+                 'num_gpus': 0,
+                 'num_workers': 0,
+                 'num_cpus_per_worker': 1,
+                 'shuffle_sequences': True,
+                 'vf_loss_coeff': 1,
+                 'grad_clip': None,
+                 'model': {'fcnet_activation': 'relu', 'vf_share_layers': False, 'custom_model': 'cc_model', 'fcnet_hiddens': [128, 128], 'custom_model_config': {'state_size': 7}},
+                 'vf_clip_param': 800,
+                 'lambda': 0.9576605221693035,
+                 'gamma': 0.9586007357269293,
+                 'clip_param': 0.24,
+                 'lr': 1e-05,
+                 'kl_coeff': 0.16000000000000003,
+                 'kl_target': 0.008,
+                 'entropy_coeff': 0,
+                 'sgd_minibatch_size': 102,
+                 'num_sgd_iter': 28,
+                 'train_batch_size': 2383}
         return CC_6
     if configuration == "CC_7":
         CC_7 = {'env': 'MultiAgentInventoryManagement',

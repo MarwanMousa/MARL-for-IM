@@ -1,16 +1,7 @@
 from environments.IM_env import InvManagement
-import ray
 from ray import tune
 import numpy as np
-import matplotlib.pyplot as plt
-import json
-import datetime
-import os
-from utils import get_config, get_trainer
-from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
-from models.RNN_Model import RNNModel, SharedRNNModel
-from ray.rllib.models import ModelCatalog
-from pyomo.environ import *
+import pyomo.environ as pyo
 #%% Environment Configuration
 
 # Set script seed
@@ -93,247 +84,282 @@ test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
 
 #%% Linear Programming Pyomo
-LP_demand = DFO_env.dist.rvs(size=(DFO_env.num_periods), **DFO_env.dist_param)
-model = ConcreteModel()
-model.T = RangeSet(num_periods)
-d = {}
-for i in range(1, num_periods+1):
-    d[i] = LP_demand[i-1]
+num_tests = 1000
+test_seed = 420
+np.random.seed(seed=test_seed)
+LP_demand = DFO_env.dist.rvs(size=(num_tests, DFO_env.num_periods), **DFO_env.dist_param)
 
-i10 = init_inv[0]  # initial inventory 1
-i20 = init_inv[1]  # initial inventory 2
-i30 = init_inv[2]  # initial inventory 3
-i40 = init_inv[3]  # initial inventory 4
+inventory_list = []
+backlog_list = []
+lp_reward_list = []
+customer_backlog_list = []
+profit = np.zeros((num_tests, num_periods))
+for j in range(num_tests):
+    model = pyo.ConcreteModel()
+    model.T = pyo.RangeSet(num_periods)
+    d = {}
+    for i in range(1, num_periods+1):
+        d[i] = LP_demand[j, i-1]
 
-SC1 = stock_cost[0]  # inventory holding cost
-SC2 = stock_cost[1]  # inventory holding cost
-SC3 = stock_cost[2]  # inventory holding cost
-SC4 = stock_cost[3]  # inventory holding cost
+    i10 = init_inv[0]  # initial inventory 1
+    i20 = init_inv[1]  # initial inventory 2
+    i30 = init_inv[2]  # initial inventory 3
+    i40 = init_inv[3]  # initial inventory 4
 
-BC1 = backlog_cost[0]  # shortage cost 1
-BC2 = backlog_cost[1]  # shortage cost 2
-BC3 = backlog_cost[2]  # shortage cost 3
-BC4 = backlog_cost[3]  # shortage cost 4
+    SC1 = stock_cost[0]  # inventory holding cost
+    SC2 = stock_cost[1]  # inventory holding cost
+    SC3 = stock_cost[2]  # inventory holding cost
+    SC4 = stock_cost[3]  # inventory holding cost
 
-I1 = inv_max[0]  # maximum inventory 1
-I2 = inv_max[1]  # maximum inventory 2
-I3 = inv_max[2]  # maximum inventory 3
-I4 = inv_max[3]  # maximum inventory 4
+    BC1 = backlog_cost[0]  # shortage cost 1
+    BC2 = backlog_cost[1]  # shortage cost 2
+    BC3 = backlog_cost[2]  # shortage cost 3
+    BC4 = backlog_cost[3]  # shortage cost 4
 
-O1 = inv_max[0]  # maximum order 1
-O2 = inv_max[1]  # maximum order 2
-O3 = inv_max[2]  # maximum order 3
-O4 = inv_max[3]  # maximum order 4
+    I1 = inv_max[0]  # maximum inventory 1
+    I2 = inv_max[1]  # maximum inventory 2
+    I3 = inv_max[2]  # maximum inventory 3
+    I4 = inv_max[3]  # maximum inventory 4
 
-# Price of goods at each stage
-P1 = price[0]
-P2 = price[1]
-P3 = price[2]
-P4 = price[3]
-P5 = price[4]
+    O1 = inv_max[0]  # maximum order 1
+    O2 = inv_max[1]  # maximum order 2
+    O3 = inv_max[2]  # maximum order 3
+    O4 = inv_max[3]  # maximum order 4
 
-d1 = delay[0]
-d2 = delay[1]
-d3 = delay[2]
-d4 = delay[3]
+    # Price of goods at each stage
+    P1 = price[0]
+    P2 = price[1]
+    P3 = price[2]
+    P4 = price[3]
+    P5 = price[4]
 
-# create a block for a single time period
-def lotsizing_block_rule(b, t):
-    # define the variables
-    # Reorder Variables at each stage
-    b.x1 = Var(domain=NonNegativeIntegers)
-    b.x2 = Var(domain=NonNegativeIntegers)
-    b.x3 = Var(domain=NonNegativeIntegers)
-    b.x4 = Var(domain=NonNegativeIntegers)
+    d1 = delay[0]
+    d2 = delay[1]
+    d3 = delay[2]
+    d4 = delay[3]
 
-    # Inventory at each stage
-    b.i1 = Var(domain=NonNegativeIntegers)
-    b.i2 = Var(domain=NonNegativeIntegers)
-    b.i3 = Var(domain=NonNegativeIntegers)
-    b.i4 = Var(domain=NonNegativeIntegers)
+    # create a block for a single time period
+    def lotsizing_block_rule(b, t):
+        # define the variables
+        # Reorder Variables at each stage
+        b.x1 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.x2 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.x3 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.x4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # Initial Inventory at each time-step
-    b.i10 = Var(domain=NonNegativeIntegers)
-    b.i20 = Var(domain=NonNegativeIntegers)
-    b.i30 = Var(domain=NonNegativeIntegers)
-    b.i40 = Var(domain=NonNegativeIntegers)
+        # Inventory at each stage
+        b.i1 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i2 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i3 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # backlog
-    b.bl1 = Var(domain=NonNegativeIntegers)
-    b.bl2 = Var(domain=NonNegativeIntegers)
-    b.bl3 = Var(domain=NonNegativeIntegers)
-    b.bl4 = Var(domain=NonNegativeIntegers)
+        # Initial Inventory at each time-step
+        b.i10 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i20 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i30 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.i40 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # Initial Backlog at each time-step
-    b.bl10 = Var(domain=NonNegativeIntegers, initialize=0)
-    b.bl20 = Var(domain=NonNegativeIntegers, initialize=0)
-    b.bl30 = Var(domain=NonNegativeIntegers, initialize=0)
-    b.bl40 = Var(domain=NonNegativeIntegers, initialize=0)
+        # backlog
+        b.bl1 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.bl2 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.bl3 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.bl4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # Shipped goods/sales
-    b.s1 = Var(domain=NonNegativeIntegers)
-    b.s2 = Var(domain=NonNegativeIntegers)
-    b.s3 = Var(domain=NonNegativeIntegers)
-    b.s4 = Var(domain=NonNegativeIntegers)
+        # Initial Backlog at each time-step
+        b.bl10 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
+        b.bl20 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
+        b.bl30 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
+        b.bl40 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
 
-    # Acquisiton
-    b.a1 = Var(domain=NonNegativeIntegers)
-    b.a2 = Var(domain=NonNegativeIntegers)
-    b.a3 = Var(domain=NonNegativeIntegers)
-    b.a4 = Var(domain=NonNegativeIntegers)
+        # Shipped goods/sales
+        b.s1 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.s2 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.s3 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.s4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # define the constraints
-    b.inventory1 = Constraint(expr=b.i1 == b.i10 + b.a1 - b.s1)
-    b.inventory2 = Constraint(expr=b.i2 == b.i20 + b.a2 - b.s2)
-    b.inventory3 = Constraint(expr=b.i3 == b.i30 + b.a3 - b.s3)
-    b.inventory4 = Constraint(expr=b.i4 == b.i40 + b.a4 - b.s4)
+        # Acquisiton
+        b.a1 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.a2 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.a3 = pyo.Var(domain=pyo.NonNegativeIntegers)
+        b.a4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
-    # Inventory constrainss
-    b.inventorymax1 = Constraint(expr=b.i1 <= I1)
-    b.inventorymax2 = Constraint(expr=b.i2 <= I2)
-    b.inventorymax3 = Constraint(expr=b.i3 <= I3)
-    b.inventorymax4 = Constraint(expr=b.i4 <= I4)
+        # define the constraints
+        b.inventory1 = pyo.Constraint(expr=b.i1 == b.i10 + b.a1 - b.s1)
+        b.inventory2 = pyo.Constraint(expr=b.i2 == b.i20 + b.a2 - b.s2)
+        b.inventory3 = pyo.Constraint(expr=b.i3 == b.i30 + b.a3 - b.s3)
+        b.inventory4 = pyo.Constraint(expr=b.i4 == b.i40 + b.a4 - b.s4)
 
-    # Order constraints
-    b.ordermax1 = Constraint(expr=b.x1 <= O1)
-    b.ordermax2 = Constraint(expr=b.x2 <= O2)
-    b.ordermax3 = Constraint(expr=b.x3 <= O3)
-    b.ordermax4 = Constraint(expr=b.x4 <= O4)
+        # Inventory constrainss
+        b.inventorymax1 = pyo.Constraint(expr=b.i1 <= I1)
+        b.inventorymax2 = pyo.Constraint(expr=b.i2 <= I2)
+        b.inventorymax3 = pyo.Constraint(expr=b.i3 <= I3)
+        b.inventorymax4 = pyo.Constraint(expr=b.i4 <= I4)
 
-    # backlog constrains
-    b.backlog1 = Constraint(expr=b.bl1 == b.bl10 - b.s1 + d[t])
-    b.backlog2 = Constraint(expr=b.bl2 == b.bl20 - b.s2 + b.x1)
-    b.backlog3 = Constraint(expr=b.bl3 == b.bl30 - b.s3 + b.x2)
-    b.backlog4 = Constraint(expr=b.bl4 == b.bl40 - b.s4 + b.x3)
+        # Order constraints
+        b.ordermax1 = pyo.Constraint(expr=b.x1 <= O1)
+        b.ordermax2 = pyo.Constraint(expr=b.x2 <= O2)
+        b.ordermax3 = pyo.Constraint(expr=b.x3 <= O3)
+        b.ordermax4 = pyo.Constraint(expr=b.x4 <= O4)
 
-    #
-    b.ship11 = Constraint(expr=b.s1 <= b.i10)
-    b.ship12 = Constraint(expr=b.s1 <= b.bl10 + d[t])
-    b.ship21 = Constraint(expr=b.s2 <= b.i20)
-    b.ship22 = Constraint(expr=b.s2 <= b.bl20 + b.x1)
-    b.ship31 = Constraint(expr=b.s3 <= b.i30)
-    b.ship32 = Constraint(expr=b.s3 <= b.bl30 + b.x2)
-    b.ship41 = Constraint(expr=b.s4 <= b.i40)
-    b.ship42 = Constraint(expr=b.s4 <= b.bl40 + b.x3)
+        # backlog constrains
+        b.backlog1 = pyo.Constraint(expr=b.bl1 == b.bl10 - b.s1 + d[t])
+        b.backlog2 = pyo.Constraint(expr=b.bl2 == b.bl20 - b.s2 + b.x1)
+        b.backlog3 = pyo.Constraint(expr=b.bl3 == b.bl30 - b.s3 + b.x2)
+        b.backlog4 = pyo.Constraint(expr=b.bl4 == b.bl40 - b.s4 + b.x3)
 
-model.lsb = Block(model.T, rule=lotsizing_block_rule)
+        #
+        b.ship11 = pyo.Constraint(expr=b.s1 <= b.i10 + b.a1)
+        b.ship12 = pyo.Constraint(expr=b.s1 <= b.bl10 + d[t])
+        b.ship21 = pyo.Constraint(expr=b.s2 <= b.i20 + b.a2)
+        b.ship22 = pyo.Constraint(expr=b.s2 <= b.bl20 + b.x1)
+        b.ship31 = pyo.Constraint(expr=b.s3 <= b.i30 + b.a3)
+        b.ship32 = pyo.Constraint(expr=b.s3 <= b.bl30 + b.x2)
+        b.ship41 = pyo.Constraint(expr=b.s4 <= b.i40 + b.a4)
+        b.ship42 = pyo.Constraint(expr=b.s4 <= b.bl40 + b.x3)
 
-# link the inventory variables between blocks
-def i1_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].i10 == i10
-    return m.lsb[t].i10 == m.lsb[t-1].i1
+    model.lsb = pyo.Block(model.T, rule=lotsizing_block_rule)
 
-
-def i2_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].i20 == i20
-    return m.lsb[t].i20 == m.lsb[t-1].i2
-
-
-def i3_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].i30 == i30
-    return m.lsb[t].i30 == m.lsb[t-1].i3
+    # link the inventory variables between blocks
+    def i1_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].i10 == i10
+        return m.lsb[t].i10 == m.lsb[t-1].i1
 
 
-def i4_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].i40 == i40
-    return m.lsb[t].i40 == m.lsb[t-1].i4
-
-def bl1_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].bl10 == 0
-    return m.lsb[t].bl10 == m.lsb[t-1].bl1
-
-def bl2_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].bl20 == 0
-    return m.lsb[t].bl20 == m.lsb[t-1].bl2
-
-def bl3_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].bl30 == 0
-    return m.lsb[t].bl30 == m.lsb[t-1].bl3
-
-def bl4_linking_rule(m, t):
-    if t == m.T.first():
-        return m.lsb[t].bl40 == 0
-    return m.lsb[t].bl40 == m.lsb[t-1].bl4
+    def i2_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].i20 == i20
+        return m.lsb[t].i20 == m.lsb[t-1].i2
 
 
-def a1_linking_rule(m, t):
-    if t-d1 < 1:
-        return m.lsb[t].a1 == 0
-    return m.lsb[t].a1 == m.lsb[t-d1].s2
-
-def a2_linking_rule(m, t):
-    if t-d2 < 1:
-        return m.lsb[t].a2 == 0
-    return m.lsb[t].a2 == m.lsb[t-d2].s3
-
-def a3_linking_rule(m, t):
-    if t-d3 < 1:
-        return m.lsb[t].a3 == 0
-    return m.lsb[t].a3 == m.lsb[t-d3].s4
-
-def a4_linking_rule(m, t):
-    if t-d4 < 1:
-        return m.lsb[t].a4 == 0
-    return m.lsb[t].a4 == m.lsb[t-d4].x4
-
-model.i_linking1 = Constraint(model.T, rule=i1_linking_rule)
-model.i_linking2 = Constraint(model.T, rule=i2_linking_rule)
-model.i_linking3 = Constraint(model.T, rule=i3_linking_rule)
-model.i_linking4 = Constraint(model.T, rule=i4_linking_rule)
-
-model.bl_linking1 = Constraint(model.T, rule=bl1_linking_rule)
-model.bl_linking2 = Constraint(model.T, rule=bl2_linking_rule)
-model.bl_linking3 = Constraint(model.T, rule=bl3_linking_rule)
-model.bl_linking4 = Constraint(model.T, rule=bl4_linking_rule)
-
-model.a_linking1 = Constraint(model.T, rule=a1_linking_rule)
-model.a_linking2 = Constraint(model.T, rule=a2_linking_rule)
-model.a_linking3 = Constraint(model.T, rule=a3_linking_rule)
-model.a_linking4 = Constraint(model.T, rule=a4_linking_rule)
-
-# construct the objective function over all the blocks
-def obj_rule(m):
-    # Sum of Profit at each state at each timeperiod
-    return sum(m.lsb[t].s1*P1 - m.lsb[t].x1*P2 - m.lsb[t].i1*SC1 - m.lsb[t].bl1*BC1
-               + m.lsb[t].s2*P2 - m.lsb[t].x2*P3 - m.lsb[t].i2*SC2 - m.lsb[t].bl2*BC2
-               + m.lsb[t].s3*P3 - m.lsb[t].x3*P4 - m.lsb[t].i3*SC3 - m.lsb[t].bl3*BC3
-               + m.lsb[t].s4*P4 - m.lsb[t].x4*P5 - m.lsb[t].i4*SC4 - m.lsb[t].bl4*BC4
-               for t in m.T)
-
-model.obj = Objective(rule=obj_rule, sense=maximize)
-
-### solve the problem
-solver = SolverFactory('gurobi', solver_io='python')
-results = solver.solve(model)
-# print the results
-for t in model.T:
-    print(f'Period: {t}, demand: {d[t]}')
-    print(f'O1: {value(model.lsb[t].x1)}, O2: {value(model.lsb[t].x2)}, O3: {value(model.lsb[t].x3)}, O4: {value(model.lsb[t].x4)}')
-    print(f'I1: {value(model.lsb[t].i1)}, I2: {value(model.lsb[t].i2)}, I3: {value(model.lsb[t].i3)}, I4: {value(model.lsb[t].i4)}')
-    print(f'B1: {value(model.lsb[t].bl1)}, B2: {value(model.lsb[t].bl2)}, B3: {value(model.lsb[t].bl3)}, B4: {value(model.lsb[t].bl4)}')
-    print(f'S1: {value(model.lsb[t].s1)}, S2: {value(model.lsb[t].s2)}, S3: {value(model.lsb[t].s3)}, S4: {value(model.lsb[t].s4)}')
-    print(f'A1: {value(model.lsb[t].a1)}, A2: {value(model.lsb[t].a2)}, A3: {value(model.lsb[t].a3)}, A4: {value(model.lsb[t].a4)}')
+    def i3_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].i30 == i30
+        return m.lsb[t].i30 == m.lsb[t-1].i3
 
 
-DFO_env.reset(customer_demand=LP_demand)
-lp_reward = 0
-done = False
-t = 1
-while not done:
-    dfo_action = [value(model.lsb[t].x1), value(model.lsb[t].x2), value(model.lsb[t].x3), value(model.lsb[t].x4)]
-    s, r, done, _ = DFO_env.step(dfo_action)
-    print(s)
-    print(r)
-    print(value(model.lsb[t].x1))
-    print(LP_demand[t-1])
-    lp_reward += r
-    t += 1
+    def i4_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].i40 == i40
+        return m.lsb[t].i40 == m.lsb[t-1].i4
 
-print(lp_reward)
+    def bl1_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].bl10 == 0
+        return m.lsb[t].bl10 == m.lsb[t-1].bl1
+
+    def bl2_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].bl20 == 0
+        return m.lsb[t].bl20 == m.lsb[t-1].bl2
+
+    def bl3_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].bl30 == 0
+        return m.lsb[t].bl30 == m.lsb[t-1].bl3
+
+    def bl4_linking_rule(m, t):
+        if t == m.T.first():
+            return m.lsb[t].bl40 == 0
+        return m.lsb[t].bl40 == m.lsb[t-1].bl4
+
+
+    def a1_linking_rule(m, t):
+        if t-d1 < 1:
+            return m.lsb[t].a1 == 0
+        return m.lsb[t].a1 == m.lsb[t-d1].s2
+
+    def a2_linking_rule(m, t):
+        if t-d2 < 1:
+            return m.lsb[t].a2 == 0
+        return m.lsb[t].a2 == m.lsb[t-d2].s3
+
+    def a3_linking_rule(m, t):
+        if t-d3 < 1:
+            return m.lsb[t].a3 == 0
+        return m.lsb[t].a3 == m.lsb[t-d3].s4
+
+    def a4_linking_rule(m, t):
+        if t-d4 < 1:
+            return m.lsb[t].a4 == 0
+        return m.lsb[t].a4 == m.lsb[t-d4].x4
+
+    model.i_linking1 = pyo.Constraint(model.T, rule=i1_linking_rule)
+    model.i_linking2 = pyo.Constraint(model.T, rule=i2_linking_rule)
+    model.i_linking3 = pyo.Constraint(model.T, rule=i3_linking_rule)
+    model.i_linking4 = pyo.Constraint(model.T, rule=i4_linking_rule)
+
+    model.bl_linking1 = pyo.Constraint(model.T, rule=bl1_linking_rule)
+    model.bl_linking2 = pyo.Constraint(model.T, rule=bl2_linking_rule)
+    model.bl_linking3 = pyo.Constraint(model.T, rule=bl3_linking_rule)
+    model.bl_linking4 = pyo.Constraint(model.T, rule=bl4_linking_rule)
+
+    model.a_linking1 = pyo.Constraint(model.T, rule=a1_linking_rule)
+    model.a_linking2 = pyo.Constraint(model.T, rule=a2_linking_rule)
+    model.a_linking3 = pyo.Constraint(model.T, rule=a3_linking_rule)
+    model.a_linking4 = pyo.Constraint(model.T, rule=a4_linking_rule)
+
+    # construct the objective function over all the blocks
+    def obj_rule(m):
+        # Sum of Profit at each state at each timeperiod
+        return sum(m.lsb[t].s1*P1 - m.lsb[t].x1*P2 - m.lsb[t].i1*SC1 - m.lsb[t].bl1*BC1
+                   + m.lsb[t].s2*P2 - m.lsb[t].x2*P3 - m.lsb[t].i2*SC2 - m.lsb[t].bl2*BC2
+                   + m.lsb[t].s3*P3 - m.lsb[t].x3*P4 - m.lsb[t].i3*SC3 - m.lsb[t].bl3*BC3
+                   + m.lsb[t].s4*P4 - m.lsb[t].x4*P5 - m.lsb[t].i4*SC4 - m.lsb[t].bl4*BC4
+                   for t in m.T)
+
+    model.obj = pyo.Objective(rule=obj_rule, sense=pyo.maximize)
+
+    ### solve the problem
+    solver = pyo.SolverFactory('gurobi', solver_io='python')
+    results = solver.solve(model)
+
+    s = DFO_env.reset(customer_demand=LP_demand[j, :])
+    lp_reward = 0
+    total_inventory = 0
+    total_backlog = 0
+    customer_backlog = 0
+    done = False
+    t = 1
+    while not done:
+        dfo_action = [pyo.value(model.lsb[t].x1), pyo.value(model.lsb[t].x2), pyo.value(model.lsb[t].x3), pyo.value(model.lsb[t].x4)]
+        s, r, done, _ = DFO_env.step(dfo_action)
+        lp_reward += r
+        total_inventory += sum(s[:, 0])
+        total_backlog += sum(s[:, 1])
+        customer_backlog += s[0, 1]
+        profit[j, t - 1] = r
+        t += 1
+
+    lp_reward_list.append(lp_reward)
+    inventory_list.append(total_inventory)
+    backlog_list.append(total_backlog)
+    customer_backlog_list.append(customer_backlog)
+
+lp_reward_mean = np.mean(lp_reward)
+lp_reward_std = np.std(lp_reward)
+inventory_level_mean = np.mean(inventory_list)
+inventory_level_std = np.std(inventory_list)
+backlog_level_mean = np.mean(backlog_list)
+backlog_level_std = np.std(backlog_list)
+customer_backlog_mean = np.mean(customer_backlog_list)
+customer_backlog_std = np.std(customer_backlog_list)
+
+print(f'Mean reward is: {lp_reward_mean} with std: {lp_reward_std}')
+print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_level_std}')
+print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
+print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
+
+path = 'LP_results/four_stage/Oracle/'
+np.save(path+'reward_mean.npy', lp_reward_mean)
+np.save(path+'reward_std.npy', lp_reward_std)
+np.save(path+'inventory_mean.npy', inventory_level_mean)
+np.save(path+'inventory_std.npy', inventory_level_std)
+np.save(path+'backlog_mean.npy', backlog_level_mean)
+np.save(path+'backlog_std.npy', backlog_level_std)
+np.save(path+'customer_backlog_mean', customer_backlog_mean)
+np.save(path+'customer_backlog_std', customer_backlog_std)
+np.save(path+'profit', profit)
+
+
+

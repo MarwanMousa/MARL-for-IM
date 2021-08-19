@@ -2,6 +2,7 @@ from environments.IM_env import InvManagement
 from ray import tune
 import numpy as np
 import pyomo.environ as pyo
+import time
 #%% Environment Configuration
 
 # Set script seed
@@ -81,10 +82,13 @@ DFO_CONFIG["standardise_actions"] = False
 DFO_CONFIG["time_dependency"] = False
 # Test environment
 test_env = InvManagement(env_config)
-DFO_env = InvManagement(DFO_CONFIG)
+LP_env = InvManagement(DFO_CONFIG)
 
 #%% Linear Programming Pyomo
-LP_demand = DFO_env.dist.rvs(size=(DFO_env.num_periods), **DFO_env.dist_param)
+num_tests = 1000
+test_seed = 420
+np.random.seed(seed=test_seed)
+LP_demand = LP_env.dist.rvs(size=(num_tests, LP_env.num_periods), **LP_env.dist_param)
 
 # Initial Inventory
 i10 = init_inv[0]
@@ -303,117 +307,180 @@ def lotsizing_block_rule(b, t):
     b.backlog4 = pyo.Constraint(expr=b.bl4 == b.bl40 - b.s4 + b.x3)
 
     # Sales Constraints
-    b.ship11 = pyo.Constraint(expr=b.s1 <= b.i10)
+    b.ship11 = pyo.Constraint(expr=b.s1 <= b.i10 + b.a1)
     b.ship12 = pyo.Constraint(expr=b.s1 <= b.bl10 + b.demand)
-    b.ship21 = pyo.Constraint(expr=b.s2 <= b.i20)
+    b.ship21 = pyo.Constraint(expr=b.s2 <= b.i20 + b.a2)
     b.ship22 = pyo.Constraint(expr=b.s2 <= b.bl20 + b.x1)
-    b.ship31 = pyo.Constraint(expr=b.s3 <= b.i30)
+    b.ship31 = pyo.Constraint(expr=b.s3 <= b.i30 + b.a3)
     b.ship32 = pyo.Constraint(expr=b.s3 <= b.bl30 + b.x2)
-    b.ship41 = pyo.Constraint(expr=b.s4 <= b.i40)
+    b.ship41 = pyo.Constraint(expr=b.s4 <= b.i40 + b.a4)
     b.ship42 = pyo.Constraint(expr=b.s4 <= b.bl40 + b.x3)
 
 # construct the objective function over all the blocks
 def obj_rule(m):
     # Sum of Profit at each state at each timeperiod
+    # Profit per stage per time period: sales - re-order cost - backlog cost  - inventory cost
     return sum(m.lsb[t].s1*P1 - m.lsb[t].x1*P2 - m.lsb[t].i1*SC1 - m.lsb[t].bl1*BC1
                + m.lsb[t].s2*P2 - m.lsb[t].x2*P3 - m.lsb[t].i2*SC2 - m.lsb[t].bl2*BC2
                + m.lsb[t].s3*P3 - m.lsb[t].x3*P4 - m.lsb[t].i3*SC3 - m.lsb[t].bl3*BC3
                + m.lsb[t].s4*P4 - m.lsb[t].x4*P5 - m.lsb[t].i4*SC4 - m.lsb[t].bl4*BC4
                for t in m.T)
 
-SHLP_actions = np.zeros((num_periods, 4))
-SHLP_shipment = np.zeros((num_periods, 4))
-SHLP_inventory = np.zeros((num_periods, 4))
-SHLP_backlog = np.zeros((num_periods, 4))
-SHLP_acquisition = np.zeros((num_periods, 4))
-for i in range(num_periods):
+inventory_list = []
+backlog_list = []
+lp_reward_list = []
+customer_backlog_list = []
+profit = np.zeros((num_tests, num_periods))
+start_time = time.time()
+for j in range(num_tests):
+    SHLP_actions = np.zeros((num_periods, 4))
+    SHLP_shipment = np.zeros((num_periods, 4))
+    SHLP_inventory = np.zeros((num_periods, 4))
+    SHLP_backlog = np.zeros((num_periods, 4))
+    SHLP_acquisition = np.zeros((num_periods, 4))
+    for i in range(num_periods):
 
-    # Get initial acquisition at each stage
-    if i - d1 < 0:
-        a10 = 0
-    else:
-        a10 = SHLP_shipment[i - d1, 0]
+        # Get initial acquisition at each stage
+        if i - d1 < 0:
+            a10 = 0
+        else:
+            a10 = SHLP_shipment[i - d1, 0]
 
-    if i - d2 < 0:
-        a20 = 0
-        a21 = 0
-    else:
-        a20 = SHLP_shipment[i - d2, 1]
-        a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
+        if i - d2 < 0:
+            a20 = 0
+            a21 = 0
+        else:
+            a20 = SHLP_shipment[i - d2, 1]
+            a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
 
-    if i - d3 < 0:
-        a30 = 0
-        a31 = 0
-        a32 = 0
-    else:
-        a30 = SHLP_shipment[i - d3, 2]
-        a31 = SHLP_shipment[i - d3 + 1, 2]  # Configuration specific
-        a32 = SHLP_shipment[i - d3 + 2, 2]  # Configuration specific
+        if i - d3 < 0:
+            a30 = 0
+            a31 = 0
+            a32 = 0
+        else:
+            a30 = SHLP_shipment[i - d3, 2]
+            a31 = SHLP_shipment[i - d3 + 1, 2]  # Configuration specific
+            a32 = SHLP_shipment[i - d3 + 2, 2]  # Configuration specific
 
-    if i - d4 < 0:
-        a40 = 0
-    else:
-        a40 = SHLP_shipment[i - d4, 3]
+        if i - d4 < 0:
+            a40 = 0
+        else:
+            a40 = SHLP_shipment[i - d4, 3]
 
-    # Get real customer demand at current time-step
-    d = LP_demand[i]
-    # Create model over the horizon i:num_periods (shrinking horizon)
-    model = pyo.ConcreteModel()
-    model.T = pyo.RangeSet(i, num_periods-1)
-    model.lsb = pyo.Block(model.T, rule=lotsizing_block_rule)
+        # Get real customer demand at current time-step
+        d = LP_demand[j, i]
+        # Create model over the horizon i:num_periods (shrinking horizon)
+        model = pyo.ConcreteModel()
+        model.T = pyo.RangeSet(i, num_periods-1)
+        # Link all time-period blocks
+        model.lsb = pyo.Block(model.T, rule=lotsizing_block_rule)
 
-    # Inventory linking constraints
-    model.i_linking1 = pyo.Constraint(model.T, rule=i1_linking_rule)
-    model.i_linking2 = pyo.Constraint(model.T, rule=i2_linking_rule)
-    model.i_linking3 = pyo.Constraint(model.T, rule=i3_linking_rule)
-    model.i_linking4 = pyo.Constraint(model.T, rule=i4_linking_rule)
+        # Inventory linking constraints
+        model.i_linking1 = pyo.Constraint(model.T, rule=i1_linking_rule)
+        model.i_linking2 = pyo.Constraint(model.T, rule=i2_linking_rule)
+        model.i_linking3 = pyo.Constraint(model.T, rule=i3_linking_rule)
+        model.i_linking4 = pyo.Constraint(model.T, rule=i4_linking_rule)
 
-    # Backlog linking constraints
-    model.bl_linking1 = pyo.Constraint(model.T, rule=bl1_linking_rule)
-    model.bl_linking2 = pyo.Constraint(model.T, rule=bl2_linking_rule)
-    model.bl_linking3 = pyo.Constraint(model.T, rule=bl3_linking_rule)
-    model.bl_linking4 = pyo.Constraint(model.T, rule=bl4_linking_rule)
+        # Backlog linking constraints
+        model.bl_linking1 = pyo.Constraint(model.T, rule=bl1_linking_rule)
+        model.bl_linking2 = pyo.Constraint(model.T, rule=bl2_linking_rule)
+        model.bl_linking3 = pyo.Constraint(model.T, rule=bl3_linking_rule)
+        model.bl_linking4 = pyo.Constraint(model.T, rule=bl4_linking_rule)
 
-    # Acquisition linking constraints
-    model.a_linking1 = pyo.Constraint(model.T, rule=a1_linking_rule)
-    model.a_linking2 = pyo.Constraint(model.T, rule=a2_linking_rule)
-    model.a_linking3 = pyo.Constraint(model.T, rule=a3_linking_rule)
-    model.a_linking4 = pyo.Constraint(model.T, rule=a4_linking_rule)
+        # Acquisition linking constraints
+        model.a_linking1 = pyo.Constraint(model.T, rule=a1_linking_rule)
+        model.a_linking2 = pyo.Constraint(model.T, rule=a2_linking_rule)
+        model.a_linking3 = pyo.Constraint(model.T, rule=a3_linking_rule)
+        model.a_linking4 = pyo.Constraint(model.T, rule=a4_linking_rule)
 
-    # Customer demand linking constraints
-    model.d_linking = pyo.Constraint(model.T, rule=d_linking_rule)
+        # Customer demand linking constraints
+        model.d_linking = pyo.Constraint(model.T, rule=d_linking_rule)
 
-    model.obj = pyo.Objective(rule=obj_rule, sense=pyo.maximize)
+        # Model obbjective function
+        model.obj = pyo.Objective(rule=obj_rule, sense=pyo.maximize)
 
-    ### solve the problem
-    solver = pyo.SolverFactory('gurobi', solver_io='python')
-    results = solver.solve(model)
-    SHLP_actions[i, :] = [pyo.value(model.lsb[i].x1), pyo.value(model.lsb[i].x2),
-                          pyo.value(model.lsb[i].x3), pyo.value(model.lsb[i].x4)]
+        ### solve the problem
+        solver = pyo.SolverFactory('gurobi', solver_io='python')
+        results = solver.solve(model)
 
-    SHLP_shipment[i, :] = [pyo.value(model.lsb[i].s2), pyo.value(model.lsb[i].s3),
-                           pyo.value(model.lsb[i].s4), pyo.value(model.lsb[i].x4)]
+        # Log actions for testing in Gym environment
+        SHLP_actions[i, :] = [pyo.value(model.lsb[i].x1), pyo.value(model.lsb[i].x2),
+                              pyo.value(model.lsb[i].x3), pyo.value(model.lsb[i].x4)]
 
-    i10 = pyo.value(model.lsb[i].i1)
-    i20 = pyo.value(model.lsb[i].i2)
-    i30 = pyo.value(model.lsb[i].i3)
-    i40 = pyo.value(model.lsb[i].i4)
+        # Log shipments for updating the acquisition at next time-step
+        SHLP_shipment[i, :] = [pyo.value(model.lsb[i].s2), pyo.value(model.lsb[i].s3),
+                               pyo.value(model.lsb[i].s4), pyo.value(model.lsb[i].x4)]
 
-    bl10 = pyo.value(model.lsb[i].bl1)
-    bl20 = pyo.value(model.lsb[i].bl2)
-    bl30 = pyo.value(model.lsb[i].bl3)
-    bl40 = pyo.value(model.lsb[i].bl4)
+        # Log shipments for updating the acquisition at next time-step
+        SHLP_inventory[i, :] = [pyo.value(model.lsb[i].i10), pyo.value(model.lsb[i].i20),
+                               pyo.value(model.lsb[i].i30), pyo.value(model.lsb[i].i40)]
+
+        # Log shipments for updating the acquisition at next time-step
+        SHLP_backlog[i, :] = [pyo.value(model.lsb[i].bl10), pyo.value(model.lsb[i].bl20),
+                               pyo.value(model.lsb[i].bl30), pyo.value(model.lsb[i].bl40)]
+
+        # Update initial inventory for next iteration
+        i10 = pyo.value(model.lsb[i].i1)
+        i20 = pyo.value(model.lsb[i].i2)
+        i30 = pyo.value(model.lsb[i].i3)
+        i40 = pyo.value(model.lsb[i].i4)
+
+        # Update initial backlog for next iteration
+        bl10 = pyo.value(model.lsb[i].bl1)
+        bl20 = pyo.value(model.lsb[i].bl2)
+        bl30 = pyo.value(model.lsb[i].bl3)
+        bl40 = pyo.value(model.lsb[i].bl4)
 
 
-s = DFO_env.reset(customer_demand=LP_demand)
-lp_reward = 0
-done = False
-t = 0
-while not done:
-    lp_action = SHLP_actions[t, :]
-    s, r, done, _ = DFO_env.step(lp_action)
+    # Test Gym environment
+    s = LP_env.reset(customer_demand=LP_demand[j, :])
+    lp_reward = 0
+    total_inventory = 0
+    total_backlog = 0
+    customer_backlog = 0
+    done = False
+    t = 0
+    while not done:
+        lp_action = SHLP_actions[t, :]
+        s, r, done, _ = LP_env.step(lp_action)
+        profit[j, t] = r
+        total_inventory += sum(s[:, 0])
+        total_backlog += sum(s[:, 1])
+        customer_backlog += s[0, 1]
+        lp_reward += r
+        t += 1
 
-    lp_reward += r
-    t += 1
+    lp_reward_list.append(lp_reward)
+    inventory_list.append(total_inventory)
+    backlog_list.append(total_backlog)
+    customer_backlog_list.append(customer_backlog)
+    if j % 100 == 0:
+        print(f'reward at {j} is {lp_reward}')
 
-print(lp_reward)
+shlp_time = time.time() - start_time
+lp_reward_mean = np.mean(lp_reward_list)
+lp_reward_std = np.std(lp_reward_list)
+inventory_level_mean = np.mean(inventory_list)
+inventory_level_std = np.std(inventory_list)
+backlog_level_mean = np.mean(backlog_list)
+backlog_level_std = np.std(backlog_list)
+customer_backlog_mean = np.mean(customer_backlog_list)
+customer_backlog_std = np.std(customer_backlog_list)
+
+
+print(f'Mean reward is: {lp_reward_mean} with std: {lp_reward_std}')
+print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_level_std}')
+print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
+print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
+
+path = 'LP_results/four_stage/SHLP/'
+np.save(path+'reward_mean.npy', lp_reward_mean)
+np.save(path+'reward_std.npy', lp_reward_std)
+np.save(path+'inventory_mean.npy', inventory_level_mean)
+np.save(path+'inventory_std.npy', inventory_level_std)
+np.save(path+'backlog_mean.npy', backlog_level_mean)
+np.save(path+'backlog_std.npy', backlog_level_std)
+np.save(path+'customer_backlog_mean', customer_backlog_mean)
+np.save(path+'customer_backlog_std', customer_backlog_std)
+np.save(path+'profit', profit)
+np.save(path+'time', shlp_time)

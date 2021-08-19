@@ -2,25 +2,37 @@ from environments.IM_env import InvManagement
 import ray
 from ray import tune
 import numpy as np
-import matplotlib.pyplot as plt
 import json
 import datetime
 import os
-from utils import get_config, get_trainer
+from utils import get_config, get_trainer, ensure_dir
 from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
 from models.RNN_Model import RNNModel, SharedRNNModel
 from ray.rllib.models import ModelCatalog
 from hyperparams import get_hyperparams
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+
 #%% Environment Configuration
+
+train_agent = True
+save_agent = False
+save_path = "checkpoints/single_agent/four_stage"
+load_path = "checkpoints/single_agent/four_stage"
+load_iteration = str(200)
+load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
+
+# Define plot settings
+rc('font', **{'family': 'serif', 'serif': ['Palatino']})
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+plt.rcParams["figure.dpi"] = 200
+
 
 # Set script seed
 SEED = 52
 np.random.seed(seed=SEED)
-
-# Environment creator function for environment registration
-def env_creator(configuration):
-    env = InvManagement(configuration)
-    return env
 
 # Environment Configuration
 num_stages = 4
@@ -57,6 +69,13 @@ elif demand_distribution == "uniform":
     parameter = "lower_upper"
     parameter_value = lower_upper
 
+
+# Environment creator function for environment registration
+def env_creator(configuration):
+    env = InvManagement(configuration)
+    return env
+
+
 env_name = "InventoryManagement"
 tune.register_env(env_name, env_creator)
 
@@ -85,7 +104,7 @@ env_config = {
 
 # Loading in hyperparameters from hyperparameter search
 use_optimal = True
-configuration_name = "S_4"
+configuration_name = "S_1"
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
@@ -162,73 +181,80 @@ if use_optimal:
     rl_config["num_workers"] = 0
     rl_config["num_gpus"] = 0
 
-agent = get_trainer(algorithm, rl_config, "InventoryManagement")
+
 #%% RL Training
 
-# Training
-iters = 300  # Number of training iterations
-validation_interval = 10# Run validation after how many training iterations
-num_validation = 100  # How many validation runs i.e. different realisation of demand
-# Create validation demand
-valid_demand = test_env.dist.rvs(size=(num_validation, test_env.num_periods), **test_env.dist_param)
-results = []
-mean_eval_rewards = []
-std_eval_rewards = []
-eval_episode = []
+# Get traineer
+agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 
-# Start Training
-for i in range(iters):
-    res = agent.train()
-    results.append(res)
-    if (i + 1) % 1 == 0:
-        print('\rIter: {}\tReward: {:.2f}'.format(
-            i + 1, res['episode_reward_mean']), end='')
-    if (i + 1) % validation_interval == 0:
-        eval_episode.append(res['episodes_total'])
-        list_eval_rewards = []
-        for j in range(num_validation):
-            demand = valid_demand[j, :]
-            obs = test_env.reset(customer_demand=demand)
-            episode_reward = 0
-            done = False
-            if use_lstm:
-                reward = 0
-                action = np.zeros(num_stages)
-                state = agent.get_policy().get_initial_state()
-            while not done:
+if train_agent:
+    # Training
+    iters = 400  # Number of training iterations
+    validation_interval = iters + 10  # Run validation after how many training iterations
+    num_validation = 100  # How many validation runs i.e. different realisation of demand
+    min_iter_save = 200
+    checkpoint_interval = 20
+    # Create validation demand
+    valid_demand = test_env.dist.rvs(size=(num_validation, test_env.num_periods), **test_env.dist_param)
+    results = []
+    mean_eval_rewards = []
+    std_eval_rewards = []
+    eval_episode = []
+
+    # Start Training
+    for i in range(iters):
+        res = agent.train()
+        results.append(res)
+        if (i + 1) % 1 == 0:
+            print('\rIter: {}\tReward: {:.2f}'.format(
+                i + 1, res['episode_reward_mean']), end='')
+        if (i + 1) % validation_interval == 0:
+            eval_episode.append(res['episodes_total'])
+            list_eval_rewards = []
+            for j in range(num_validation):
+                demand = valid_demand[j, :]
+                obs = test_env.reset(customer_demand=demand)
+                episode_reward = 0
+                done = False
                 if use_lstm:
-                    action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
-                else:
-                    action = agent.compute_single_action(obs)
-                obs, reward, done, _ = test_env.step(action)
-                episode_reward += reward
-            list_eval_rewards.append(episode_reward)
-        mean_eval_rewards.append(np.mean(list_eval_rewards))
-        std_eval_rewards.append(np.std(list_eval_rewards))
-
-    # chkpt_file = agent.save('/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/checkpoints/multi_agent')
+                    reward = 0
+                    action = np.zeros(num_stages)
+                    state = agent.get_policy().get_initial_state()
+                while not done:
+                    if use_lstm:
+                        action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
+                    else:
+                        action = agent.compute_single_action(obs)
+                    obs, reward, done, _ = test_env.step(action)
+                    episode_reward += reward
+                list_eval_rewards.append(episode_reward)
+            mean_eval_rewards.append(np.mean(list_eval_rewards))
+            std_eval_rewards.append(np.std(list_eval_rewards))
+        if (i+1) % checkpoint_interval and i > min_iter_save and save_agent:
+            ensure_dir(save_path)
+            agent.save(save_path)
+else:
+    agent.restore(load_agent_path)
 
 ray.shutdown()
 
-training_time = datetime.datetime.now().strftime("D%dM%m_h%Hm%M")
-save_path = '/Users/marwanmousa/University/MSc_AI/Individual_Project/MARL-and-DMPC-for-OR/figures/single_agent/' + training_time
-json_env_config = save_path + '/env_config.json'
-os.makedirs(os.path.dirname(json_env_config), exist_ok=True)
-with open(json_env_config, 'w') as fp:
-    for key, value in CONFIG.items():
-        if isinstance(value, np.ndarray):
-            CONFIG[key] = CONFIG[key].tolist()
-    json.dump(CONFIG, fp)
 
-RL_config = {}
-RL_config["algorithm"] = algorithm
-RL_config["lr"] = rl_config["lr"]
-RL_config["seed"] = rl_config["seed"]
-json_rl_config = save_path + '/rl_config.json'
-with open(json_rl_config, 'w') as fp:
-    json.dump(RL_config, fp)
+if save_agent:
+    json_env_config = save_path + '/env_config.json'
+    ensure_dir(json_env_config)
+    with open(json_env_config, 'w') as fp:
+        for key, value in CONFIG.items():
+            if isinstance(value, np.ndarray):
+                CONFIG[key] = CONFIG[key].tolist()
+        json.dump(CONFIG, fp)
+    results_save_path = save_path + '/results.npy'
+    np.save(results_save_path, results)
 
 #%% Reward Plots
+if not train_agent:
+    results_load_path = load_path + '/results.npy'
+    results = np.load(results_load_path, allow_pickle=True)
+
 p = 100
 # Unpack values from each iteration
 rewards = np.hstack([i['hist_stats']['episode_reward']
@@ -247,28 +273,28 @@ dfo_rewards_std = np.std(dfo_rewards)
 
 
 fig, ax = plt.subplots()
+# Plot rewards
 ax.fill_between(np.arange(len(mean_rewards)),
                  mean_rewards - std_rewards,
                  mean_rewards + std_rewards,
                  alpha=0.3)
 ax.plot(mean_rewards, label='Mean Rewards')
+
+# Plot DFO rewards
 ax.fill_between(np.arange(len(mean_rewards)),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean - dfo_rewards_std),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean + dfo_rewards_std),
                  alpha=0.3)
-ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (dfo_rewards_mean) , label='Mean DFO Rewards')
-ax.plot(eval_episode, mean_eval_rewards, label='Mean Eval Rewards')
-ax.fill_between(eval_episode,
-                np.array(mean_eval_rewards) - np.array(std_eval_rewards),
-                np.array(mean_eval_rewards) + np.array(std_eval_rewards),
-                alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (dfo_rewards_mean), label='Mean DFO Rewards')
+
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
-ax.set_title('Aggregate Training Rewards')
 ax.legend()
 
-rewards_name = save_path + '/training_rewards.png'
-plt.savefig(rewards_name, dpi=200)
+if save_agent:
+    rewards_name = save_path + '/training_rewards.png'
+    plt.savefig(rewards_name, dpi=200)
+
 plt.show()
 
 #%% Test rollout
@@ -281,7 +307,7 @@ if time_dependency and not prev_demand and not prev_actions:
     array_obs = np.zeros((num_stages, 3 + np.max(delay), num_periods + 1))
 elif time_dependency and not prev_demand and prev_actions:
     array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length, num_periods + 1))
-elif time_dependency and  prev_demand and not prev_actions:
+elif time_dependency and prev_demand and not prev_actions:
     array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length, num_periods + 1))
 elif time_dependency and prev_demand and prev_actions:
     array_obs = np.zeros((num_stages, 3 + np.max(delay) + prev_length*2, num_periods + 1))
@@ -293,6 +319,7 @@ elif not time_dependency and not prev_demand and prev_actions:
     array_obs = np.zeros((num_stages, 3 + prev_length, num_periods + 1))
 else:
     array_obs = np.zeros((num_stages, 3, num_periods + 1))
+
 array_actions = np.zeros((num_stages, num_periods))
 array_profit = np.zeros((num_stages, num_periods))
 array_profit_sum = np.zeros(num_periods)
@@ -322,6 +349,7 @@ while not done:
     if standardise_actions:
         array_actions[:, period] = np.round(test_env.rev_scale(action, np.zeros(test_env.num_stages), test_env.order_max,
                                                       test_env.a, test_env.b), 0)
+        array_actions[:, period] = np.minimum(array_actions[:, period], np.zeros(num_stages))
     else:
         array_actions[:, period] = np.round(action, 0)
     array_rewards[period] = reward
@@ -333,7 +361,7 @@ while not done:
     episode_reward += reward
     period += 1
 
-#%% rescaling
+#%% Rescaling
 if standardise_state:
     for i in range(num_periods + 1):
         array_obs[:, 0, i] = test_env.rev_scale(array_obs[:, 0, i], np.zeros(test_env.num_stages), test_env.inv_max,
@@ -460,8 +488,9 @@ for i in range(num_stages):
     axs[i+num_stages*3].legend()
     axs[i+num_stages*3].set_xlim(0, num_periods)
 
-test_name = save_path + '/test_rollout.png'
-plt.savefig(test_name, dpi=200)
+if save_agent:
+    test_name = save_path + '/test_rollout.png'
+    plt.savefig(test_name, dpi=200)
 plt.show()
 
 # Rewards plots
@@ -477,8 +506,9 @@ ax.set_ylabel('Rewards/profit')
 ax.legend()
 ax.set_xlim(0, num_periods)
 
-test_rewards_name = save_path + '/test_rollout_rewards.png'
-plt.savefig(test_rewards_name, dpi=200)
+if save_agent:
+    test_rewards_name = save_path + '/test_rollout_rewards.png'
+    plt.savefig(test_rewards_name, dpi=200)
 plt.show()
 
 

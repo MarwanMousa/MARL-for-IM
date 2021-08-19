@@ -45,6 +45,7 @@ use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
+share_network = True
 
 demand_distribution = "poisson"
 
@@ -92,8 +93,8 @@ env_config = {
     "prev_length": prev_length,
 }
 # Loading in hyperparameters from hyperparameter search
-use_optimal = True
-configuration_name = "MA_3"
+use_optimal = False
+configuration_name = "MA_10"
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
@@ -117,6 +118,8 @@ policy_graphs = {}
 for i in range(num_agents):
     policy_graphs[agent_ids[i]] = None, obs_space, act_space, {}
 
+policy_graph_single = {}
+policy_graph_single["stage"] = None, obs_space, act_space, {}
 
 # Policy Mapping function to map each agent to appropriate stage policy
 
@@ -124,6 +127,9 @@ def policy_mapping_fn(agent_id, episode, **kwargs):
     for i in range(num_stages):
         if agent_id.startswith(agent_ids[i]):
             return agent_ids[i]
+
+def policy_mapping_single(agent_id, episode, **kwargs):
+    return "stage"
 
 ModelCatalog.register_custom_model(
         "rnn_model", RNNModel)
@@ -136,11 +142,18 @@ algorithm = 'ppo'
 # Training Set-up
 ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=4)
 rl_config = get_config(algorithm, num_periods=num_periods)
-rl_config["multiagent"] = {
-    "policies": policy_graphs,
-    "policy_mapping_fn": policy_mapping_fn,
-    "replay_mode": "lockstep"
-}
+if share_network:
+    rl_config["multiagent"] = {
+        "policies": policy_graph_single,
+        "policy_mapping_fn": policy_mapping_single,
+        "replay_mode": "lockstep"
+    }
+else:
+    rl_config["multiagent"] = {
+        "policies": policy_graphs,
+        "policy_mapping_fn": policy_mapping_fn,
+        "replay_mode": "lockstep"
+    }
 rl_config["num_workers"] = 0
 rl_config["normalize_actions"] = False
 rl_config["env_config"] = CONFIG
@@ -163,7 +176,7 @@ if use_lstm:
 if use_optimal:
     rl_config = o_config
     rl_config["env_config"] = CONFIG
-    rl_config["num_workers"] = 0
+    rl_config["num_workers"] = 2
     rl_config["num_gpus"] = 0
     rl_config["multiagent"] = {
         "policies": policy_graphs,
@@ -213,14 +226,22 @@ for i in range(iters):
                 if use_lstm:
                     for m in range(num_stages):
                         sp = agent_ids[m]
+                        if share_network:
+                            policy_id = "stage"
+                        else:
+                            policy_id = sp
                         action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp],
                                                                         prev_action=action[sp], prev_reward=reward[sp],
-                                                                        policy_id=sp)
+                                                                        policy_id=policy_id)
                 else:
                     action = {}
                     for m in range(num_stages):
                         sp = agent_ids[m]
-                        action[sp] = agent.compute_single_action(obs[sp], policy_id=sp)
+                        if share_network:
+                            policy_id = "stage"
+                        else:
+                            policy_id = sp
+                        action[sp] = agent.compute_single_action(obs[sp], policy_id=policy_id)
 
                 obs, reward, dones, info = test_env.step(action)
                 done = dones['__all__']

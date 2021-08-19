@@ -343,17 +343,17 @@ class MultiAgentInvManagement(MultiAgentEnv):
         # Demand at other stages is the replenishment order of the downstream stage
         self.demand[t, 1:m] = self.order_r[t, :m - 1]
 
+        # Update acquisition, i.e. goods received from previous stage
+        self.update_acquisition()
+
         # Amount shipped by each stage to downstream stage at each time-step. This is backlog from previous time-steps
         # And demand from current time-step, This cannot be more than the current inventory at each stage
-        self.ship[t, :] = np.minimum(self.backlog[t, :] + self.demand[t, :], self.inv[t, :])
+        self.ship[t, :] = np.minimum(self.backlog[t, :] + self.demand[t, :], self.inv[t, :] + self.acquisition[t, :])
 
         # Update backlog demand increases backlog while fulfilling demand reduces it
         self.backlog[t + 1, :] = self.backlog[t, :] + self.demand[t, :] - self.ship[t, :]
         if self.standardise_state:
             self.backlog[t + 1, :] = np.minimum(self.backlog[t + 1, :], self.inv_max)
-
-        # Update acquisition, i.e. goods received from previous stage
-        self.update_acquisition()
 
         # Update time-dependent states
         if self.time_dependency:

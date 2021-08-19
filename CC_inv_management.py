@@ -91,7 +91,7 @@ env_config = {
 
 # Loading in hyperparameters from hyperparameter search
 use_optimal = True
-configuration_name = "CC_1"
+configuration_name = "CC_11"
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
@@ -195,7 +195,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 
 # Training
-iters = 250
+iters = 300
 validation_interval = 20
 num_validation = 100
 results = []
