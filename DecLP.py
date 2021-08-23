@@ -3,7 +3,15 @@ from ray import tune
 import numpy as np
 import pyomo.environ as pyo
 import time
+import matplotlib.pyplot as plt
+from matplotlib import rc
 #%% Environment Configuration
+
+# Define plot settings
+rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+plt.rcParams["figure.dpi"] = 200
 
 # Set script seed
 SEED = 52
@@ -87,6 +95,17 @@ LP_env = InvManagement(DFO_CONFIG)
 #%% Linear Programming Pyomo
 num_tests = 1000
 LP_demand = LP_env.dist.rvs(size=(num_tests, LP_env.num_periods), **LP_env.dist_param)
+noisy_demand = True
+noise_threshold = 50/100
+if noisy_demand:
+    for i in range(num_tests):
+        for j in range(num_periods):
+            double_demand = np.random.uniform(0, 1)
+            zero_demand = np.random.uniform(0, 1)
+            if double_demand <= noise_threshold:
+                LP_demand[i, j] = 2 * LP_demand[i, j]
+            if zero_demand <= noise_threshold:
+                LP_demand[i, j] = 0
 
 # Initial Inventory
 i10 = init_inv[0]
@@ -310,7 +329,38 @@ lp_reward_list = []
 customer_backlog_list = []
 profit = np.zeros((num_tests, num_periods))
 start_time = time.time()
+
+array_obs = np.zeros((num_stages, 3, num_periods + 1))
+array_actions = np.zeros((num_stages, num_periods))
+array_profit = np.zeros((num_stages, num_periods))
+array_profit_sum = np.zeros(num_periods)
+array_demand = np.zeros((num_stages, num_periods))
+array_ship = np.zeros((num_stages, num_periods))
+array_acquisition = np.zeros((num_stages, num_periods))
+array_rewards = np.zeros(num_periods)
+
 for j in range(num_tests):
+    # Initial Inventory
+    i10 = init_inv[0]
+    i20 = init_inv[1]
+    i30 = init_inv[2]
+    i40 = init_inv[3]
+
+    # Initial Backlog
+    bl10 = 0
+    bl20 = 0
+    bl30 = 0
+    bl40 = 0
+
+    # Initial Acquisition
+    a10 = 0
+    a20 = 0
+    a21 = 0
+    a30 = 0
+    a31 = 0
+    a32 = 0
+    a40 = 0
+
     # Initialise arrays for storing variables at each iteration
     SHLP_actions = np.zeros((num_periods, 4))
     SHLP_shipment = np.zeros((num_periods, 4))
@@ -443,23 +493,38 @@ for j in range(num_tests):
     customer_backlog = 0
     done = False
     t = 0
+    if j == 0:
+        array_obs[:, :, 0] = s
+
     while not done:
         lp_action = SHLP_actions[t, :]
-        s, r, done, _ = LP_env.step(lp_action)
+        s, r, done, info = LP_env.step(lp_action)
         profit[j, t] = r
         total_inventory += sum(s[:, 0])
         total_backlog += sum(s[:, 1])
         customer_backlog += s[0, 1]
         lp_reward += r
+        if j == 0:
+            array_obs[:, :, t + 1] = s
+            array_actions[:, t] = lp_action
+            array_actions[:, t] = np.maximum(array_actions[:, t], np.zeros(num_stages))
+            array_rewards[t] = r
+            array_profit[:, t] = info['profit']
+            array_profit_sum[t] = np.sum(info['profit'])
+            array_demand[:, t] = info['demand']
+            array_ship[:, t] = info['ship']
+            array_acquisition[:, t] = info['acquisition']
+
         t += 1
 
     lp_reward_list.append(lp_reward)
     inventory_list.append(total_inventory)
     backlog_list.append(total_backlog)
     customer_backlog_list.append(customer_backlog)
-    #print(lp_reward)
+    if j % 10 == 0:
+        print(f'reward at {j} is {lp_reward}')
 
-shlp_time = time.time() - start_time
+decLP_time = time.time() - start_time
 lp_reward_mean = np.mean(lp_reward_list)
 lp_reward_std = np.std(lp_reward_list)
 inventory_level_mean = np.mean(inventory_list)
@@ -475,7 +540,7 @@ print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_lev
 print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
 print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
 
-path = 'LP_results/four_stage/DecLP/'
+path = 'LP_results/four_stage_noise_50/DecLP/'
 np.save(path+'reward_mean.npy', lp_reward_mean)
 np.save(path+'reward_std.npy', lp_reward_std)
 np.save(path+'inventory_mean.npy', inventory_level_mean)
@@ -485,4 +550,43 @@ np.save(path+'backlog_std.npy', backlog_level_std)
 np.save(path+'customer_backlog_mean', customer_backlog_mean)
 np.save(path+'customer_backlog_std', customer_backlog_std)
 np.save(path+'profit', profit)
-np.save(path+'time', shlp_time)
+np.save(path+'time', decLP_time)
+
+#%% Test rollout plots
+fig, axs = plt.subplots(3, num_stages, figsize=(18, 9), facecolor='w', edgecolor='k')
+fig.subplots_adjust(hspace=0.06, wspace=.16)
+
+axs = axs.ravel()
+
+for i in range(num_stages):
+    axs[i].plot(array_obs[i, 0, :], label='Inventory')
+    axs[i].plot(array_obs[i, 1, :], label='Backlog', color='tab:red')
+    title = 'Stage ' + str(i+1)
+    axs[i].set_title(title)
+    axs[i].set_xlim(0, num_periods)
+    axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i].legend()
+        axs[i].set_ylabel('Products')
+
+    axs[i+num_stages].plot(np.arange(0, num_periods), array_actions[i, :], label='Replenishment order', color='k')
+    axs[i + num_stages].plot(np.arange(0, num_periods), array_demand[i, :], label='Demand', color='tab:orange')
+    axs[i+num_stages].set_xlim(0, num_periods)
+    axs[i+num_stages].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i+num_stages].legend()
+        axs[i + num_stages].set_ylabel('Products')
+
+    axs[i+num_stages*2].plot(array_profit[i, :], label='Periodic profit', color='tab:green')
+    axs[i+num_stages*2].plot(np.cumsum(array_profit[i, :]), label='Cumulative profit', color='salmon')
+    axs[i+num_stages*2].plot([0, num_periods], [0, 0], color='k')
+    axs[i+num_stages*2].set_xlabel('Period')
+    axs[i+num_stages*2].set_xlim(0, num_periods)
+    if i == 0:
+        axs[i + num_stages * 2].legend()
+        axs[i + num_stages * 2].set_ylabel('Profit')
+
+
+test_name = path + '/test_rollout.png'
+plt.savefig(test_name, dpi=200)
+plt.show()

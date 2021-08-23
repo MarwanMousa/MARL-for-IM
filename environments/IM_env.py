@@ -374,14 +374,14 @@ class InvManagement(gym.Env):
 
         # Acquisition at stage m is unique since delay is manufacturing delay instead of shipment delay
         if t - self.delay[m - 1] >= 0:
-            self.acquisition[t, m - 1] = self.order_r[t - self.delay[m - 1], m - 1]
+            self.acquisition[t, m - 1] += self.order_r[t - self.delay[m - 1], m - 1]
         else:
             self.acquisition[t, m - 1] = self.acquisition[t, m - 1]
 
         # Acquisition at subsequent stage is the delayed shipment of the upstream stage
         for i in range(m - 1):
             if t - self.delay[i] >= 0:
-                self.acquisition[t, i] = self.ship[t - self.delay[i], i + 1]
+                self.acquisition[t, i] += self.ship[t - self.delay[i], i + 1]
             else:
                 self.acquisition[t, i] = self.acquisition[t, i]
 

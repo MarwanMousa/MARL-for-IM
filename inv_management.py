@@ -3,32 +3,30 @@ import ray
 from ray import tune
 import numpy as np
 import json
-import datetime
-import os
 from utils import get_config, get_trainer, ensure_dir
 from base_restock_policy import optimize_inventory_policy, dfo_func, base_stock_policy
 from models.RNN_Model import RNNModel, SharedRNNModel
 from ray.rllib.models import ModelCatalog
 from hyperparams import get_hyperparams
-
+import time
 import matplotlib.pyplot as plt
 from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = True
+train_agent = False
 save_agent = False
-save_path = "checkpoints/single_agent/four_stage"
+save_path = "checkpoints/single_agent/four_stage_noise_50"
 load_path = "checkpoints/single_agent/four_stage"
-load_iteration = str(200)
+LP_load_path = "LP_results/four_stage/"
+load_iteration = str(400)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
-rc('font', **{'family': 'serif', 'serif': ['Palatino']})
+rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 plt.rcParams["figure.dpi"] = 200
-
 
 # Set script seed
 SEED = 52
@@ -51,9 +49,9 @@ standardise_state = True
 standardise_actions = True
 a = -1
 b = 1
-time_dependency = True
+time_dependency = False
 use_lstm = False
-prev_actions = False
+prev_actions = True
 prev_demand = True
 prev_length = 1
 
@@ -104,15 +102,19 @@ env_config = {
 
 # Loading in hyperparameters from hyperparameter search
 use_optimal = True
-configuration_name = "S_1"
+configuration_name = "S_3"
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
-    env_config = o_config["env_config"]
-    time_dependency = env_config["time_dependency"]
-    prev_demand = env_config["prev_demand"]
-    prev_actions = env_config["prev_actions"]
-    prev_length = env_config["prev_length"]
+    temp_env = o_config["env_config"]
+    time_dependency = temp_env["time_dependency"]
+    prev_demand = temp_env["prev_demand"]
+    prev_actions = temp_env["prev_actions"]
+    prev_length = temp_env["prev_length"]
+    env_config["time_dependency"] = time_dependency
+    env_config["prev_demand"] = prev_demand
+    env_config["prev_actions"] = prev_actions
+    env_config["prev_length"] = prev_length
 
 CONFIG = env_config.copy()
 # Configuration for the base-restock policy with DFO that has no state-action standardisation
@@ -120,52 +122,24 @@ DFO_CONFIG = env_config.copy()
 DFO_CONFIG["standardise_state"] = False
 DFO_CONFIG["standardise_actions"] = False
 DFO_CONFIG["time_dependency"] = False
+DFO_CONFIG["prev_actions"] = False
+DFO_CONFIG["prev_demand"] = False
 
 # Test environment
 test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
 
-
-#%% Derivative Free Optimization
-eps = 1000
-dfo_valid_demand = DFO_env.dist.rvs(size=(eps + 1, DFO_env.num_periods), **DFO_env.dist_param)
-policy, out = optimize_inventory_policy(DFO_env, dfo_func, init_policy=[13, 40, 30, 25], demand=dfo_valid_demand[0, :])
-print("Re-order levels: {}".format(policy))
-print("DFO Info:\n{}".format(out))
-
-dfo_rewards = []
-for i in range(eps):
-    demand = dfo_valid_demand[i + 1, :]
-    DFO_env.reset(customer_demand=demand)
-    dfo_reward = 0
-    done = False
-    while not done:
-        dfo_action = base_stock_policy(policy, DFO_env)
-        s, r, done, _ = DFO_env.step(dfo_action)
-        dfo_reward += r
-    dfo_rewards.append(dfo_reward)
-
-print(f'Mean DFO rewards is {np.mean(dfo_rewards)}')
 #%% Agent Configuration
 
 ModelCatalog.register_custom_model(
         "rnn_model", RNNModel)
 
-ModelCatalog.register_custom_model(
-        "shared_rnn_model", SharedRNNModel)
-
 # Algorithm used
 algorithm = 'ppo'
 # Training Set-up
 ray.init(ignore_reinit_error=True, local_mode=True, num_cpus=1)
-rl_config = get_config(algorithm, num_periods)
-rl_config["num_workers"] = 0
-rl_config["batch_mode"] = "complete_episodes"
-rl_config["normalize_actions"] = False
+rl_config = get_config(algorithm, num_periods, SEED)
 rl_config["env_config"] = CONFIG
-rl_config["framework"] = 'torch'
-rl_config["lr"] = 1e-5
-rl_config["seed"] = SEED
 rl_config["env"] = "InventoryManagement"
 if use_lstm:
     rl_config["model"]["custom_model"] = "rnn_model"
@@ -178,28 +152,17 @@ if use_lstm:
 if use_optimal:
     rl_config = o_config
     rl_config["env_config"] = CONFIG
-    rl_config["num_workers"] = 0
-    rl_config["num_gpus"] = 0
-
-
 #%% RL Training
 
-# Get traineer
+# Get trainer
 agent = get_trainer(algorithm, rl_config, "InventoryManagement")
 
 if train_agent:
     # Training
     iters = 400  # Number of training iterations
-    validation_interval = iters + 10  # Run validation after how many training iterations
-    num_validation = 100  # How many validation runs i.e. different realisation of demand
     min_iter_save = 200
-    checkpoint_interval = 20
-    # Create validation demand
-    valid_demand = test_env.dist.rvs(size=(num_validation, test_env.num_periods), **test_env.dist_param)
+    checkpoint_interval = 10
     results = []
-    mean_eval_rewards = []
-    std_eval_rewards = []
-    eval_episode = []
 
     # Start Training
     for i in range(iters):
@@ -208,33 +171,14 @@ if train_agent:
         if (i + 1) % 1 == 0:
             print('\rIter: {}\tReward: {:.2f}'.format(
                 i + 1, res['episode_reward_mean']), end='')
-        if (i + 1) % validation_interval == 0:
-            eval_episode.append(res['episodes_total'])
-            list_eval_rewards = []
-            for j in range(num_validation):
-                demand = valid_demand[j, :]
-                obs = test_env.reset(customer_demand=demand)
-                episode_reward = 0
-                done = False
-                if use_lstm:
-                    reward = 0
-                    action = np.zeros(num_stages)
-                    state = agent.get_policy().get_initial_state()
-                while not done:
-                    if use_lstm:
-                        action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
-                    else:
-                        action = agent.compute_single_action(obs)
-                    obs, reward, done, _ = test_env.step(action)
-                    episode_reward += reward
-                list_eval_rewards.append(episode_reward)
-            mean_eval_rewards.append(np.mean(list_eval_rewards))
-            std_eval_rewards.append(np.std(list_eval_rewards))
-        if (i+1) % checkpoint_interval and i > min_iter_save and save_agent:
+
+        if (i+1) % checkpoint_interval == 0 and i >= min_iter_save and save_agent:
             ensure_dir(save_path)
             agent.save(save_path)
 else:
     agent.restore(load_agent_path)
+    results_load_path = load_path + '/results.npy'
+    results = np.load(results_load_path, allow_pickle=True)
 
 ray.shutdown()
 
@@ -250,10 +194,43 @@ if save_agent:
     results_save_path = save_path + '/results.npy'
     np.save(results_save_path, results)
 
+#%% Get Test demand
+num_tests = 1000
+test_seed = 420
+np.random.seed(seed=test_seed)
+test_demand = test_env.dist.rvs(size=(num_tests, test_env.num_periods), **test_env.dist_param)
+noisy_demand = True
+noise_threshold = 50/100
+if noisy_demand:
+    for i in range(num_tests):
+        for j in range(num_periods):
+            double_demand = np.random.uniform(0, 1)
+            zero_demand = np.random.uniform(0, 1)
+            if double_demand <= noise_threshold:
+                test_demand[i, j] = 2 *test_demand[i, j]
+            if zero_demand <= noise_threshold:
+                test_demand[i, j] = 0
+
+#%% Derivative Free Optimization
+init_policy = np.ones(num_stages)*25
+policy, out = optimize_inventory_policy(DFO_env, dfo_func, init_policy=init_policy, demand=test_demand[0, :])
+print("Re-order levels: {}".format(policy))
+print("DFO Info:\n{}".format(out))
+
+dfo_rewards = []
+for i in range(num_tests):
+    demand = test_demand[i, :]
+    DFO_env.reset(customer_demand=demand)
+    dfo_reward = 0
+    done = False
+    while not done:
+        dfo_action = base_stock_policy(policy, DFO_env)
+        s, r, done, _ = DFO_env.step(dfo_action)
+        dfo_reward += r
+    dfo_rewards.append(dfo_reward)
+
+print(f'Mean DFO rewards is {np.mean(dfo_rewards)}')
 #%% Reward Plots
-if not train_agent:
-    results_load_path = load_path + '/results.npy'
-    results = np.load(results_load_path, allow_pickle=True)
 
 p = 100
 # Unpack values from each iteration
@@ -270,7 +247,10 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
 
 dfo_rewards_mean = np.mean(dfo_rewards)
 dfo_rewards_std = np.std(dfo_rewards)
-
+oracle_rewards_mean = np.load(LP_load_path + 'Oracle/reward_mean.npy')
+oracle_rewards_std = np.load(LP_load_path + 'Oracle/reward_std.npy')
+SHLP_rewards_mean = np.load(LP_load_path + 'SHLP/reward_mean.npy')
+SHLP_rewards_std = np.load(LP_load_path + 'SHLP/reward_std.npy')
 
 fig, ax = plt.subplots()
 # Plot rewards
@@ -278,14 +258,28 @@ ax.fill_between(np.arange(len(mean_rewards)),
                  mean_rewards - std_rewards,
                  mean_rewards + std_rewards,
                  alpha=0.3)
-ax.plot(mean_rewards, label='Mean Rewards')
+ax.plot(mean_rewards, label='Mean RL rewards')
 
 # Plot DFO rewards
 ax.fill_between(np.arange(len(mean_rewards)),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean - dfo_rewards_std),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean + dfo_rewards_std),
                  alpha=0.3)
-ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (dfo_rewards_mean), label='Mean DFO Rewards')
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (dfo_rewards_mean), label='Mean DFO rewards')
+
+# Plot Oracle rewards
+ax.fill_between(np.arange(len(mean_rewards)),
+                 np.ones(len(mean_rewards)) * (oracle_rewards_mean - oracle_rewards_std),
+                 np.ones(len(mean_rewards)) * (oracle_rewards_mean + oracle_rewards_std),
+                 alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (oracle_rewards_mean), label='Mean Oracle rewards')
+
+# Plot SHLP rewards
+ax.fill_between(np.arange(len(mean_rewards)),
+                 np.ones(len(mean_rewards)) * (SHLP_rewards_mean - SHLP_rewards_std),
+                 np.ones(len(mean_rewards)) * (SHLP_rewards_mean + SHLP_rewards_std),
+                 alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (SHLP_rewards_mean), label='Mean SHLP rewards')
 
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
@@ -299,7 +293,6 @@ plt.show()
 
 #%% Test rollout
 
-num_tests = 1000
 # run until episode ends
 episode_reward = 0
 done = False
@@ -329,9 +322,7 @@ array_acquisition = np.zeros((num_stages, num_periods))
 array_rewards = np.zeros(num_periods)
 period = 0
 
-test_seed = 420
-np.random.seed(seed=test_seed)
-test_demand = test_env.dist.rvs(size=(num_tests + 1, test_env.num_periods), **test_env.dist_param)
+
 obs = test_env.reset(customer_demand=test_demand[0, :])
 array_obs[:, :, 0] = obs
 if use_lstm:
@@ -349,7 +340,7 @@ while not done:
     if standardise_actions:
         array_actions[:, period] = np.round(test_env.rev_scale(action, np.zeros(test_env.num_stages), test_env.order_max,
                                                       test_env.a, test_env.b), 0)
-        array_actions[:, period] = np.minimum(array_actions[:, period], np.zeros(num_stages))
+        array_actions[:, period] = np.maximum(array_actions[:, period], np.zeros(num_stages))
     else:
         array_actions[:, period] = np.round(action, 0)
     array_rewards[period] = reward
@@ -452,72 +443,50 @@ if standardise_state:
 
 
 #%% Plots
-fig, axs = plt.subplots(4, num_stages, figsize=(20, 8), facecolor='w', edgecolor='k')
-fig.subplots_adjust(hspace=0.1, wspace=.3)
+fig, axs = plt.subplots(3, num_stages, figsize=(18, 9), facecolor='w', edgecolor='k')
+fig.subplots_adjust(hspace=0.06, wspace=.16)
 
 axs = axs.ravel()
 
 for i in range(num_stages):
-    axs[i].plot(array_obs[i, 0, :], label='Inventory')
-    axs[i].plot(array_obs[i, 1, :], label='Backlog')
-    axs[i].plot(array_obs[i, 2, :], label='Unfulfilled orders')
-    axs[i].plot([0, num_periods + 1], [inv_target[i], inv_target[i]], label='Target Inventory', color='r')
-    axs[i].legend()
-    title = 'Stage ' + str(i)
+    axs[i].plot(array_obs[i, 0, :], label='Inventory', lw=2)
+    axs[i].plot(array_obs[i, 1, :], label='Backlog', color='tab:red', lw=2)
+    title = 'Stage ' + str(i+1)
     axs[i].set_title(title)
-    axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
+    axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i].legend()
+        axs[i].set_ylabel('Products')
 
-    axs[i+num_stages].plot(np.arange(0, num_periods), array_acquisition[i, :], label='Acquisition')
-    axs[i+num_stages].plot(np.arange(0, num_periods), array_actions[i, :], label='Replenishment Order', color='k')
-    axs[i+num_stages].legend()
-    axs[i+num_stages].set_ylabel('Products')
+    axs[i+num_stages].plot(array_actions[i, :], label='Replenishment order', color='k', lw=2)
+    axs[i+num_stages].plot(array_demand[i, :], label='Demand', color='tab:orange', lw=2)
     axs[i+num_stages].set_xlim(0, num_periods)
+    axs[i+num_stages].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i+num_stages].legend()
+        axs[i + num_stages].set_ylabel('Products')
 
-    axs[i+num_stages*2].plot(np.arange(0, num_periods), array_demand[i, :], label='demand')
-    axs[i+num_stages*2].plot(np.arange(0, num_periods), array_ship[i, :], label='shipment')
-    axs[i+num_stages*2].legend()
-    axs[i+num_stages*2].set_ylabel('Products')
+    axs[i+num_stages*2].plot(array_profit[i, :], label='Periodic profit', color='tab:green', lw=2)
+    axs[i+num_stages*2].plot(np.cumsum(array_profit[i, :]), label='Cumulative profit', color='salmon', lw=2)
+    axs[i+num_stages*2].plot([0, num_periods], [0, 0], color='k')
+    axs[i+num_stages*2].set_xlabel('Period')
     axs[i+num_stages*2].set_xlim(0, num_periods)
-
-    axs[i+num_stages*3].plot(np.arange(1, num_periods+1), array_profit[i, :], label='periodic profit')
-    axs[i+num_stages*3].plot(np.arange(1, num_periods + 1), np.cumsum(array_profit[i, :]), label='cumulative profit')
-    axs[i+num_stages*3].plot([0, num_periods], [0, 0], color='k')
-    axs[i+num_stages*3].set_xlabel('Period')
-    axs[i+num_stages*3].set_ylabel('Profit')
-    axs[i+num_stages*3].legend()
-    axs[i+num_stages*3].set_xlim(0, num_periods)
+    if i == 0:
+        axs[i + num_stages * 2].legend()
+        axs[i + num_stages * 2].set_ylabel('Profit')
 
 if save_agent:
     test_name = save_path + '/test_rollout.png'
     plt.savefig(test_name, dpi=200)
 plt.show()
 
-# Rewards plots
-fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-ax.plot(np.arange(1, num_periods+1), array_rewards, label='periodic reward')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(array_rewards), label='cumulative reward')
-ax.plot(np.arange(1, num_periods+1), array_profit_sum, label='periodic profit')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(array_profit_sum), label='cumulative profit')
-ax.plot([0, num_periods], [0, 0], color='k')
-ax.set_title('Aggregate Rewards')
-ax.set_xlabel('Period')
-ax.set_ylabel('Rewards/profit')
-ax.legend()
-ax.set_xlim(0, num_periods)
-
-if save_agent:
-    test_rewards_name = save_path + '/test_rollout_rewards.png'
-    plt.savefig(test_rewards_name, dpi=200)
-plt.show()
-
-
 #%% DFO Test run
-'''
+
 # run until episode ends
 dfo_episode_reward = 0
 
-dfo_array_obs = np.zeros((num_stages, 4, num_periods + 1))
+dfo_array_obs = np.zeros((num_stages, 3, num_periods + 1))
 dfo_array_actions = np.zeros((num_stages, num_periods))
 dfo_array_profit = np.zeros((num_stages, num_periods))
 dfo_array_profit_sum = np.zeros(num_periods)
@@ -546,68 +515,62 @@ while not done:
     period += 1
 
 #%% DFO Plots
-fig, axs = plt.subplots(4, num_stages, figsize=(20, 8), facecolor='w', edgecolor='k')
-fig.suptitle('DFO', fontsize=16)
-fig.subplots_adjust(hspace=0.1, wspace=.3)
+fig, axs = plt.subplots(3, num_stages, figsize=(18, 9), facecolor='w', edgecolor='k')
+fig.subplots_adjust(hspace=0.06, wspace=.16)
 
 axs = axs.ravel()
 
 for i in range(num_stages):
-    axs[i].plot(dfo_array_obs[i, 0, :], label='Inventory')
-    axs[i].plot(dfo_array_obs[i, 1, :], label='Backlog')
-    axs[i].plot(dfo_array_obs[i, 2, :], label='Unfulfilled orders')
-    axs[i].plot([0, num_periods + 1], [inv_target[i], inv_target[i]], label='Target Inventory', color='r')
-    axs[i].legend()
-    title = 'Stage ' + str(i)
+    axs[i].plot(dfo_array_obs[i, 0, :], label='Inventory', lw=2)
+    axs[i].plot(dfo_array_obs[i, 1, :], label='Backlog', color='tab:red', lw=2)
+    title = 'Stage ' + str(i+1)
     axs[i].set_title(title)
-    axs[i].set_ylabel('Products')
     axs[i].set_xlim(0, num_periods)
+    axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i].legend()
+        axs[i].set_ylabel('Products')
 
-    axs[i+num_stages].plot(np.arange(0, num_periods), dfo_array_acquisition[i, :], label='Acquisition')
-    axs[i+num_stages].plot(np.arange(0, num_periods), dfo_array_actions[i, :], label='Replenishment Order', color='k')
-    axs[i+num_stages].legend()
-    axs[i+num_stages].set_ylabel('Products')
+    axs[i+num_stages].plot(dfo_array_actions[i, :], label='Replenishment order', color='k', lw=2)
+    axs[i+num_stages].plot(dfo_array_demand[i, :], label='Demand', color='tab:orange', lw=2)
     axs[i+num_stages].set_xlim(0, num_periods)
+    axs[i+num_stages].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    if i == 0:
+        axs[i+num_stages].legend()
+        axs[i + num_stages].set_ylabel('Products')
 
-    axs[i+num_stages*2].plot(np.arange(0, num_periods), dfo_array_demand[i, :], label='demand')
-    axs[i+num_stages*2].plot(np.arange(0, num_periods), dfo_array_ship[i, :], label='shipment')
-    axs[i+num_stages*2].legend()
-    axs[i+num_stages*2].set_ylabel('Products')
+    axs[i+num_stages*2].plot(dfo_array_profit[i, :], label='Periodic profit', color='tab:green', lw=2)
+    axs[i+num_stages*2].plot(np.cumsum(dfo_array_profit[i, :]), label='Cumulative profit', color='salmon', lw=2)
+    axs[i+num_stages*2].plot([0, num_periods], [0, 0], color='k')
+    axs[i+num_stages*2].set_xlabel('Period')
     axs[i+num_stages*2].set_xlim(0, num_periods)
+    if i == 0:
+        axs[i + num_stages * 2].legend()
+        axs[i + num_stages * 2].set_ylabel('Profit')
 
-    axs[i+num_stages*3].plot(np.arange(1, num_periods+1), dfo_array_profit[i, :], label='periodic profit')
-    axs[i+num_stages*3].plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_profit[i, :]), label='cumulative profit')
-    axs[i+num_stages*3].plot([0, num_periods], [0, 0], color='k')
-    axs[i+num_stages*3].set_xlabel('Period')
-    axs[i+num_stages*3].set_ylabel('Profit')
-    axs[i+num_stages*3].legend()
-    axs[i+num_stages*3].set_xlim(0, num_periods)
-
+if save_agent:
+    test_name = save_path + '/dfo_test_rollout.png'
+    plt.savefig(test_name, dpi=200)
 plt.show()
 
-# Rewards plots
-fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-ax.plot(np.arange(1, num_periods+1), dfo_array_rewards, label='periodic reward')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_rewards), label='cumulative reward')
-ax.plot(np.arange(1, num_periods+1), dfo_array_profit_sum, label='periodic profit')
-ax.plot(np.arange(1, num_periods+1), np.cumsum(dfo_array_profit_sum), label='cumulative profit')
-ax.plot([0, num_periods], [0, 0], color='k')
-ax.set_title('Aggregate Rewards DFO')
-ax.set_xlabel('Period')
-ax.set_ylabel('Rewards/profit')
-ax.legend()
-ax.set_xlim(0, num_periods)
-
-plt.show()
-'''
 #%% Test runs on final agent
-list_test_rewards = []
+reward_list = []
+inventory_list = []
+backlog_list = []
+customer_backlog_list = []
 stage_rewards = np.zeros((num_stages, num_tests))
+profit = np.zeros((num_tests, num_periods))
+
+start_time = time.time()
 for i in range(num_tests):
-    demand = test_demand[i + 1, :]
+    demand = test_demand[i, :]
     obs = test_env.reset(customer_demand=demand)
     episode_reward = 0
     done = False
+    t = 0
+    total_inventory = 0
+    total_backlog = 0
+    customer_backlog = 0
     if use_lstm:
         reward = 0
         action = np.zeros(num_stages)
@@ -617,19 +580,62 @@ for i in range(num_tests):
             action, state, _ = agent.compute_single_action(obs, state=state, prev_action=action, prev_reward=reward)
         else:
             action = agent.compute_single_action(obs)
+
         obs, reward, done, info = test_env.step(action)
+        profit[i, t] = reward
+        # Get re-scaled inv and backlog
+        inv = test_env.rev_scale(obs[:, 0], np.zeros(test_env.num_stages), test_env.inv_max, test_env.a, test_env.b)
+        bl = test_env.rev_scale(obs[:, 1], np.zeros(test_env.num_stages), test_env.inv_max, test_env.a, test_env.b)
+
+        total_inventory += sum(inv)
+        total_backlog += sum(bl)
+        customer_backlog += bl[0]
+
         for m in range(num_stages):
             stage_rewards[m, i] += info["profit"][m]
-        episode_reward += reward
-    list_test_rewards.append(episode_reward)
 
-test_reward_mean = np.mean(list_test_rewards)
-test_reward_std = np.std(list_test_rewards)
+        episode_reward += reward
+
+        t += 1
+
+    reward_list.append(episode_reward)
+    inventory_list.append(total_inventory)
+    backlog_list.append(total_backlog)
+    customer_backlog_list.append(customer_backlog)
+
+single_time = time.time() - start_time
+
 stage_test_reward_mean = np.mean(stage_rewards, axis=1)
 stage_test_reward_std = np.std(stage_rewards, axis=1)
 
+single_reward_mean = np.mean(reward_list)
+single_reward_std = np.std(reward_list)
+inventory_level_mean = np.mean(inventory_list)
+inventory_level_std = np.std(inventory_list)
+backlog_level_mean = np.mean(backlog_list)
+backlog_level_std = np.std(backlog_list)
+customer_backlog_mean = np.mean(customer_backlog_list)
+customer_backlog_std = np.std(customer_backlog_list)
+
 print(f"\nThe mean DFO reward is {dfo_rewards_mean} with standard deviation {dfo_rewards_std}")
-print(f"\nOn {num_tests} runs, the mean reward is: {test_reward_mean}, with standard deviation {test_reward_std}")
+print(f"\nOn {num_tests} runs, the mean reward is: {single_reward_mean}, with standard deviation {single_reward_std}")
+print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_level_std}')
+print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
+print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
+print(f'Took {single_time}s for {num_tests} inference')
 for m in range(num_stages):
     print(f"\nFor stage {m}, the mean reward is: {stage_test_reward_mean[m]}, "
           f"with standard deviation {stage_test_reward_std[m]}")
+
+np.save(save_path+'/dfo_mean.npy', dfo_rewards_mean)
+np.save(save_path+'/dfo_std.npy', dfo_rewards_std)
+np.save(save_path+'/reward_mean.npy', single_reward_mean)
+np.save(save_path+'/reward_std.npy', single_reward_std)
+np.save(save_path+'/inventory_mean.npy', inventory_level_mean)
+np.save(save_path+'/inventory_std.npy', inventory_level_std)
+np.save(save_path+'/backlog_mean.npy', backlog_level_mean)
+np.save(save_path+'/backlog_std.npy', backlog_level_std)
+np.save(save_path+'/customer_backlog_mean', customer_backlog_mean)
+np.save(save_path+'/customer_backlog_std', customer_backlog_std)
+np.save(save_path+'/profit', profit)
+np.save(save_path+'/time', single_time)

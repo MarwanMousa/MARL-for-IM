@@ -45,9 +45,9 @@ standardise_actions = True
 a = -1
 b = 1
 time_dependency = False
-use_lstm = True
-prev_actions = False
-prev_demand = False
+use_lstm = False
+prev_actions = True
+prev_demand = True
 prev_length = 1
 
 demand_distribution = "poisson"
