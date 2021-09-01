@@ -14,10 +14,10 @@ from matplotlib import rc
 
 train_agent = False
 save_agent = True
-save_path = "checkpoints/multi_agent/four_stage_share_independent"
-load_path = "checkpoints/multi_agent/four_stage_share_independent"
+save_path = "checkpoints/multi_agent/four_stage_share"
+load_path = "checkpoints/multi_agent/four_stage_share"
 LP_load_path = "LP_results/four_stage/"
-load_iteration = str(600)
+load_iteration = str(400)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
@@ -60,6 +60,7 @@ prev_actions = False
 prev_demand = True
 prev_length = 1
 share_network = True
+hybrid = False
 
 demand_distribution = "poisson"
 
@@ -139,6 +140,11 @@ for i in range(num_agents):
 policy_graph_single = {}
 policy_graph_single["stage"] = None, obs_space, act_space, {}
 
+policy_graph_hybrid = {}
+policy_graph_hybrid["retailer"] = None, obs_space, act_space, {}
+policy_graph_hybrid["factory"] = None, obs_space, act_space, {}
+policy_graph_hybrid["intermediate"] = None, obs_space, act_space, {}
+
 # Policy Mapping function to map each agent to appropriate stage policy
 
 def policy_mapping_fn(agent_id, episode, **kwargs):
@@ -148,6 +154,14 @@ def policy_mapping_fn(agent_id, episode, **kwargs):
 
 def policy_mapping_single(agent_id, episode, **kwargs):
     return "stage"
+
+def policy_mapping_hybrid(agent_id, episode, **kwargs):
+    if '0' in agent_id:
+        return "retailer"
+    elif str(num_stages-1) in agent_id:
+        return "factory"
+    else:
+        return "intermediate"
 
 ModelCatalog.register_custom_model(
         "rnn_model", RNNModel)
@@ -161,6 +175,12 @@ if share_network:
     rl_config["multiagent"] = {
         "policies": policy_graph_single,
         "policy_mapping_fn": policy_mapping_single,
+        "replay_mode": "lockstep"
+    }
+elif hybrid:
+    rl_config["multiagent"] = {
+        "policies": policy_graph_hybrid,
+        "policy_mapping_fn": policy_mapping_hybrid,
         "replay_mode": "lockstep"
     }
 else:
@@ -192,6 +212,12 @@ if use_optimal:
             "policy_mapping_fn": policy_mapping_single,
             "replay_mode": "lockstep"
         }
+    elif hybrid:
+        rl_config["multiagent"] = {
+            "policies": policy_graph_hybrid,
+            "policy_mapping_fn": policy_mapping_hybrid,
+            "replay_mode": "lockstep"
+        }
     else:
         rl_config["multiagent"] = {
             "policies": policy_graphs,
@@ -204,7 +230,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 if train_agent:
     # Training
-    iters = 600
+    iters = 700
     min_iter_save = 100
     checkpoint_interval = 10
     results = []
@@ -253,7 +279,7 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
 decLP_rewards_mean = np.load(LP_load_path + 'DecLP/reward_mean.npy')
 decLP_rewards_std = np.load(LP_load_path + 'DecLP/reward_std.npy')
 
-if not share_network:
+if not share_network and not hybrid:
     policy_rewards = {}
     policy_mean_rewards = {}
     policy_std_rewards = {}
@@ -293,7 +319,7 @@ if save_agent:
 
 plt.show()
 
-if not share_network:
+if not share_network and not hybrid:
     colours = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:pink', 'tab:olive', 'tab:cyan']
     fig, ax = plt.subplots()
     for i in range(num_agents):
@@ -319,7 +345,10 @@ test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, test_env.num_periods), **test_env.dist_param)
 noisy_demand = False
-noise_threshold = 50/100
+noise_threshold = 40/100
+
+noisy_delay = False
+noisy_delay_threshold = 50/100
 if noisy_demand:
     for i in range(num_tests):
         for j in range(num_periods):
@@ -333,7 +362,7 @@ if noisy_demand:
 # run until episode ends
 episode_reward = 0
 done = False
-obs = test_env.reset(customer_demand=test_demand[0, :])
+obs = test_env.reset(customer_demand=test_demand[0, :], noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
 dict_obs = {}
 dict_info = {}
 dict_actions = {}
@@ -374,6 +403,8 @@ if use_lstm:
         sp = agent_ids[m]
         if share_network:
             policy_id = "stage"
+        elif hybrid:
+            policy_id = policy_mapping_hybrid(sp, 0)
         else:
             policy_id = sp
         reward[sp] = 0
@@ -385,6 +416,8 @@ while not done:
             sp = agent_ids[i]
             if share_network:
                 policy_id = "stage"
+            elif hybrid:
+                policy_id = policy_mapping_hybrid(sp, 0)
             else:
                 policy_id = sp
             action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
@@ -395,6 +428,8 @@ while not done:
             sp = agent_ids[i]
             if share_network:
                 policy_id = "stage"
+            elif hybrid:
+                policy_id = policy_mapping_hybrid(sp, 0)
             else:
                 policy_id = sp
             action[sp] = agent.compute_single_action(obs[sp], policy_id=policy_id)
@@ -481,7 +516,7 @@ profit = np.zeros((num_tests, num_periods))
 start_time = time.time()
 for i in range(num_tests):
     demand = test_demand[i, :]
-    obs = test_env.reset(customer_demand=demand)
+    obs = test_env.reset(customer_demand=demand, noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
     episode_reward = 0
     done = False
     if use_lstm:
@@ -492,6 +527,8 @@ for i in range(num_tests):
             sp = agent_ids[m]
             if share_network:
                 policy_id = "stage"
+            elif hybrid:
+                policy_id = policy_mapping_hybrid(sp, 0)
             else:
                 policy_id = sp
             reward[sp] = 0
@@ -507,6 +544,8 @@ for i in range(num_tests):
                 sp = agent_ids[m]
                 if share_network:
                     policy_id = "stage"
+                elif hybrid:
+                    policy_id = policy_mapping_hybrid(sp, 0)
                 else:
                     policy_id = sp
                 action[sp], state[sp], _ = agent.compute_single_action(obs[sp], state=state[sp], prev_action=action[sp],
@@ -517,6 +556,8 @@ for i in range(num_tests):
                 sp = agent_ids[m]
                 if share_network:
                     policy_id = "stage"
+                elif hybrid:
+                    policy_id = policy_mapping_hybrid(sp, 0)
                 else:
                     policy_id = sp
                 action[sp] = agent.compute_single_action(obs[sp], policy_id=policy_id)

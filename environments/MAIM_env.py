@@ -48,6 +48,10 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.SEED = config.pop("seed", 52)
         np.random.seed(seed=int(self.SEED))
 
+        # Delay uncertainty
+        self.noisy_delay = False
+        self.noisy_delay_threshold = 0
+
         # Capacity
         self.inv_max = config.pop("inv_max", np.ones(self.num_stages, dtype=np.int32)*200)
         order_max = np.zeros(self.num_stages)
@@ -168,7 +172,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         self.reset()
 
 
-    def reset(self, customer_demand=None):
+    def reset(self, customer_demand=None, noisy_delay=False, noisy_delay_threshold=0):
         """
         Create and initialize all variables.
         Nomenclature:
@@ -183,6 +187,10 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         periods = self.num_periods
         num_stages = self.num_stages
+
+        if noisy_delay:
+            self.noisy_delay = noisy_delay
+            self.noisy_delay_threshold = noisy_delay_threshold
 
         if customer_demand is not None:
             self.customer_demand = customer_demand
@@ -436,14 +444,33 @@ class MultiAgentInvManagement(MultiAgentEnv):
 
         # Acquisition at stage m is unique since delay is manufacturing delay instead of shipment delay
         if t - self.delay[m - 1] >= 0:
-            self.acquisition[t, m - 1] = self.order_r[t - self.delay[m - 1], m - 1]
+            extra_delay = False
+            if self.noisy_delay:
+                delay_percent = np.random.uniform(0, 1)
+                if delay_percent <= self.noisy_delay_threshold:
+                    extra_delay = True
+
+            self.acquisition[t, m - 1] += self.order_r[t - self.delay[m - 1], m - 1]
+            if extra_delay and t < self.num_periods - 1:
+                self.acquisition[t + 1, m - 1] += self.acquisition[t, m - 1]
+                self.acquisition[t, m - 1] = 0
         else:
             self.acquisition[t, m - 1] = self.acquisition[t, m - 1]
 
         # Acquisition at subsequent stage is the delayed shipment of the upstream stage
         for i in range(m - 1):
             if t - self.delay[i] >= 0:
-                self.acquisition[t, i] = self.ship[t - self.delay[i], i + 1]
+                extra_delay = False
+                if self.noisy_delay:
+                    delay_percent = np.random.uniform(0, 1)
+                    if delay_percent <= self.noisy_delay_threshold:
+                        extra_delay = True
+
+                self.acquisition[t, i] += self.ship[t - self.delay[i], i + 1]
+                if extra_delay and t < self.num_periods - 1:
+                    self.acquisition[t + 1, i] += self.acquisition[t, i]
+                    self.acquisition[t, i] = 0
+
             else:
                 self.acquisition[t, i] = self.acquisition[t, i]
 

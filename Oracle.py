@@ -100,7 +100,7 @@ test_seed = 420
 np.random.seed(seed=test_seed)
 LP_demand = DFO_env.dist.rvs(size=(num_tests, DFO_env.num_periods), **DFO_env.dist_param)
 noisy_demand = True
-noise_threshold = 50/100
+noise_threshold = 40/100
 if noisy_demand:
     for i in range(num_tests):
         for j in range(num_periods):
@@ -396,7 +396,7 @@ print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_lev
 print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
 print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
 
-path = 'LP_results/four_stage_noise_50/Oracle/'
+path = 'LP_results/four_stage_noise_40/Oracle/'
 
 np.save(path+'reward_mean.npy', lp_reward_mean)
 np.save(path+'reward_std.npy', lp_reward_std)

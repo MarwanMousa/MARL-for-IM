@@ -98,7 +98,9 @@ test_seed = 420
 np.random.seed(seed=test_seed)
 LP_demand = LP_env.dist.rvs(size=(num_tests, LP_env.num_periods), **LP_env.dist_param)
 noisy_demand = True
-noise_threshold = 50/100
+noise_threshold = 40/100
+noisy_delay = False
+noisy_delay_threshold = 50/100
 if noisy_demand:
     for i in range(num_tests):
         for j in range(num_periods):
@@ -394,29 +396,71 @@ for j in range(num_tests):
         if i - d1 < 0:
             a10 = 0
         else:
-            a10 = SHLP_shipment[i - d1, 0]
+
+            extra_delay = False
+            extra_delay_prob = np.random.uniform(0, 1)
+            if extra_delay_prob <= noisy_delay_threshold and noisy_delay and i < num_periods:
+                extra_delay = True
+
+            if extra_delay:
+                a10 = 0
+                SHLP_shipment[i - d1 + 1, 0] += SHLP_shipment[i - d1, 0]
+            else:
+                a10 = SHLP_shipment[i - d1, 0]
 
         if i - d2 < 0:
             a20 = 0
             a21 = 0
         else:
-            a20 = SHLP_shipment[i - d2, 1]
-            a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
+
+            extra_delay = False
+            extra_delay_prob = np.random.uniform(0, 1)
+            if extra_delay_prob <= noisy_delay_threshold and noisy_delay and i < num_periods:
+                extra_delay = True
+
+            if extra_delay:
+                a20 = 0
+                SHLP_shipment[i - d2 + 1, 1] += SHLP_shipment[i - d2, 1]
+                a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
+            else:
+                a20 = SHLP_shipment[i - d2, 1]
+                a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
 
         if i - d3 < 0:
             a30 = 0
             a31 = 0
             a32 = 0
         else:
-            a30 = SHLP_shipment[i - d3, 2]
-            a31 = SHLP_shipment[i - d3 + 1, 2]  # Configuration specific
-            a32 = SHLP_shipment[i - d3 + 2, 2]  # Configuration specific
+
+            extra_delay = False
+            extra_delay_prob = np.random.uniform(0, 1)
+            if extra_delay_prob <= noisy_delay_threshold and noisy_delay and i < num_periods:
+                extra_delay = True
+
+            if extra_delay:
+                a30 = 0
+                SHLP_shipment[i - d3 + 1, 2] += SHLP_shipment[i - d3, 2]
+                a31 = SHLP_shipment[i - d3 + 1, 2]  # Configuration specific
+                a32 = SHLP_shipment[i - d3 + 2, 2]  # Configuration specific
+            else:
+                a30 = SHLP_shipment[i - d3, 2]
+                a31 = SHLP_shipment[i - d3 + 1, 2]  # Configuration specific
+                a32 = SHLP_shipment[i - d3 + 2, 2]  # Configuration specific
 
         if i - d4 < 0:
             a40 = 0
         else:
-            a40 = SHLP_shipment[i - d4, 3]
 
+            extra_delay = False
+            extra_delay_prob = np.random.uniform(0, 1)
+            if extra_delay_prob <= noisy_delay_threshold and noisy_delay and i < num_periods:
+                extra_delay = True
+
+            if extra_delay:
+                a40 = 0
+                SHLP_shipment[i - d4 + 1, 3] += SHLP_shipment[i - d4, 3]
+            else:
+                a40 = SHLP_shipment[i - d4, 3]
         # Get real customer demand at current time-step
         d = LP_demand[j, i]
         # Create model over the horizon i:num_periods (shrinking horizon)
@@ -537,7 +581,7 @@ print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_lev
 print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
 print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
 
-path = 'LP_results/four_stage_noise_50/SHLP/'
+path = 'LP_results/four_stage_noise_40/SHLP/'
 np.save(path+'reward_mean.npy', lp_reward_mean)
 np.save(path+'reward_std.npy', lp_reward_std)
 np.save(path+'inventory_mean.npy', inventory_level_mean)

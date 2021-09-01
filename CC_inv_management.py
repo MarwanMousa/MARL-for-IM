@@ -15,10 +15,10 @@ from matplotlib import rc
 
 train_agent = False
 save_agent = True
-save_path = "checkpoints/cc_agent/two_stage"
-load_path = "checkpoints/cc_agent/two_stage"
-LP_load_path = "LP_results/two_stage/"
-load_iteration = str(500)
+save_path = "checkpoints/cc_agent/four_stage"
+load_path = "checkpoints/cc_agent/four_stage"
+LP_load_path = "LP_results/four_stage/"
+load_iteration = str(600)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
@@ -37,7 +37,7 @@ def env_creator(configuration):
     return env
 
 # Environment Configuration
-num_stages = 2
+num_stages = 4
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -45,10 +45,10 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([3, 2, 1])
-stock_cost = np.array([0.5, 0.2])
-backlog_cost = np.array([0.6, 0.9])
-delay = np.array([3, 1], dtype=np.int8)
+price = np.array([5, 4, 3, 2, 1])
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
 independent = False
 standardise_state = True
 standardise_actions = True
@@ -328,7 +328,11 @@ test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, test_env.num_periods), **test_env.dist_param)
 noisy_demand = False
-noise_threshold = 50/100
+noise_threshold = 40/100
+
+noisy_delay = False
+noisy_delay_threshold = 50/100
+
 if noisy_demand:
     for i in range(num_tests):
         for j in range(num_periods):
@@ -340,7 +344,7 @@ if noisy_demand:
                 test_demand[i, j] = 0
 
 
-obs = test_env.reset(customer_demand=test_demand[0, :])
+obs = test_env.reset(customer_demand=test_demand[0, :], noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
 dict_obs = {}
 dict_info = {}
 dict_actions = {}
@@ -489,7 +493,7 @@ profit = np.zeros((num_tests, num_periods))
 start_time = time.time()
 for i in range(num_tests):
     demand = test_demand[i, :]
-    obs = test_env.reset(customer_demand=demand)
+    obs = test_env.reset(customer_demand=demand, noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
     episode_reward = 0
     done = False
     action = {}

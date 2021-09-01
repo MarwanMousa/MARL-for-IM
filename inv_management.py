@@ -14,11 +14,11 @@ from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = False
-save_agent = False
-save_path = "checkpoints/single_agent/four_stage_noise_50"
-load_path = "checkpoints/single_agent/four_stage"
-LP_load_path = "LP_results/four_stage/"
+train_agent = True
+save_agent = True
+save_path = "checkpoints/single_agent/four_stage_delay_train"
+load_path = "checkpoints/single_agent/four_stage_delay_train"
+LP_load_path = "LP_results/eight_stage/"
 load_iteration = str(400)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
@@ -199,8 +199,10 @@ num_tests = 1000
 test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, test_env.num_periods), **test_env.dist_param)
-noisy_demand = True
-noise_threshold = 50/100
+noisy_demand = False
+noise_threshold = 30/100
+noisy_delay = False
+noisy_delay_threshold = 30/100
 if noisy_demand:
     for i in range(num_tests):
         for j in range(num_periods):
@@ -220,7 +222,7 @@ print("DFO Info:\n{}".format(out))
 dfo_rewards = []
 for i in range(num_tests):
     demand = test_demand[i, :]
-    DFO_env.reset(customer_demand=demand)
+    DFO_env.reset(customer_demand=demand, noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
     dfo_reward = 0
     done = False
     while not done:
@@ -323,7 +325,7 @@ array_rewards = np.zeros(num_periods)
 period = 0
 
 
-obs = test_env.reset(customer_demand=test_demand[0, :])
+obs = test_env.reset(customer_demand=test_demand[0, :], noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
 array_obs[:, :, 0] = obs
 if use_lstm:
     reward = 0
@@ -496,7 +498,7 @@ dfo_array_acquisition = np.zeros((num_stages, num_periods))
 dfo_array_rewards = np.zeros(num_periods)
 period = 0
 
-dfo_obs = DFO_env.reset(customer_demand=test_demand[0, :])
+dfo_obs = DFO_env.reset(customer_demand=test_demand[0, :], noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
 dfo_array_obs[:, :, 0] = dfo_obs
 done = False
 
@@ -564,7 +566,7 @@ profit = np.zeros((num_tests, num_periods))
 start_time = time.time()
 for i in range(num_tests):
     demand = test_demand[i, :]
-    obs = test_env.reset(customer_demand=demand)
+    obs = test_env.reset(customer_demand=demand, noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
     episode_reward = 0
     done = False
     t = 0
