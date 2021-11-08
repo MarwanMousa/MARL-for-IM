@@ -129,10 +129,10 @@ DFO_CONFIG["prev_demand"] = False
 test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
 
-#%% Agent Configuration
-
 ModelCatalog.register_custom_model(
         "rnn_model", RNNModel)
+
+#%% Agent Configuration
 
 # Algorithm used
 algorithm = 'ppo'

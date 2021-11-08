@@ -5,6 +5,8 @@ Helper functions for getting agents and rl configs
 
 from ray.rllib import agents
 import os
+import numpy as np
+import copy
 
 def get_config(algorithm, num_periods, seed=52):
     if algorithm == 'ppo':
@@ -81,3 +83,49 @@ def ensure_dir(file_path):
     directory = os.path.dirname(file_path)
     if not os.path.exists(directory):
         os.makedirs(directory)
+
+def check_connections(connections):
+    for node, children in connections.items():
+        if children:
+            for child in children:
+                if child < node:
+                    raise Exception("Downstream node cannot have a smaller index number than upstream node")
+
+def create_network(connections):
+    num_nodes = max(connections.keys())
+    network = np.zeros((num_nodes + 1, num_nodes + 1))
+    for parent, children in connections.items():
+        if children:
+            for child in children:
+                network[parent][child] = 1
+
+    return network
+
+
+def get_stage(node, network):
+    reached_root = False
+    stage = 0
+    counter = 0
+    if node == 0:
+        return 0
+    while not reached_root:
+        for i in range(len(network)):
+            if network[i][node] == 1:
+                stage += 1
+                node = i
+                if node == 0:
+                    return stage
+        counter += 1
+        if counter > len(network):
+            raise Exception("Infinite Loop")
+
+
+
+def get_retailers(network):
+    retailers = []
+    for i in range(len(network)):
+        if not any(network[i]):
+            retailers.append(i)
+
+    return retailers
+

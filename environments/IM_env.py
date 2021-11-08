@@ -13,6 +13,7 @@ class InvManagement(gym.Env):
 
         # Structure
         self.num_stages = config.pop("num_stages", 3)
+        self.num_nodes = self.num_stages
         self.inv_init = config.pop("init_inv", np.ones(self.num_stages) * 20)
         self.delay = config.pop("delay", np.ones(self.num_stages, dtype=np.int8))
         self.standardise_state = config.pop("standardise_state", True)

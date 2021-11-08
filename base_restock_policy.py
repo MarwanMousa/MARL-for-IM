@@ -17,7 +17,7 @@ def base_stock_policy(policy, env):
     # Ensure that actions can be fulfilled by checking
     # constraints
     actions = np.minimum(env.order_max,
-                         np.maximum(unc_actions, np.zeros(env.num_stages)))
+                         np.maximum(unc_actions, np.zeros(env.num_nodes)))
     return actions
 
 

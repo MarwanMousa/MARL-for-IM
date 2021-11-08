@@ -426,7 +426,6 @@ for i in range(num_stages):
         axs[i].legend()
         axs[i].set_ylabel('Products')
 
-    #axs[i+num_stages].plot(np.arange(0, num_periods), array_acquisition[i, :], label='Acquisition')
     axs[i+num_stages].plot(np.arange(0, num_periods), array_actions[i, :], label='Replenishment order', color='k', lw=2)
     axs[i + num_stages].plot(np.arange(0, num_periods), array_demand[i, :], label='Demand', color='tab:orange', lw=2)
     axs[i+num_stages].set_xlim(0, num_periods)
@@ -434,14 +433,6 @@ for i in range(num_stages):
     if i == 0:
         axs[i+num_stages].legend()
         axs[i + num_stages].set_ylabel('Products')
-
-    #axs[i+num_stages*2].plot(np.arange(0, num_periods), array_demand[i, :], label='demand')
-    #axs[i+num_stages*2].plot(np.arange(0, num_periods), array_ship[i, :], label='shipment')
-    #axs[i+num_stages*2].set_xlim(0, num_periods)
-    #axs[i+num_stages*2].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    #if i == 0:
-    #    axs[i+num_stages*2].legend()
-    #    axs[i + num_stages * 2].set_ylabel('Products')
 
     axs[i+num_stages*2].plot(array_profit[i, :], label='Periodic profit', color='tab:green', lw=2)
     axs[i+num_stages*2].plot(np.cumsum(array_profit[i, :]), label='Cumulative profit', color='salmon', lw=2)
@@ -459,8 +450,6 @@ plt.show()
 
 # Rewards plots
 fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
-#ax.plot(array_rewards, label='periodic reward')
-#ax.plot(np.cumsum(array_rewards), label='cumulative reward')
 ax.plot(array_profit_sum, label='periodic profit')
 ax.plot(np.cumsum(array_profit_sum), label='cumulative profit')
 ax.plot([0, num_periods], [0, 0], color='k')

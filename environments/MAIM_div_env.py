@@ -1,11 +1,11 @@
+from ray.rllib import MultiAgentEnv
+import copy
 import gym
 import numpy as np
-import copy
 from scipy.stats import poisson, randint
 from utils import get_stage, get_retailers, create_network
 
-
-class InvManagementDiv(gym.Env):
+class MultiAgentInvManagementDiv(MultiAgentEnv):
     def __init__(self, config):
 
         self.config = config.copy()
@@ -14,18 +14,25 @@ class InvManagementDiv(gym.Env):
         self.num_periods = config.pop("num_periods", 50)
 
         # Structure
+        self.independent = config.pop("independent", True)
         self.num_nodes = config.pop("num_nodes", 3)
+        self.node_names = []
+        for i in range(self.num_nodes):
+            node_name = "node_" + str(i)
+            self.node_names.append(node_name)
+
         self.connections = config.pop("connections", {0: [1], 1: [2], 2: []})
         self.network = create_network(self.connections)
         self.retailers = get_retailers(self.network)
         self.order_network = np.transpose(self.network)
         self.num_stages = get_stage(node=int(self.num_nodes - 1), network=self.network) + 1
-        self.inv_init = config.pop("init_inv", np.ones(self.num_nodes) * 20)
-        self.delay = config.pop("delay", np.ones(self.num_nodes, dtype=np.int8))
-        self.standardise_state = config.pop("standardise_state", True)
-        self.standardise_actions = config.pop("standardise_actions", True)
-        self.a = -1
-        self.b = 1
+        self.a = config.pop("a", -1)
+        self.b = config.pop("b", 1)
+
+        self.num_agents = config.pop("num_agents", self.num_nodes)
+        self.inv_init = config.pop("init_inv", np.ones(self.num_nodes)*100)
+        self.inv_target = config.pop("inv_target", np.ones(self.num_nodes) * 0)
+        self.delay = config.pop("delay", np.ones(self.num_nodes, dtype=np.int32))
         self.time_dependency = config.pop("time_dependency", False)
         self.prev_actions = config.pop("prev_actions", False)
         self.prev_demand = config.pop("prev_demand", False)
@@ -34,9 +41,6 @@ class InvManagementDiv(gym.Env):
         if self.max_delay == 0:
             self.time_dependency = False
 
-        # Delay uncertainty
-        self.noisy_delay = False
-        self.noisy_delay_threshold = 0
 
         # Price of goods
         stage_price = np.arange(self.num_stages) + 2
@@ -46,10 +50,10 @@ class InvManagementDiv(gym.Env):
         for i in range(self.num_nodes):
             self.node_price[i] = stage_price[get_stage(i, self.network)]
             self.node_cost[i] = stage_cost[get_stage(i, self.network)]
+        self.price = config.pop("price", np.flip(np.arange(self.num_stages + 1) + 1))
 
         # Stock Holding and Backlog cost
-        self.inv_target = config.pop("inv_target", np.ones(self.num_nodes) * 10)
-        self.stock_cost = config.pop("stock_cost", np.ones(self.num_nodes) * 0.5)
+        self.stock_cost = config.pop("stock_cost", np.ones(self.num_nodes)*0.5)
         self.backlog_cost = config.pop("backlog_cost", np.ones(self.num_nodes))
 
         # Customer demand
@@ -57,6 +61,9 @@ class InvManagementDiv(gym.Env):
         self.SEED = config.pop("seed", 52)
         np.random.seed(seed=int(self.SEED))
 
+        # Delay uncertainty
+        self.noisy_delay = False
+        self.noisy_delay_threshold = 0
 
         # Capacity
         self.inv_max = config.pop("inv_max", np.ones(self.num_nodes, dtype=np.int16) * 100)
@@ -65,7 +72,6 @@ class InvManagementDiv(gym.Env):
             order_max[i] = self.inv_max[np.where(self.order_network[i] == 1)]
         order_max[0] = self.inv_max[0]
         self.order_max = config.pop("order_max", order_max)
-        inv_max_obs = np.max(self.inv_max)
 
         # Number of downstream nodes of a given node
         self.num_downstream = dict()
@@ -79,124 +85,102 @@ class InvManagementDiv(gym.Env):
             if downstream_max_demand > self.demand_max[i]:
                 self.demand_max[i] = downstream_max_demand
 
-
         self.done = set()
-        # Action space (Re-order amount at every tage)
-        if self.standardise_actions:
-            self.action_space = gym.spaces.Box(
-                low=np.ones(self.num_nodes, dtype=np.float64)*self.a,
-                high=np.ones(self.num_nodes, dtype=np.float64)*self.b,
-                dtype=np.float64,
-                shape=(self.num_nodes,)
-            )
-        else:
-            self.action_space = gym.spaces.Box(
-                low=np.zeros(self.num_nodes, dtype=np.int32),
-                high=np.int32(self.order_max),
-                dtype=np.int32,
-                shape=(self.num_nodes,)
-            )
+
+        self.action_space = gym.spaces.Box(
+            low=np.ones(1)*self.a,
+            high=np.ones(1)*self.b,
+            dtype=np.float64,
+            shape=(1,)
+        )
+
 
         # observation space (Inventory position at each echelon, which is any integer value)
-        if self.standardise_state:
-            if self.time_dependency and not self.prev_actions and not self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.max_delay))*self.a,
-                    high=np.ones((self.num_nodes, 3 + self.max_delay))*self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.max_delay)
-                )
-            elif self.time_dependency and self.prev_actions and not self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.max_delay + self.prev_length)
-                )
-            elif self.time_dependency and self.prev_actions and self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length*2)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length*2)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.max_delay + self.prev_length*2)
-                )
-            elif self.time_dependency and not self.prev_actions and self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.max_delay + self.prev_length)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.max_delay + self.prev_length)
-                )
-            elif not self.time_dependency and self.prev_actions and self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.prev_length * 2)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.prev_length * 2)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.prev_length * 2)
-                )
-            elif not self.time_dependency and not self.prev_actions and self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.prev_length)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.prev_length)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.prev_length)
-                )
-            elif not self.time_dependency and self.prev_actions and not self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3 + self.prev_length)) * self.a,
-                    high=np.ones((self.num_nodes, 3 + self.prev_length)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3 + self.prev_length)
-                )
-            elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.ones((self.num_nodes, 3)) * self.a,
-                    high=np.ones((self.num_nodes, 3)) * self.b,
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3)
-                )
-        else:
-            if not self.time_dependency and not self.prev_actions and not self.prev_demand:
-                self.observation_space = gym.spaces.Box(
-                    low=np.zeros((self.num_nodes, 3)),
-                    high=np.tile(
-                        np.array([inv_max_obs, np.inf, inv_max_obs]),
-                        (self.num_nodes, 1)
-                    ),
-                    dtype=np.float64,
-                    shape=(self.num_nodes, 3)
-                )
 
         if self.time_dependency and not self.prev_actions and not self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.max_delay))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.max_delay, dtype=np.float64)*self.a,
+                high=np.ones(3 + self.max_delay, dtype=np.float64)*self.b,
+                dtype=np.float64,
+                shape=(3 + self.max_delay,)
+            )
         elif self.time_dependency and self.prev_actions and not self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.max_delay + self.prev_length))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.a,
+                high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3 + self.max_delay + self.prev_length,)
+            )
         elif self.time_dependency and not self.prev_actions and self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.max_delay + self.prev_length))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.a,
+                high=np.ones(3 + self.prev_length + self.max_delay, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3 + self.max_delay + self.prev_length,)
+            )
         elif self.time_dependency and self.prev_actions and self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.max_delay + self.prev_length*2))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float64) * self.a,
+                high=np.ones(3 + self.prev_length*2 + self.max_delay, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3 + self.max_delay + self.prev_length*2,)
+            )
         elif not self.time_dependency and self.prev_actions and self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.prev_length*2))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.prev_length*2, dtype=np.float64) * self.a,
+                high=np.ones(3 + self.prev_length*2, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3 + self.prev_length*2,)
+            )
+
         elif not self.time_dependency and not self.prev_actions and self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.prev_length))
-        elif not self.time_dependency and self.prev_actions and not self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3 + self.prev_length))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3 + self.prev_length, dtype=np.float64) * self.a,
+                high=np.ones(3 + self.prev_length, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3 + self.prev_length,)
+            )
+
         elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
-            self.state = np.zeros((self.num_nodes, 3))
+            self.observation_space = gym.spaces.Box(
+                low=np.ones(3, dtype=np.float64) * self.a,
+                high=np.ones(3, dtype=np.float64) * self.b,
+                dtype=np.float64,
+                shape=(3,)
+            )
+        else:
+            raise Exception('Not Implemented')
+
+        self.state = {}
+
+        # Error catching
+        assert isinstance(self.num_periods, int)
+
+        # Check maximum possible order is less than inventory capacity for each node
+        for i in range(len(self.order_max) - 1):
+            if self.order_max[i] > self.inv_max[i + 1]:
+                break
+                raise Exception('Maximum order cannot exceed maximum inventory of upstream node')
+
+
+
+        # Maximum order of first node cannot exceed its own inventory
+        assert self.order_max[0] <= self.inv_max[0]
 
         self.reset()
+
 
     def reset(self, customer_demand=None, noisy_delay=False, noisy_delay_threshold=0):
         """
         Create and initialize all variables.
         Nomenclature:
-            inv = On hand inventory at the start of each period at each stage (except last one).
-            pipe_inv = Pipeline inventory at the start of each period at each stage (except last one).
-            order_r = Replenishment order placed at each period at each stage (except last one).
-            demand = demand at each stage
-            ship = Sales performed at each period at each stage.
-            backlog = Backlog at each period at each stage.
-            profit = Total profit at each stage.
+            inv = On hand inventory at the start of each period at each node (except last one).
+            order_u = Pipeline inventory at the start of each period at each node (except last one).
+            order_r = Replenishment order placed at each period at each node (except last one).
+            demand = demand at each node
+            ship = Sales performed at each period at each node.
+            backlog = Backlog at each period at each node.
+            profit = Total profit at each node.
         """
 
         periods = self.num_periods
@@ -211,7 +195,9 @@ class InvManagementDiv(gym.Env):
         else:
             # Custom customer demand
             if self.demand_dist == "custom":
-                self.customer_demand = self.config.pop("customer_demand", np.ones((len(self.retailers), self.num_periods), dtype=np.int16) * 5)
+                self.customer_demand = self.config.pop("customer_demand",
+                                                       np.ones((len(self.retailers), self.num_periods),
+                                                               dtype=np.int16) * 5)
             # Poisson distribution
             elif self.demand_dist == "poisson":
                 self.mu = self.config.pop("mu", 5)
@@ -236,9 +222,9 @@ class InvManagementDiv(gym.Env):
         for i in range(self.customer_demand.shape[0]):
             self.retailer_demand[self.retailers[i]] = self.customer_demand[i]
 
-        # Simulation result lists
+        # simulation result lists
         self.inv = np.zeros([periods + 1, num_nodes])  # inventory at the beginning of each period
-        self.order_r = np.zeros([periods, num_nodes])  # replenishment order (last stage places no replenishment orders)
+        self.order_r = np.zeros([periods, num_nodes])  # replenishment order (last node places no replenishment orders)
         self.order_u = np.zeros([periods + 1, num_nodes])  # Unfulfilled order
         self.ship = np.zeros([periods, num_nodes])  # units sold
         self.acquisition = np.zeros([periods, num_nodes])
@@ -267,7 +253,6 @@ class InvManagementDiv(gym.Env):
                 for node in self.connections[i]:
                     self.backlog_to[i][node] = 0
 
-
         # initialization
         self.period = 0  # initialize time
         for node in self.retailers:
@@ -280,63 +265,87 @@ class InvManagementDiv(gym.Env):
         return self.state
 
     def _update_state(self):
+        # Dictionary containing observation of each agent
+        obs = {}
+
         t = self.period
         m = self.num_nodes
 
-        if self.prev_demand:
-            demand_history = np.zeros((m, self.prev_length))
-            for i in range(self.prev_length):
-                if i < t:
-                    demand_history[:, i] = self.demand[t - 1 - i, :]
-            demand_history = self.rescale(demand_history, np.zeros((m, self.prev_length)),
-                                          np.tile(self.demand_max.reshape((-1, 1)), (1, self.prev_length)),
-                                          self.a, self.b)
+        for i in range(m):
+            # Each agent observes five things at every time-step
+            # Their inventory, backlog, demand received, acquired inventory from upstream node
+            # and inventory sent to downstream node which forms an observation/state vecto
+            agent = self.node_names[i] # Get agent name
+            # Initialise state vector
+            if self.time_dependency and not self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3 + self.max_delay)
+            elif self.time_dependency and self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length + self.max_delay)
+            elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length + self.max_delay)
+            elif self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length*2 + self.max_delay)
+            elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length*2)
+            elif not self.time_dependency and not self.prev_actions and self.prev_demand:
+                obs_vector = np.zeros(3 + self.prev_length)
+            elif not self.time_dependency and not self.prev_actions and not self.prev_demand:
+                obs_vector = np.zeros(3)
 
-        if self.prev_actions:
-            order_history = np.zeros((m, self.prev_length))
-            for i in range(self.prev_length):
-                if i < t:
-                    order_history[:, i] = self.order_r[t - 1 - i, :]
+            if self.prev_demand:
+                demand_history = np.zeros(self.prev_length)
+                for j in range(self.prev_length):
+                    if j < t:
+                        demand_history[j] = self.demand[t - 1 - j, i]
+                demand_history = self.rescale(demand_history, np.zeros(self.prev_length),
+                                              np.ones(self.prev_length)*self.demand_max[i],
+                                              self.a, self.b)
 
-            order_history = self.rescale(order_history, np.zeros((m, self.prev_length)),
-                                          np.tile(self.order_max.reshape((-1, 1)), (1, self.prev_length)),
-                                          self.a, self.b)
-        if self.time_dependency:
-            time_dependent_state = np.zeros((m, self.max_delay))
-        if t >= 1 and self.time_dependency:
-            time_dependent_state = self.time_dependent_state[t - 1, :, :]
+            if self.prev_actions:
+                order_history = np.zeros(self.prev_length)
+                for j in range(self.prev_length):
+                    if j < t:
+                        order_history[j] = self.order_r[t - 1 - j, i]
+                order_history = self.rescale(order_history, np.zeros(self.prev_length),
+                                              np.ones(self.prev_length)*self.order_max[i],
+                                              self.a, self.b)
 
-        if self.standardise_state and self.time_dependency:
-            time_dependent_state = self.rescale(time_dependent_state, np.zeros((m, self.max_delay)),
-                                                np.tile(self.inv_max.reshape((-1, 1)), (1, self.max_delay)),
-                                                self.a, self.b)
+            if self.time_dependency:
+                delay_states = np.zeros(self.max_delay)
+                if t >= 1:
+                    delay_states = self.time_dependent_state[t - 1, i, :]
+                delay_states = self.rescale(delay_states, np.zeros(self.max_delay),
+                                                                    np.ones(self.max_delay)*self.inv_max[i],
+                                                                    self.a, self.b)
 
-        if self.standardise_state:
-            inv = self.rescale(self.inv[t, :], np.zeros(self.num_nodes), self.inv_max, self.a, self.b)
-            backlog = self.rescale(self.backlog[t, :], np.zeros(self.num_nodes), self.demand_max, self.a, self.b)
-            order_u = self.rescale(self.order_u[t, :], np.zeros(self.num_nodes), self.inv_max, self.a, self.b)
-            obs = np.stack((inv, backlog, order_u), axis=1)
-        else:
-            obs = np.stack((self.inv[t, :], self.backlog[t, :], self.order_u[t, :]), axis=1)
+            obs_vector[0] = self.rescale(self.inv[t, i], 0, self.inv_max[i], self.a, self.b)
+            obs_vector[1] = self.rescale(self.backlog[t, i], 0, self.demand_max[i], self.a, self.b)
+            obs_vector[2] = self.rescale(self.order_u[t, i], 0, self.order_max[i], self.a, self.b)
+            if self.time_dependency and not self.prev_actions and not self.prev_demand:
+                obs_vector[3:3+self.max_delay] = delay_states
+            elif self.time_dependency and self.prev_actions and not self.prev_demand:
+                obs_vector[3:3+self.prev_length] = order_history
+                obs_vector[3+self.prev_length:3+self.prev_length+self.max_delay] = delay_states
+            elif self.time_dependency and not self.prev_actions and self.prev_demand:
+                obs_vector[3:3+self.prev_length] = demand_history
+                obs_vector[3+self.prev_length:3+self.prev_length+self.max_delay] = delay_states
+            elif self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector[3:3+self.prev_length] = demand_history
+                obs_vector[3+self.prev_length:3+self.prev_length*2] = order_history
+                obs_vector[3+self.prev_length*2:3+self.prev_length*2+self.max_delay] = delay_states
+            elif not self.time_dependency and self.prev_actions and not self.prev_demand:
+                obs_vector[3:3 + self.prev_length] = demand_history
+            elif not self.time_dependency and self.prev_actions and self.prev_demand:
+                obs_vector[3:3 + self.prev_length] = demand_history
+                obs_vector[3 + self.prev_length:3 + self.prev_length * 2] = order_history
 
-        if self.time_dependency and not self.prev_actions and not self.prev_demand:
-            obs = np.concatenate((obs, time_dependent_state), axis=1)
-        elif self.time_dependency and self.prev_actions and not self.prev_demand:
-            obs = np.concatenate((obs, order_history, time_dependent_state), axis=1)
-        elif self.time_dependency and not self.prev_actions and self.prev_demand:
-            obs = np.concatenate((obs, demand_history, time_dependent_state), axis=1)
-        elif self.time_dependency and self.prev_actions and self.prev_demand:
-            obs = np.concatenate((obs, demand_history, order_history, time_dependent_state), axis=1)
-        elif not self.time_dependency and not self.prev_actions and self.prev_demand:
-            obs = np.concatenate((obs, demand_history), axis=1)
-        elif not self.time_dependency and self.prev_actions and not self.prev_demand:
-            obs = np.concatenate((obs, order_history), axis=1)
-        elif not self.time_dependency and self.prev_actions and self.prev_demand:
-            obs = np.concatenate((obs, demand_history, order_history), axis=1)
+
+
+            obs[agent] = obs_vector
 
         self.state = obs.copy()
 
-    def step(self, action):
+    def step(self, action_dict):
         """
         Update state, transition to next state/period/time-step
         :param action_dict:
@@ -345,16 +354,16 @@ class InvManagementDiv(gym.Env):
         t = self.period
         m = self.num_nodes
 
-        # Get replenishment order at each stage
+        # Get replenishment order at each node
+        for i in range(self.num_nodes):
+            node_name = "node_" + str(i)
+            self.order_r[t, i] = self.rev_scale(action_dict[node_name], 0, self.order_max[i], self.a, self.b)
+            self.order_r[t, i] = np.round(self.order_r[t, i], 0).astype(int)
 
-        if self.standardise_actions:
-            self.order_r[t, :] = self.rev_scale(np.squeeze(action), np.zeros(self.num_nodes), self.order_max, self.a, self.b)
-            self.order_r[t, :] = np.round(np.minimum(np.maximum(self.order_r[t, :], np.zeros(self.num_nodes)), self.order_max), 0).astype(int)
-        else:
-            self.order_r[t, :] = np.round(np.minimum(np.maximum(np.squeeze(action), np.zeros(self.num_nodes)), self.order_max), 0).astype(int)
+        self.order_r[t, :] = np.minimum(np.maximum(self.order_r[t, :], np.zeros(self.num_nodes)), self.order_max)
 
         # Demand of goods at each stage
-        # Demand at first (retailer stage) is customer demand
+        # Demand at last (retailer stages) is customer demand
         for node in self.retailers:
             self.demand[t, node] = np.minimum(self.retailer_demand[node][t], self.inv_max[node])  # min for re-scaling
         # Demand at other stages is the replenishment order of the downstream stage
@@ -364,11 +373,11 @@ class InvManagementDiv(gym.Env):
                     if self.network[i][j] == 1:
                         self.demand[t, i] += self.order_r[t, j]
 
-        # Update acquisition, i.e. goods received from previous stage
+        # Update acquisition, i.e. goods received from previous node
         self.update_acquisition()
 
-        # Amount shipped by each stage to downstream stage at each time-step. This is backlog from previous time-steps
-        # And demand from current time-step, This cannot be more than the current inventory at each stage
+        # Amount shipped by each node to downstream node at each time-step. This is backlog from previous time-steps
+        # And demand from current time-step, This cannot be more than the current inventory at each node
         self.ship[t, :] = np.minimum(self.backlog[t, :] + self.demand[t, :], self.inv[t, :] + self.acquisition[t, :])
 
         # Get amount shipped to downstream nodes
@@ -478,11 +487,8 @@ class InvManagementDiv(gym.Env):
 
         # Update backlog demand increases backlog while fulfilling demand reduces it
         self.backlog[t + 1, :] = self.backlog[t, :] + self.demand[t, :] - self.ship[t, :]
-        # Cap backlog to standardise state <--------------------------
-        # ------------------------------------------------------------------------- #
-        if self.standardise_state:
-            self.backlog[t + 1, :] = np.minimum(self.backlog[t + 1, :], self.demand_max)
-        # ------------------------------------------------------------------------- #
+        # Capping backlog to allow re-scaling
+        self.backlog[t + 1, :] = np.minimum(self.backlog[t + 1, :], self.demand_max)
 
         # Update time-dependent states
         if self.time_dependency:
@@ -506,46 +512,64 @@ class InvManagementDiv(gym.Env):
         # Calculate rewards
         rewards, profit = self.get_rewards()
 
-        info = {}
-        info['period'] = self.period
-        info['demand'] = self.demand[t, :]
-        info['ship'] = self.ship[t, :]
-        info['acquisition'] = self.acquisition[t, :]
-        info['profit'] = profit
-
         # Update period
         self.period += 1
         # Update state
         self._update_state()
 
         # determine if simulation should terminate
-        done = self.period >= self.num_periods
+        done = {
+            "__all__": self.period >= self.num_periods,
+        }
+
+        info = {}
+        for i in range(m):
+            meta_info = dict()
+            meta_info['period'] = self.period
+            meta_info['demand'] = self.demand[t, i]
+            meta_info['ship'] = self.ship[t, i]
+            meta_info['acquisition'] = self.acquisition[t, i]
+            meta_info['actual order'] = self.order_r[t, i]
+            meta_info['profit'] = profit[i]
+            node = self.node_names[i]
+            info[node] = meta_info
 
         return self.state, rewards, done, info
 
     def get_rewards(self):
+        rewards = {}
+        profit = np.zeros(self.num_nodes)
         m = self.num_nodes
         t = self.period
-        profit = self.node_price * self.ship[t, :] - self.node_cost * self.order_r[t, :] \
-            - self.stock_cost * np.abs(self.inv[t + 1, :] - self.inv_target)\
-            - self.backlog_cost * self.backlog[t + 1, :]
+        reward_sum = 0
+        for i in range(m):
+            agent = self.node_names[i]
+            reward = self.node_price[i] * self.ship[t, i] \
+                - self.node_cost[i] * self.order_r[t, i] \
+                - self.stock_cost[i] * np.abs(self.inv[t + 1, i] - self.inv_target[i]) \
+                - self.backlog_cost[i] * self.backlog[t + 1, i]
 
-        reward = - self.stock_cost * np.abs(self.inv[t + 1, :] - self.inv_target) \
-                 - self.backlog_cost * self.backlog[t + 1, :]
+            reward_sum += reward
+            profit[i] = reward
+            if self.independent:
+                rewards[agent] = reward
 
-        reward_sum = np.sum(profit)
+        if not self.independent:
+            for i in range(m):
+                agent = self.node_names[i]
+                rewards[agent] = reward_sum/self.num_nodes
 
-        return reward_sum, profit
+        return rewards, profit
 
     def update_acquisition(self):
         """
-        Get acquisition at each stage
+        Get acquisition at each node
         :return: None
         """
         m = self.num_nodes
         t = self.period
 
-        # Acquisition at stage 0 is unique since delay is manufacturing delay instead of shipment delay
+        # Acquisition at node 0 is unique since delay is manufacturing delay instead of shipment delay
         if t - self.delay[0] >= 0:
             extra_delay = False
             if self.noisy_delay:
@@ -568,7 +592,8 @@ class InvManagementDiv(gym.Env):
                     delay_percent = np.random.uniform(0, 1)
                     if delay_percent <= self.noisy_delay_threshold:
                         extra_delay = True
-                self.acquisition[t, i] += self.ship_to_list[t - self.delay[i]][np.where(self.order_network[i] == 1)[0][0]][i]
+                self.acquisition[t, i] += \
+                self.ship_to_list[t - self.delay[i]][np.where(self.order_network[i] == 1)[0][0]][i]
                 if extra_delay and t < self.num_periods - 1:
                     self.acquisition[t + 1, i] += self.acquisition[t, i]
                     self.acquisition[t, i] = 0
@@ -586,31 +611,32 @@ class InvManagementDiv(gym.Env):
 
         # Shift delay down with every time-step
         if self.max_delay > 1 and t >= 1:
-            self.time_dependent_state[t, :, 0:self.max_delay - 1] = self.time_dependent_state[t - 1, :, 1:self.max_delay]
+            self.time_dependent_state[t, :, 0:self.max_delay - 1] = self.time_dependent_state[t - 1, :,
+                                                                    1:self.max_delay]
 
-        # Delayed states of first stage/node
+        # Delayed states of first node
         self.time_dependent_state[t, 0, self.delay[0] - 1] = self.order_r[t, 0]
-        # Delayed states of rest of stages:
+        # Delayed states of rest of n:
         for i in range(1, m):
             self.time_dependent_state[t, i, self.delay[i] - 1] = \
                 self.ship_to_list[t][np.where(self.order_network[i] == 1)[0][0]][i]
 
-
     def rescale(self, val, min_val, max_val, A=-1, B=1):
         if isinstance(val, np.ndarray):
-            a = np.ones(np.shape(val)) * A
-            b = np.ones(np.shape(val)) * B
+            a = np.ones(np.size(val)) * A
+            b = np.ones(np.size(val)) * B
         else:
             a = A
             b = B
+
         val_scaled = a + (((val - min_val) * (b - a)) / (max_val - min_val))
 
         return val_scaled
 
     def rev_scale(self, val_scaled, min_val, max_val, A=-1, B=1):
         if isinstance(val_scaled, np.ndarray):
-            a = np.ones(np.shape(val_scaled)) * A
-            b = np.ones(np.shape(val_scaled)) * B
+            a = np.ones(np.size(val_scaled)) * A
+            b = np.ones(np.size(val_scaled)) * B
         else:
             a = A
             b = B

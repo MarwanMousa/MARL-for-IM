@@ -15,6 +15,7 @@ class MultiAgentInvManagement(MultiAgentEnv):
         # Structure
         self.independent = config.pop("independent", True)
         self.num_stages = config.pop("num_stages", 3)
+        self.num_nodes = self.num_stages
         self.stage_names = []
         for i in range(self.num_stages):
             stage_name = "stage_" + str(i)

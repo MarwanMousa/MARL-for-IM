@@ -157,7 +157,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagementDiv")
 
 if train_agent:
     # Training
-    iters = 100  # Number of training iterations
+    iters = 300  # Number of training iterations
     min_iter_save = 200
     checkpoint_interval = 10
     results = []
