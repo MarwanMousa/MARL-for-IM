@@ -15,7 +15,7 @@ from matplotlib import rc
 #%% Environment Configuration
 
 train_agent = False
-save_agent = True
+save_agent = False
 save_path = "checkpoints/single_agent/div_1"
 load_path = "checkpoints/single_agent/div_1"
 LP_load_path = "LP_results/div_1/"

@@ -23,8 +23,16 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
 
         self.connections = config.pop("connections", {0: [1], 1: [2], 2: []})
         self.network = create_network(self.connections)
-        self.retailers = get_retailers(self.network)
         self.order_network = np.transpose(self.network)
+        self.retailers = get_retailers(self.network)
+        self.non_retailers = list()
+        for i in range(self.num_nodes):
+            if i not in self.retailers:
+                self.non_retailers.append(i)
+        self.upstream_node = dict()
+        for i in range(1, self.num_nodes):
+            self.upstream_node[i] = np.where(self.order_network[i] == 1)[0][0]
+
         self.num_stages = get_stage(node=int(self.num_nodes - 1), network=self.network) + 1
         self.a = config.pop("a", -1)
         self.b = config.pop("b", 1)
@@ -238,11 +246,10 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
         for i in range(self.num_periods):
             # Shipping dict
             ship_to = dict()
-            for i in range(self.num_nodes):
-                if len(self.connections[i]) > 0:
-                    ship_to[i] = dict()
-                    for node in self.connections[i]:
-                        ship_to[i][node] = 0
+            for node in self.non_retailers:
+                ship_to[node] = dict()
+                for d_node in self.connections[node]:
+                    ship_to[node][d_node] = 0
 
             self.ship_to_list.append(ship_to)
 
@@ -381,7 +388,7 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
         self.ship[t, :] = np.minimum(self.backlog[t, :] + self.demand[t, :], self.inv[t, :] + self.acquisition[t, :])
 
         # Get amount shipped to downstream nodes
-        for i in range(self.num_nodes):
+        for i in self.non_retailers:
             # If shipping to only one downstream node, the total amount shipped is equivalent to amount shipped to
             # downstream node
             if self.num_downstream[i] == 1:
@@ -593,7 +600,7 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
                     if delay_percent <= self.noisy_delay_threshold:
                         extra_delay = True
                 self.acquisition[t, i] += \
-                self.ship_to_list[t - self.delay[i]][np.where(self.order_network[i] == 1)[0][0]][i]
+                self.ship_to_list[t - self.delay[i]][self.upstream_node[i]][i]
                 if extra_delay and t < self.num_periods - 1:
                     self.acquisition[t + 1, i] += self.acquisition[t, i]
                     self.acquisition[t, i] = 0
@@ -619,7 +626,7 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
         # Delayed states of rest of n:
         for i in range(1, m):
             self.time_dependent_state[t, i, self.delay[i] - 1] = \
-                self.ship_to_list[t][np.where(self.order_network[i] == 1)[0][0]][i]
+                self.ship_to_list[t][self.upstream_node[i]][i]
 
     def rescale(self, val, min_val, max_val, A=-1, B=1):
         if isinstance(val, np.ndarray):

@@ -13,7 +13,7 @@ from matplotlib import rc
 #%% Environment configuration
 
 train_agent = True
-save_agent = True
+save_agent = False
 save_path = "checkpoints/multi_agent/div_1"
 load_path = "checkpoints/multi_agent/div_1"
 LP_load_path = "LP_results/div_1/"
@@ -206,7 +206,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagementDiv")
 #%% Training
 if train_agent:
     # Training
-    iters = 500
+    iters = 1
     min_iter_save = 300
     checkpoint_interval = 20
     results = []
@@ -308,7 +308,7 @@ if not share_network:
 
 #%% Test rollout
 
-num_tests = 1000
+num_tests = 1
 test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)

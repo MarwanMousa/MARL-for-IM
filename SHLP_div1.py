@@ -220,6 +220,7 @@ def bl3_linking_rule(m, t):
         return m.lsb[t].bl30 == bl30
     return m.lsb[t].bl30 == m.lsb[t-1].bl3
 
+
 def bl4_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].bl40 == bl40
@@ -234,6 +235,7 @@ def a1_linking_rule(m, t):
         return m.lsb[t].a1 == 0
     return m.lsb[t].a1 == m.lsb[t-d1].x1
 
+
 def a2_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a2 == a20
@@ -244,12 +246,14 @@ def a2_linking_rule(m, t):
         return m.lsb[t].a2 == a21
     return m.lsb[t].a2 == m.lsb[t-d2].s1
 
+
 def a3_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a3 == a30
     if t - d3 < m.T.first():
         return m.lsb[t].a3 == 0
     return m.lsb[t].a3 == m.lsb[t-d3].s23
+
 
 def a4_linking_rule(m, t):
     if t == m.T.first():
@@ -258,10 +262,12 @@ def a4_linking_rule(m, t):
         return m.lsb[t].a4 == 0
     return m.lsb[t].a4 == m.lsb[t-d4].s24
 
+
 def d3_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].demand3 == dem3
     return m.lsb[t].demand3 == mu
+
 
 def d4_linking_rule(m, t):
     if t == m.T.first():
@@ -299,12 +305,12 @@ def lotsizing_block_rule(b, t):
     b.bl4 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
     # Initial Backlog at each time-step
-    b.bl10 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
-    b.bl20 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
-    b.bl230 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
-    b.bl240 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
-    b.bl30 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
-    b.bl40 = pyo.Var(domain=pyo.NonNegativeIntegers, initialize=0)
+    b.bl10 = pyo.Var(domain=pyo.NonNegativeIntegers)
+    b.bl20 = pyo.Var(domain=pyo.NonNegativeIntegers)
+    b.bl230 = pyo.Var(domain=pyo.NonNegativeIntegers)
+    b.bl240 = pyo.Var(domain=pyo.NonNegativeIntegers)
+    b.bl30 = pyo.Var(domain=pyo.NonNegativeIntegers)
+    b.bl40 = pyo.Var(domain=pyo.NonNegativeIntegers)
 
     # Shipped goods/sales
     b.s1 = pyo.Var(domain=pyo.NonNegativeIntegers)
@@ -330,7 +336,7 @@ def lotsizing_block_rule(b, t):
     b.inventory3 = pyo.Constraint(expr=b.i3 == b.i30 + b.a3 - b.s3)
     b.inventory4 = pyo.Constraint(expr=b.i4 == b.i40 + b.a4 - b.s4)
 
-    # Inventory constrainss
+    # Inventory constraints
     b.inventorymax1 = pyo.Constraint(expr=b.i1 <= I1)
     b.inventorymax2 = pyo.Constraint(expr=b.i2 <= I2)
     b.inventorymax3 = pyo.Constraint(expr=b.i3 <= I3)
@@ -422,6 +428,7 @@ for j in range(num_tests):
     a32 = 0
     a40 = 0
 
+    # Episode
     SHLP_actions = np.zeros((num_periods, 4))
     SHLP_shipment = np.zeros((num_periods, 4))
     SHLP_inventory = np.zeros((num_periods, 4))
