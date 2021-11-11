@@ -446,7 +446,7 @@ axs = axs.ravel()
 for i in range(num_nodes):
     axs[i].plot(array_obs[i, 0, :], label='Inventory', lw=2)
     axs[i].plot(array_obs[i, 1, :], label='Backlog', color='tab:red', lw=2)
-    title = 'Stage ' + str(i+1)
+    title = 'Node ' + str(i)
     axs[i].set_title(title)
     axs[i].set_xlim(0, num_periods)
     axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)

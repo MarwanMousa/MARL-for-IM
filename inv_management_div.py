@@ -14,11 +14,12 @@ from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = True
+train_agent = False
 save_agent = True
 save_path = "checkpoints/single_agent/div_1"
 load_path = "checkpoints/single_agent/div_1"
-load_iteration = str(400)
+LP_load_path = "LP_results/div_1/"
+load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
@@ -247,6 +248,10 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
 
 dfo_rewards_mean = np.mean(dfo_rewards)
 dfo_rewards_std = np.std(dfo_rewards)
+oracle_rewards_mean = np.load(LP_load_path + 'Oracle/reward_mean.npy')
+oracle_rewards_std = np.load(LP_load_path + 'Oracle/reward_std.npy')
+SHLP_rewards_mean = np.load(LP_load_path + 'SHLP/reward_mean.npy')
+SHLP_rewards_std = np.load(LP_load_path + 'SHLP/reward_std.npy')
 
 fig, ax = plt.subplots()
 # Plot rewards
@@ -262,6 +267,22 @@ ax.fill_between(np.arange(len(mean_rewards)),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean + dfo_rewards_std),
                  alpha=0.3)
 ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (dfo_rewards_mean), label='Mean DFO rewards')
+
+# Plot Oracle rewards
+ax.fill_between(np.arange(len(mean_rewards)),
+                 np.ones(len(mean_rewards)) * (oracle_rewards_mean - oracle_rewards_std),
+                 np.ones(len(mean_rewards)) * (oracle_rewards_mean + oracle_rewards_std),
+                 alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (oracle_rewards_mean), label='Mean Oracle rewards')
+
+# Plot SHLP rewards
+ax.fill_between(np.arange(len(mean_rewards)),
+                 np.ones(len(mean_rewards)) * (SHLP_rewards_mean - SHLP_rewards_std),
+                 np.ones(len(mean_rewards)) * (SHLP_rewards_mean + SHLP_rewards_std),
+                 alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (SHLP_rewards_mean), label='Mean SHLP rewards')
+
+
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
 ax.legend()
