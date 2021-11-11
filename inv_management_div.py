@@ -15,9 +15,9 @@ from matplotlib import rc
 #%% Environment Configuration
 
 train_agent = True
-save_agent = False
-save_path = "checkpoints/single_agent/three_stage_div"
-load_path = "checkpoints/single_agent/three_stage_div"
+save_agent = True
+save_path = "checkpoints/single_agent/div_1"
+load_path = "checkpoints/single_agent/div_1"
 load_iteration = str(400)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
@@ -157,9 +157,9 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagementDiv")
 
 if train_agent:
     # Training
-    iters = 300  # Number of training iterations
-    min_iter_save = 200
-    checkpoint_interval = 10
+    iters = 500  # Number of training iterations
+    min_iter_save = 300
+    checkpoint_interval = 20
     results = []
 
     # Start Training

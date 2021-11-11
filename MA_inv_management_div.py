@@ -13,10 +13,10 @@ from matplotlib import rc
 #%% Environment configuration
 
 train_agent = True
-save_agent = False
-save_path = "checkpoints/multi_agent/four_stage_share"
-load_path = "checkpoints/multi_agent/four_stage_share"
-LP_load_path = "LP_results/four_stage/"
+save_agent = True
+save_path = "checkpoints/multi_agent/div_1"
+load_path = "checkpoints/multi_agent/div_1"
+LP_load_path = "LP_results/div_1/"
 load_iteration = str(400)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
@@ -56,13 +56,13 @@ inv_max = np.ones(num_nodes) * 30
 stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
 backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
 delay = np.array([1, 2, 1, 1], dtype=np.int8)
-independent = True
+independent = False
 time_dependency = True
 use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
-share_network = True
+share_network = False
 
 
 demand_distribution = "poisson"
@@ -206,9 +206,9 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagementDiv")
 #%% Training
 if train_agent:
     # Training
-    iters = 200
-    min_iter_save = 100
-    checkpoint_interval = 10
+    iters = 500
+    min_iter_save = 300
+    checkpoint_interval = 20
     results = []
     for i in range(iters):
         res = agent.train()
