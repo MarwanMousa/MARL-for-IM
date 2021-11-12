@@ -13,11 +13,11 @@ from matplotlib import rc
 #%% Environment configuration
 
 train_agent = True
-save_agent = False
-save_path = "checkpoints/multi_agent/div_1"
-load_path = "checkpoints/multi_agent/div_1"
+save_agent = True
+save_path = "checkpoints/multi_agent/div_1_share_independent"
+load_path = "checkpoints/multi_agent/div_1_share_independent"
 LP_load_path = "LP_results/div_1/"
-load_iteration = str(400)
+load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
@@ -56,13 +56,13 @@ inv_max = np.ones(num_nodes) * 30
 stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
 backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
 delay = np.array([1, 2, 1, 1], dtype=np.int8)
-independent = False
+independent = True
 time_dependency = True
 use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
-share_network = False
+share_network = True
 
 
 demand_distribution = "poisson"
@@ -105,6 +105,7 @@ env_config = {
     "prev_demand": prev_demand,
     "prev_actions": prev_actions,
     "prev_length": prev_length,
+    "share_network": share_network,
 }
 # Loading in hyperparameters from hyperparameter search
 use_optimal = True
@@ -206,7 +207,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagementDiv")
 #%% Training
 if train_agent:
     # Training
-    iters = 1
+    iters = 500
     min_iter_save = 300
     checkpoint_interval = 20
     results = []
@@ -308,7 +309,7 @@ if not share_network:
 
 #%% Test rollout
 
-num_tests = 1
+num_tests = 1000
 test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
