@@ -393,7 +393,7 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
                 if t >= 1:
                     delay_states = self.time_dependent_state[t - 1, i, :]
                 delay_states = self.rescale(delay_states, np.zeros(self.max_delay),
-                                                                    np.ones(self.max_delay)*self.inv_max[i],
+                                                                    np.ones(self.max_delay)*self.inv_max[i]*2,  # <<<<<<
                                                                     self.a, self.b)
 
             obs_vector[0] = self.rescale(self.inv[t, i], 0, self.inv_max[i], self.a, self.b)
@@ -487,7 +487,7 @@ class MultiAgentInvManagementDiv(MultiAgentEnv):
 
                             # Counter to escape while loop with error if infinite
                             while_counter += 1
-                            if while_counter > self.demand_max[i]:
+                            if while_counter > self.demand_max[i] * 2:
                                 raise Exception("Infinite Loop 1")
 
                         # If there is still left-over shipped goods fulfill current demand if any
