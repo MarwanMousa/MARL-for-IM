@@ -40,7 +40,7 @@ inv_target = np.ones(num_nodes) * 0
 inv_max = np.ones(num_nodes) * 30
 stock_cost = np.array([0.4, 0.4])
 backlog_cost = np.array([0.8, 0.7])
-delay = np.array([1, 1], dtype=np.int8)
+delay = np.array([1, 2], dtype=np.int8)
 standardise_state = True
 standardise_actions = True
 time_dependency = False
@@ -95,12 +95,12 @@ test_env = InvManagementDiv(env_config)
 LP_env = InvManagementDiv(DFO_CONFIG)
 
 #%% Linear Programming Pyomo
-path = 'LP_results/div_1_noise_40/Oracle/'
+path = 'LP_results/test/Oracle/'
 num_tests = 1
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_demand = LP_env.dist.rvs(size=(num_tests, (len(LP_env.retailers)), LP_env.num_periods), **LP_env.dist_param)
-noisy_demand = True
+noisy_demand = False
 noise_threshold = 40/100
 if noisy_demand:
     for i in range(num_tests):

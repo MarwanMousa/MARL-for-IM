@@ -97,23 +97,25 @@ test_env = InvManagementDiv(env_config)
 LP_env = InvManagementDiv(LP_CONFIG)
 
 #%% Linear Programming Pyomo
-num_tests = 1000
+path = 'LP_results/div_1_delay_10/SHLP/'
+num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
 noisy_demand = False
-noise_threshold = 40/100
-noisy_delay = False
-noisy_delay_threshold = 50/100
+noise_threshold = 50/100
+noisy_delay = True
+noisy_delay_threshold = 10/100
 if noisy_demand:
     for i in range(num_tests):
-        for j in range(num_periods):
-            double_demand = np.random.uniform(0, 1)
-            zero_demand = np.random.uniform(0, 1)
-            if double_demand <= noise_threshold:
-                LP_demand[i, j] = 2 * LP_demand[i, j]
-            if zero_demand <= noise_threshold:
-                LP_demand[i, j] = 0
+        for k in range(len(LP_env.retailers)):
+            for j in range(num_periods):
+                double_demand = np.random.uniform(0, 1)
+                zero_demand = np.random.uniform(0, 1)
+                if double_demand <= noise_threshold:
+                    LP_demand[i, k, j] = 2 * LP_demand[i, k, j]
+                if zero_demand <= noise_threshold:
+                    LP_demand[i, k, j] = 0
 
 # Initial Inventory
 i10 = init_inv[0]
@@ -231,18 +233,14 @@ def bl4_linking_rule(m, t):
 def a1_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a1 == a10
-    if t - d1 < m.T.first():
-        return m.lsb[t].a1 == 0
     return m.lsb[t].a1 == m.lsb[t-d1].x1
 
 
 def a2_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a2 == a20
-    if t - d2 < m.T.first() and t - d2 < 0:
-        return m.lsb[t].a2 == 0
     # This condition is configuration specific
-    if t - 1 == m.T.first() and not t - d2 < 0:
+    if t - 1 == m.T.first():
         return m.lsb[t].a2 == a21
     return m.lsb[t].a2 == m.lsb[t-d2].s1
 
@@ -250,16 +248,12 @@ def a2_linking_rule(m, t):
 def a3_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a3 == a30
-    if t - d3 < m.T.first():
-        return m.lsb[t].a3 == 0
     return m.lsb[t].a3 == m.lsb[t-d3].s23
 
 
 def a4_linking_rule(m, t):
     if t == m.T.first():
         return m.lsb[t].a4 == a40
-    if t - d4 < m.T.first():
-        return m.lsb[t].a4 == 0
     return m.lsb[t].a4 == m.lsb[t-d4].s24
 
 
@@ -424,8 +418,6 @@ for j in range(num_tests):
     a20 = 0
     a21 = 0
     a30 = 0
-    a31 = 0
-    a32 = 0
     a40 = 0
 
     # Episode
@@ -435,6 +427,16 @@ for j in range(num_tests):
     SHLP_backlog = np.zeros((num_periods, 4))
     SHLP_acquisition = np.zeros((num_periods, 4))
     for i in range(num_periods):
+
+        # Get real customer demand at current time-step
+        d = LP_demand[j, :, i]
+        dem3 = d[0]
+        dem4 = d[1]
+        # Create model over the horizon i:num_periods (shrinking horizon)
+        model = pyo.ConcreteModel()
+        model.T = pyo.RangeSet(i, num_periods-1)
+        # Link all time-period blocks
+        model.lsb = pyo.Block(model.T, rule=lotsizing_block_rule)
 
         # Get initial acquisition at each stage
         if i - d1 < 0:
@@ -449,12 +451,12 @@ for j in range(num_tests):
             if extra_delay:
                 a10 = 0
                 SHLP_shipment[i - d1 + 1, 0] += SHLP_shipment[i - d1, 0]
+                SHLP_shipment[i - d1, 0] = 0
             else:
                 a10 = SHLP_shipment[i - d1, 0]
 
         if i - d2 < 0:
             a20 = 0
-            a21 = 0
         else:
 
             extra_delay = False
@@ -465,10 +467,14 @@ for j in range(num_tests):
             if extra_delay:
                 a20 = 0
                 SHLP_shipment[i - d2 + 1, 1] += SHLP_shipment[i - d2, 1]
-                a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
+                SHLP_shipment[i - d2, 1] = 0
             else:
                 a20 = SHLP_shipment[i - d2, 1]
-                a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
+
+        if i - d2 + 1 < 0:
+            a21 = 0
+        else:
+            a21 = SHLP_shipment[i - d2 + 1, 1]  # Configuration specific
 
         if i - d3 < 0:
             a30 = 0
@@ -482,6 +488,7 @@ for j in range(num_tests):
             if extra_delay:
                 a30 = 0
                 SHLP_shipment[i - d3 + 1, 2] += SHLP_shipment[i - d3, 2]
+                SHLP_shipment[i - d3, 2] = 0
             else:
                 a30 = SHLP_shipment[i - d3, 2]
 
@@ -497,17 +504,9 @@ for j in range(num_tests):
             if extra_delay:
                 a40 = 0
                 SHLP_shipment[i - d4 + 1, 3] += SHLP_shipment[i - d4, 3]
+                SHLP_shipment[i - d4, 3] = 0
             else:
                 a40 = SHLP_shipment[i - d4, 3]
-        # Get real customer demand at current time-step
-        d = LP_demand[j, :, i]
-        dem3 = d[0]
-        dem4 = d[1]
-        # Create model over the horizon i:num_periods (shrinking horizon)
-        model = pyo.ConcreteModel()
-        model.T = pyo.RangeSet(i, num_periods-1)
-        # Link all time-period blocks
-        model.lsb = pyo.Block(model.T, rule=lotsizing_block_rule)
 
         # Inventory linking constraints
         model.i_linking1 = pyo.Constraint(model.T, rule=i1_linking_rule)
@@ -622,7 +621,7 @@ print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_lev
 print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
 print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
 
-path = 'LP_results/div_1/SHLP/'
+
 ensure_dir(path)
 np.save(path+'reward_mean.npy', lp_reward_mean)
 np.save(path+'reward_std.npy', lp_reward_std)
@@ -673,8 +672,3 @@ for i in range(num_nodes):
 test_name = path + '/test_rollout.png'
 plt.savefig(test_name, dpi=200)
 plt.show()
-
-
-
-
-

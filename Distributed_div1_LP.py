@@ -93,10 +93,7 @@ num_tests = 1
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_Customer_Demand = LP_env.dist.rvs(size=(num_tests, (len(LP_env.retailers)), LP_env.num_periods), **LP_env.dist_param)
-LP_Customer_Demand = np.array([[[ 0,  5,  0,  6,  0,  3,  0,  4,  0,  8,  0,  8,  4,  8,  4,  0,
-          5,  0, 12,  5,  0,  4,  3,  0, 12,  0,  0,  0, 16,  8],
-        [ 8,  4,  4,  4,  4,  0,  0, 11,  6,  4,  6,  6,  7, 10,  9,  0,
-         20,  0,  8,  0,  0,  0,  4,  0,  0,  0,  0,  0,  6,  6]]])
+
 # Maximum inventory and Maximum order amount
 I1 = 30
 O1 = 30
@@ -281,7 +278,7 @@ def a1_linking_rule(m, t):
 def a_linking_rule(m, t):
     if t - m.delay < m.T.first():
         return m.nb[t].a == 0
-    return m.nb[t].a <= m.I0
+    return m.nb[t].a <= m.I
 
 def max_order_rule(m, t):
     return m.nb[t].r <= m.O
@@ -310,7 +307,7 @@ def obj_rule_2(m):
         obj -= m.rho/2 * (m.nb[t].demand3 - m.z23_1[t] + m.u23_1[t])**2  # constraint 23 orders
         obj -= m.rho/2 * (m.nb[t].demand4 - m.z24_1[t] + m.u24_1[t])**2  # constraint 24 orders
         if t-d2 >= m.T.first():
-            obj -= m.rho / 2 * (m.nb[t].a - m.z23_2[t] + m.u23_2[t]) ** 2  # constraint 12 goods
+            obj -= m.rho / 2 * (m.nb[t].a - m.z12_2[t] + m.u12_2[t]) ** 2  # constraint 12 goods
         if t-d3 >= m.T.first():
             obj -= m.rho / 2 * (m.nb[t - d3].s3 - m.z23_2[t] + m.u23_2[t]) ** 2  # constraint 23 goods
         if t-d4 >= m.T.first():
@@ -330,7 +327,7 @@ def obj_rule_3(m):
 
 def obj_rule_4(m):
     # Sum of Profit for all timeperiods
-    return sum(m.nb[t].s*P3 - m.nb[t].r*C3 - m.nb[t].i*IC4 - m.nb[t].bl*BC4 -
+    return sum(m.nb[t].s * P3 - m.nb[t].r * C3 - m.nb[t].i * IC4 - m.nb[t].bl * BC4 -
                m.rho/2 * (m.nb[t].r - m.z24_1[t] + m.u24_1[t])**2
                if t-d4 < m.T.first() else
                m.nb[t].s * P3 - m.nb[t].r * C3 - m.nb[t].i * IC4 - m.nb[t].bl * BC4 -
@@ -340,7 +337,7 @@ def obj_rule_4(m):
 
 
 period = 30
-rho = 2e-1
+rho = 2.5e-1
 N_iter = 50
 # Get solver
 solver = pyo.SolverFactory('gurobi', solver_io='python')
@@ -366,9 +363,9 @@ model_1.max_inventory = pyo.Constraint(model_1.T, rule=max_inventory_rule)
 
 
 # Global variables between nodes 1 and 2
-model_1.z12_1 = pyo.Param(model_1.T, initialize=mu, mutable=True)
+model_1.z12_1 = pyo.Param(model_1.T, initialize=2*mu, mutable=True)
 model_1.u12_1 = pyo.Param(model_1.T, initialize=0, mutable=True)
-model_1.z12_2 = pyo.Param(model_1.T12, initialize=mu, mutable=True)
+model_1.z12_2 = pyo.Param(model_1.T12, initialize=2*mu, mutable=True)
 model_1.u12_2 = pyo.Param(model_1.T12, initialize=0, mutable=True)
 
 model_1.obj = pyo.Objective(rule=obj_rule_1, sense=pyo.maximize)
@@ -396,9 +393,9 @@ model_2.max_order = pyo.Constraint(model_2.T, rule=max_order_rule)
 model_2.max_inventory = pyo.Constraint(model_2.T, rule=max_inventory_rule)
 
 # Global variables between nodes 1 and 2
-model_2.z12_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+model_2.z12_1 = pyo.Param(model_2.T, initialize=2*mu, mutable=True)
 model_2.u12_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
-model_2.z12_2 = pyo.Param(model_2.T12, initialize=mu, mutable=True)
+model_2.z12_2 = pyo.Param(model_2.T12, initialize=2*mu, mutable=True)
 model_2.u12_2 = pyo.Param(model_2.T12, initialize=0, mutable=True)
 
 # Global variables between nodes 2 and 3
@@ -521,7 +518,7 @@ for i in range(N_iter):
     # 24 Global variables
     reorder_4 = [pyo.value(instance_4.nb[t].r) for t in instance_4.T]
     demand_24 = [pyo.value(instance_2.nb[t].demand4) for t in instance_2.T]
-    z24_1 = (np.array(reorder_3) + np.array(demand_24)) / 2
+    z24_1 = (np.array(reorder_4) + np.array(demand_24)) / 2
     z24_1 = {t: z24_1[i] for i, t in enumerate(model_4.T)}
 
     shipping_24 = [pyo.value(instance_2.nb[t - d4].s4) for t in instance_2.T24]
@@ -550,14 +547,14 @@ for i in range(N_iter):
     # calculate new u
     # 12
     u12_1_model1 = {t: pyo.value(instance_1.u12_1[t]) + pyo.value(instance_1.nb[t].demand - z12_1[t])
-                      for t in model_1.T}
+                    for t in model_1.T}
     u12_1_model2 = {t: pyo.value(instance_2.u12_1[t]) + pyo.value(instance_2.nb[t].r - z12_1[t])
-                      for t in model_2.T}
+                    for t in model_2.T}
 
     u12_2_model1 = {t: pyo.value(instance_1.u12_2[t]) + pyo.value(instance_1.nb[t - d2].s - z12_2[t])
-                      for t in model_1.T12}
+                    for t in model_1.T12}
     u12_2_model2 = {t: pyo.value(instance_2.u12_2[t]) + pyo.value(instance_2.nb[t].a - z12_2[t])
-                      for t in model_2.T12}
+                    for t in model_2.T12}
 
     # 23
     u23_1_model2 = {t: pyo.value(instance_2.u23_1[t]) + pyo.value(instance_2.nb[t].demand3 - z23_1[t])

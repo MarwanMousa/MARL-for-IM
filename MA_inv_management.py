@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 #%% Environment configuration
 
-train_agent = False
+train_agent = True
 save_agent = True
-save_path = "checkpoints/multi_agent/four_stage_share"
-load_path = "checkpoints/multi_agent/four_stage_share"
-LP_load_path = "LP_results/four_stage/"
-load_iteration = str(400)
+save_path = "checkpoints/multi_agent/eight_stage_share"
+load_path = "checkpoints/multi_agent/eight_stage_share"
+LP_load_path = "LP_results/eight_stage/"
+load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
@@ -37,7 +37,7 @@ def env_creator(configuration):
 
 
 # Environment Configuration
-num_stages = 4
+num_stages = 8
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -45,11 +45,11 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_stages)*10
 inv_target = np.ones(num_stages) * 0
 inv_max = np.ones(num_stages) * 30
-price = np.array([5, 4, 3, 2, 1])
-stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
-backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
-delay = np.array([1, 2, 3, 1], dtype=np.int8)
-independent = True
+price = np.array([9, 8, 7, 6, 5, 4, 3, 2, 1])
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2, 0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9, 0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1, 4, 2, 3, 1], dtype=np.int8)
+independent = False
 standardise_state = True
 standardise_actions = True
 a = -1
@@ -230,13 +230,13 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagement")
 #%% Training
 if train_agent:
     # Training
-    iters = 700
-    min_iter_save = 100
-    checkpoint_interval = 10
+    iters = 500
+    min_iter_save = 300
+    checkpoint_interval = 20
     results = []
     for i in range(iters):
         res = agent.train()
-        results.append(res)
+        results.append(res["hist_stats"])
         if (i + 1) % 1 == 0:
             print('\rIter: {}\tReward: {:.2f}'.format(
                 i + 1, res['episode_reward_mean']), end='')
@@ -265,7 +265,7 @@ if save_agent:
 #%% Reward Plots
 p = 100
 # Unpack values from each iteration
-rewards = np.hstack([i['hist_stats']['episode_reward']
+rewards = np.hstack([i['episode_reward']
                      for i in results])
 
 mean_rewards = np.array([np.mean(rewards[i - p:i + 1])
@@ -286,7 +286,7 @@ if not share_network and not hybrid:
     for j in range(num_stages):
         policy_agent = agent_ids[j]
         stat = 'policy_' + policy_agent + '_reward'
-        policy_rewards[policy_agent] = np.hstack([i['hist_stats'][stat] for i in results])
+        policy_rewards[policy_agent] = np.hstack([i[stat] for i in results])
         temp = policy_rewards[policy_agent]
         policy_mean_rewards[policy_agent] = np.array([np.mean(temp[i - p:i + 1])
                                                       if i >= p else np.mean(temp[:i + 1])
@@ -340,7 +340,7 @@ if not share_network and not hybrid:
 
 #%% Test rollout
 
-num_tests = 1000
+num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, test_env.num_periods), **test_env.dist_param)

@@ -10,21 +10,27 @@ from ray.rllib.models import ModelCatalog
 from hyperparams import get_hyperparams
 import matplotlib.pyplot as plt
 from matplotlib import rc
-#%% Environment configuration
-
-train_agent = True
-save_agent = True
-save_path = "checkpoints/multi_agent/div_1_share_independent"
-load_path = "checkpoints/multi_agent/div_1_share_independent"
-LP_load_path = "LP_results/div_1/"
-load_iteration = str(500)
-load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
 rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 plt.rcParams["figure.dpi"] = 200
+#%% Environment configuration
+
+train_agent = True
+save_agent = True
+save_path = "checkpoints/multi_agent/four_stage_53"
+load_path = "checkpoints/multi_agent/four_stage_53"
+share_network = False
+independent = False
+LP_load_path = "LP_results/four_stage/"
+load_iteration = str(500)
+load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
+
+# Loading in hyperparameters from hyperparameter search
+use_optimal = True
+configuration_name = "MA_6"
 
 # Set script seed
 SEED = 52
@@ -40,8 +46,8 @@ def env_creator(configuration):
 num_nodes = 4
 connections = {
     0: [1],
-    1: [2, 3],
-    2: [],
+    1: [2],
+    2: [3],
     3: [],
     }
 check_connections(connections)
@@ -53,16 +59,14 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_nodes)*10
 inv_target = np.ones(num_nodes) * 0
 inv_max = np.ones(num_nodes) * 30
-stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
-backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
-delay = np.array([1, 2, 1, 1], dtype=np.int8)
-independent = True
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
 time_dependency = True
 use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
-share_network = True
 
 
 demand_distribution = "poisson"
@@ -107,9 +111,6 @@ env_config = {
     "prev_length": prev_length,
     "share_network": share_network,
 }
-# Loading in hyperparameters from hyperparameter search
-use_optimal = True
-configuration_name = "MA_6"
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
@@ -130,6 +131,34 @@ test_env = MultiAgentInvManagementDiv(env_config)
 obs_space = test_env.observation_space
 act_space = test_env.action_space
 num_agents = test_env.num_agents
+
+num_tests = 200
+noisy_demand = False
+noise_threshold = 50/100
+noisy_delay = False
+noisy_delay_threshold = 50/100
+
+test_seed = 420
+np.random.seed(seed=test_seed)
+test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
+
+if noisy_demand:
+    for i in range(num_tests):
+        for k in range(len(test_env.retailers)):
+            for j in range(num_periods):
+                double_demand = np.random.uniform(0, 1)
+                zero_demand = np.random.uniform(0, 1)
+                if double_demand <= noise_threshold:
+                    test_demand[i, k, j] = 2 * test_demand[i, k, j]
+                if zero_demand <= noise_threshold:
+                    test_demand[i, k, j] = 0
+
+train_with_noise = False
+if train_with_noise:
+    CONFIG["noisy_demand"] = noisy_demand
+    CONFIG["noisy_demand_threshold"] = noise_threshold
+    CONFIG["noisy_delay"] = noisy_delay
+    CONFIG["noisy_delay_threshold"] = noisy_delay_threshold
 
 #%% Agent Configuration
 # Define policies to train
@@ -213,7 +242,7 @@ if train_agent:
     results = []
     for i in range(iters):
         res = agent.train()
-        results.append(res)
+        results.append(res["hist_stats"])
         if (i + 1) % 1 == 0:
             print('\rIter: {}\tReward: {:.2f}'.format(
                 i + 1, res['episode_reward_mean']), end='')
@@ -242,7 +271,7 @@ if save_agent:
 #%% Reward Plots
 p = 100
 # Unpack values from each iteration
-rewards = np.hstack([i['hist_stats']['episode_reward']
+rewards = np.hstack([i['episode_reward']
                      for i in results])
 
 mean_rewards = np.array([np.mean(rewards[i - p:i + 1])
@@ -253,6 +282,9 @@ std_rewards = np.array([np.std(rewards[i - p:i + 1])
                         if i >= p else np.std(rewards[:i + 1])
                         for i, _ in enumerate(rewards)])
 
+DSHLP_rewards_mean = np.load(LP_load_path + 'DSHLP/reward_mean.npy')
+DSHLP_rewards_std = np.load(LP_load_path + 'DSHLP/reward_std.npy')
+
 
 if not share_network:
     policy_rewards = {}
@@ -261,7 +293,7 @@ if not share_network:
     for j in range(num_nodes):
         policy_agent = agent_ids[j]
         stat = 'policy_' + policy_agent + '_reward'
-        policy_rewards[policy_agent] = np.hstack([i['hist_stats'][stat] for i in results])
+        policy_rewards[policy_agent] = np.hstack([i[stat] for i in results])
         temp = policy_rewards[policy_agent]
         policy_mean_rewards[policy_agent] = np.array([np.mean(temp[i - p:i + 1])
                                                       if i >= p else np.mean(temp[:i + 1])
@@ -277,6 +309,13 @@ ax.fill_between(np.arange(len(mean_rewards)),
                 mean_rewards + std_rewards,
                 alpha=0.3)
 ax.plot(mean_rewards, label='Mean Rewards')
+
+# Plot DSHLP rewards
+ax.fill_between(np.arange(len(mean_rewards)),
+                np.ones(len(mean_rewards)) * (DSHLP_rewards_mean - DSHLP_rewards_std),
+                np.ones(len(mean_rewards)) * (DSHLP_rewards_mean + DSHLP_rewards_std),
+                alpha=0.3)
+ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (DSHLP_rewards_mean), label='Mean Distributed LP rewards')
 
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
@@ -308,25 +347,6 @@ if not share_network:
     plt.show()
 
 #%% Test rollout
-
-num_tests = 1000
-test_seed = 420
-np.random.seed(seed=test_seed)
-test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
-noisy_demand = False
-noise_threshold = 40/100
-
-noisy_delay = False
-noisy_delay_threshold = 50/100
-if noisy_demand:
-    for i in range(num_tests):
-        for j in range(num_periods):
-            double_demand = np.random.uniform(0, 1)
-            zero_demand = np.random.uniform(0, 1)
-            if double_demand <= noise_threshold:
-                test_demand[i, j] = 2 * test_demand[i, j]
-            if zero_demand <= noise_threshold:
-                test_demand[i, j] = 0
 
 # run until episode ends
 episode_reward = 0

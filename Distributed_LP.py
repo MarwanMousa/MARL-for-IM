@@ -91,7 +91,7 @@ num_tests = 1
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_Customer_Demand = LP_env.dist.rvs(size=(num_tests, (len(LP_env.retailers)), LP_env.num_periods), **LP_env.dist_param)
-LP_Customer_Demand = np.array([[[ 6,  5,  0,  3, 14,  0, 14,  0,  0,  8,  6,  0,  0,  4,  8,  8,
+LP_Customer_Demand = np.array([[[6,  5,  0,  3, 14,  0, 14,  0,  0,  8,  6,  0,  0,  4,  8,  8,
           5,  0,  6, 10,  8,  0,  3,  4, 12,  2,  2,  8,  0,  8]]])
 # Maximum inventory and Maximum order amount
 I1 = 30
@@ -300,6 +300,7 @@ model_2.obj = pyo.Objective(rule=obj_rule_2, sense=pyo.maximize)
 # Iterations
 instance_1 = model_1.create_instance()
 instance_2 = model_2.create_instance()
+ADMM = True
 for i in range(N_iter):
     # Solve Sub-problems
     sub_problem1 = solver.solve(instance_1)
@@ -342,12 +343,13 @@ for i in range(N_iter):
                       for t in model_2.T12}
 
     # update u
-    for t in model_1.T:
-        instance_1.u1[t] = new_u1_model_1[t]
-        instance_2.u1[t] = new_u1_model_2[t]
-    for t in model_1.T12:
-        instance_1.u2[t] = new_u2_model_1[t]
-        instance_2.u2[t] = new_u2_model_2[t]
+    if ADMM:
+        for t in model_1.T:
+            instance_1.u1[t] = new_u1_model_1[t]
+            instance_2.u1[t] = new_u1_model_2[t]
+        for t in model_1.T12:
+            instance_1.u2[t] = new_u2_model_1[t]
+            instance_2.u2[t] = new_u2_model_2[t]
 
 # Get solution results
 LP_inv = np.zeros((num_periods, num_nodes))

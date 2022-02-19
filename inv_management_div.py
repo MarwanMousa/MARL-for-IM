@@ -14,13 +14,14 @@ from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = False
-save_agent = False
-save_path = "checkpoints/single_agent/div_1"
-load_path = "checkpoints/single_agent/div_1"
+train_agent = True
+save_agent = True
+save_path = "checkpoints/single_agent_noisy_delay/four_stage_50"
+load_path = "checkpoints/single_agent_noisy_delay/four_stage_50"
 LP_load_path = "LP_results/div_1/"
 load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
+
 
 # Define plot settings
 rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
@@ -36,8 +37,8 @@ np.random.seed(seed=SEED)
 num_nodes = 4
 connections = {
     0: [1],
-    1: [2, 3],
-    2: [],
+    1: [2],
+    2: [3],
     3: [],
     }
 check_connections(connections)
@@ -49,9 +50,9 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_nodes)*10
 inv_target = np.ones(num_nodes) * 0
 inv_max = np.ones(num_nodes) * 30
-stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
-backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
-delay = np.array([1, 2, 1, 1], dtype=np.int8)
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
 time_dependency = False
 use_lstm = False
 prev_actions = True
@@ -131,6 +132,34 @@ DFO_env = InvManagementDiv(DFO_CONFIG)
 ModelCatalog.register_custom_model(
         "rnn_model", RNNModel)
 
+# Get Test demand
+num_tests = 200
+test_seed = 420
+np.random.seed(seed=test_seed)
+test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
+noisy_demand = False
+noise_threshold = 10/100
+noisy_delay = True
+noisy_delay_threshold = 50/100
+
+train_with_noise = True
+if train_with_noise:
+    CONFIG["noisy_demand"] = noisy_demand
+    CONFIG["noisy_demand_threshold"] = noise_threshold
+    CONFIG["noisy_delay"] = noisy_delay
+    CONFIG["noisy_delay_threshold"] = noisy_delay_threshold
+
+if noisy_demand:
+    for i in range(num_tests):
+        for k in range(len(test_env.retailers)):
+            for j in range(num_periods):
+                double_demand = np.random.uniform(0, 1)
+                zero_demand = np.random.uniform(0, 1)
+                if double_demand <= noise_threshold:
+                    test_demand[i, k, j] = 2 *test_demand[i, k, j]
+                if zero_demand <= noise_threshold:
+                    test_demand[i, k, j] = 0
+
 #%% Agent Configuration
 
 # Algorithm used
@@ -158,7 +187,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagementDiv")
 
 if train_agent:
     # Training
-    iters = 500  # Number of training iterations
+    iters = 700  # Number of training iterations
     min_iter_save = 300
     checkpoint_interval = 20
     results = []
@@ -193,24 +222,6 @@ if save_agent:
     results_save_path = save_path + '/results.npy'
     np.save(results_save_path, results)
 
-#%% Get Test demand
-num_tests = 1000
-test_seed = 420
-np.random.seed(seed=test_seed)
-test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
-noisy_demand = False
-noise_threshold = 30/100
-noisy_delay = False
-noisy_delay_threshold = 30/100
-if noisy_demand:
-    for i in range(num_tests):
-        for j in range(num_periods):
-            double_demand = np.random.uniform(0, 1)
-            zero_demand = np.random.uniform(0, 1)
-            if double_demand <= noise_threshold:
-                test_demand[i, j] = 2 *test_demand[i, j]
-            if zero_demand <= noise_threshold:
-                test_demand[i, j] = 0
 
 #%% Derivative Free Optimization
 init_policy = np.ones(num_nodes)*25

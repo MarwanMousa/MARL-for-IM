@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
+import pickle
 
 # Define plot settings
 rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
@@ -17,6 +18,13 @@ def policy_mapping_fn(agent_id, episode, **kwargs):
 def policy_mapping_single(agent_id, episode, **kwargs):
     return "stage"
 
+class CustomUnpickler(pickle.Unpickler):
+
+    def find_class(self, module, name):
+        try:
+            return super().find_class(__name__, name)
+        except AttributeError:
+            return super().find_class(module, name)
 
 
 #%% Load Single Rl Data
@@ -116,6 +124,18 @@ S4N30_customer_backlog_mean = np.load("checkpoints/single_agent/four_stage_noise
 S4N30_customer_backlog_std = np.load("checkpoints/single_agent/four_stage_noise_30/customer_backlog_std.npy", allow_pickle=True)
 S4N30_profit = np.load("checkpoints/single_agent/four_stage_noise_30/profit.npy", allow_pickle=True)
 
+S4N40_results = np.load("checkpoints/single_agent/four_stage_noise_40/results.npy", allow_pickle=True)
+S4N40_time = np.load("checkpoints/single_agent/four_stage_noise_40/time.npy", allow_pickle=True)
+S4N40_reward_mean = np.load("checkpoints/single_agent/four_stage_noise_40/reward_mean.npy", allow_pickle=True)
+S4N40_reward_std = np.load("checkpoints/single_agent/four_stage_noise_40/reward_std.npy", allow_pickle=True)
+S4N40_inventory_mean = np.load("checkpoints/single_agent/four_stage_noise_40/inventory_mean.npy", allow_pickle=True)
+S4N40_inventory_std = np.load("checkpoints/single_agent/four_stage_noise_40/inventory_std.npy", allow_pickle=True)
+S4N40_backlog_mean = np.load("checkpoints/single_agent/four_stage_noise_40/backlog_mean.npy", allow_pickle=True)
+S4N40_backlog_std = np.load("checkpoints/single_agent/four_stage_noise_40/backlog_std.npy", allow_pickle=True)
+S4N40_customer_backlog_mean = np.load("checkpoints/single_agent/four_stage_noise_40/customer_backlog_mean.npy", allow_pickle=True)
+S4N40_customer_backlog_std = np.load("checkpoints/single_agent/four_stage_noise_40/customer_backlog_std.npy", allow_pickle=True)
+S4N40_profit = np.load("checkpoints/single_agent/four_stage_noise_40/profit.npy", allow_pickle=True)
+
 S4N50_results = np.load("checkpoints/single_agent/four_stage_noise_50/results.npy", allow_pickle=True)
 S4N50_time = np.load("checkpoints/single_agent/four_stage_noise_50/time.npy", allow_pickle=True)
 S4N50_reward_mean = np.load("checkpoints/single_agent/four_stage_noise_50/reward_mean.npy", allow_pickle=True)
@@ -164,18 +184,6 @@ S4D30_customer_backlog_mean = np.load("checkpoints/single_agent/four_stage_delay
 S4D30_customer_backlog_std = np.load("checkpoints/single_agent/four_stage_delay_30/customer_backlog_std.npy", allow_pickle=True)
 S4D30_profit = np.load("checkpoints/single_agent/four_stage_delay_30/profit.npy", allow_pickle=True)
 
-S4N40_results = np.load("checkpoints/single_agent/four_stage_noise_40/results.npy", allow_pickle=True)
-S4N40_time = np.load("checkpoints/single_agent/four_stage_noise_40/time.npy", allow_pickle=True)
-S4N40_reward_mean = np.load("checkpoints/single_agent/four_stage_noise_40/reward_mean.npy", allow_pickle=True)
-S4N40_reward_std = np.load("checkpoints/single_agent/four_stage_noise_40/reward_std.npy", allow_pickle=True)
-S4N40_inventory_mean = np.load("checkpoints/single_agent/four_stage_noise_40/inventory_mean.npy", allow_pickle=True)
-S4N40_inventory_std = np.load("checkpoints/single_agent/four_stage_noise_40/inventory_std.npy", allow_pickle=True)
-S4N40_backlog_mean = np.load("checkpoints/single_agent/four_stage_noise_40/backlog_mean.npy", allow_pickle=True)
-S4N40_backlog_std = np.load("checkpoints/single_agent/four_stage_noise_40/backlog_std.npy", allow_pickle=True)
-S4N40_customer_backlog_mean = np.load("checkpoints/single_agent/four_stage_noise_40/customer_backlog_mean.npy", allow_pickle=True)
-S4N40_customer_backlog_std = np.load("checkpoints/single_agent/four_stage_noise_40/customer_backlog_std.npy", allow_pickle=True)
-S4N40_profit = np.load("checkpoints/single_agent/four_stage_noise_40/profit.npy", allow_pickle=True)
-
 S4D40_results = np.load("checkpoints/single_agent/four_stage_delay_40/results.npy", allow_pickle=True)
 S4D40_time = np.load("checkpoints/single_agent/four_stage_delay_40/time.npy", allow_pickle=True)
 S4D40_reward_mean = np.load("checkpoints/single_agent/four_stage_delay_40/reward_mean.npy", allow_pickle=True)
@@ -200,6 +208,66 @@ S4D50_customer_backlog_mean = np.load("checkpoints/single_agent/four_stage_delay
 S4D50_customer_backlog_std = np.load("checkpoints/single_agent/four_stage_delay_50/customer_backlog_std.npy", allow_pickle=True)
 S4D50_profit = np.load("checkpoints/single_agent/four_stage_delay_50/profit.npy", allow_pickle=True)
 
+#%% Load Noise trained Single RL Data
+NS4N10_results = np.load("checkpoints/single_agent_noisy_demand/four_stage_10/results.npy", allow_pickle=True)
+NS4N10_time = np.load("checkpoints/single_agent_noisy_demand/four_stage_10/time.npy", allow_pickle=True)
+NS4N10_reward_mean = np.load("checkpoints/single_agent_noisy_demand/four_stage_10/reward_mean.npy", allow_pickle=True)
+NS4N10_reward_std = np.load("checkpoints/single_agent_noisy_demand/four_stage_10/reward_std.npy", allow_pickle=True)
+NS4N10_profit = np.load("checkpoints/single_agent_noisy_demand/four_stage_10/profit.npy", allow_pickle=True)
+
+NS4N20_results = np.load("checkpoints/single_agent_noisy_demand/four_stage_20/results.npy", allow_pickle=True)
+NS4N20_time = np.load("checkpoints/single_agent_noisy_demand/four_stage_20/time.npy", allow_pickle=True)
+NS4N20_reward_mean = np.load("checkpoints/single_agent_noisy_demand/four_stage_20/reward_mean.npy", allow_pickle=True)
+NS4N20_reward_std = np.load("checkpoints/single_agent_noisy_demand/four_stage_20/reward_std.npy", allow_pickle=True)
+NS4N20_profit = np.load("checkpoints/single_agent_noisy_demand/four_stage_20/profit.npy", allow_pickle=True)
+
+NS4N30_results = np.load("checkpoints/single_agent_noisy_demand/four_stage_30/results.npy", allow_pickle=True)
+NS4N30_time = np.load("checkpoints/single_agent_noisy_demand/four_stage_30/time.npy", allow_pickle=True)
+NS4N30_reward_mean = np.load("checkpoints/single_agent_noisy_demand/four_stage_30/reward_mean.npy", allow_pickle=True)
+NS4N30_reward_std = np.load("checkpoints/single_agent_noisy_demand/four_stage_30/reward_std.npy", allow_pickle=True)
+NS4N30_profit = np.load("checkpoints/single_agent_noisy_demand/four_stage_30/profit.npy", allow_pickle=True)
+
+NS4N40_results = np.load("checkpoints/single_agent_noisy_demand/four_stage_40/results.npy", allow_pickle=True)
+NS4N40_time = np.load("checkpoints/single_agent_noisy_demand/four_stage_40/time.npy", allow_pickle=True)
+NS4N40_reward_mean = np.load("checkpoints/single_agent_noisy_demand/four_stage_40/reward_mean.npy", allow_pickle=True)
+NS4N40_reward_std = np.load("checkpoints/single_agent_noisy_demand/four_stage_40/reward_std.npy", allow_pickle=True)
+NS4N40_profit = np.load("checkpoints/single_agent_noisy_demand/four_stage_40/profit.npy", allow_pickle=True)
+
+NS4N50_results = np.load("checkpoints/single_agent_noisy_demand/four_stage_50/results.npy", allow_pickle=True)
+NS4N50_time = np.load("checkpoints/single_agent_noisy_demand/four_stage_50/time.npy", allow_pickle=True)
+NS4N50_reward_mean = np.load("checkpoints/single_agent_noisy_demand/four_stage_50/reward_mean.npy", allow_pickle=True)
+NS4N50_reward_std = np.load("checkpoints/single_agent_noisy_demand/four_stage_50/reward_std.npy", allow_pickle=True)
+NS4N50_profit = np.load("checkpoints/single_agent_noisy_demand/four_stage_50/profit.npy", allow_pickle=True)
+
+NS4D10_results = np.load("checkpoints/single_agent_noisy_delay/four_stage_10/results.npy", allow_pickle=True)
+NS4D10_time = np.load("checkpoints/single_agent_noisy_delay/four_stage_10/time.npy", allow_pickle=True)
+NS4D10_reward_mean = np.load("checkpoints/single_agent_noisy_delay/four_stage_10/reward_mean.npy", allow_pickle=True)
+NS4D10_reward_std = np.load("checkpoints/single_agent_noisy_delay/four_stage_10/reward_std.npy", allow_pickle=True)
+NS4D10_profit = np.load("checkpoints/single_agent_noisy_delay/four_stage_10/profit.npy", allow_pickle=True)
+
+NS4D20_results = np.load("checkpoints/single_agent_noisy_delay/four_stage_20/results.npy", allow_pickle=True)
+NS4D20_time = np.load("checkpoints/single_agent_noisy_delay/four_stage_20/time.npy", allow_pickle=True)
+NS4D20_reward_mean = np.load("checkpoints/single_agent_noisy_delay/four_stage_20/reward_mean.npy", allow_pickle=True)
+NS4D20_reward_std = np.load("checkpoints/single_agent_noisy_delay/four_stage_20/reward_std.npy", allow_pickle=True)
+NS4D20_profit = np.load("checkpoints/single_agent_noisy_delay/four_stage_20/profit.npy", allow_pickle=True)
+
+NS4D30_results = np.load("checkpoints/single_agent_noisy_delay/four_stage_30/results.npy", allow_pickle=True)
+NS4D30_time = np.load("checkpoints/single_agent_noisy_delay/four_stage_30/time.npy", allow_pickle=True)
+NS4D30_reward_mean = np.load("checkpoints/single_agent_noisy_delay/four_stage_30/reward_mean.npy", allow_pickle=True)
+NS4D30_reward_std = np.load("checkpoints/single_agent_noisy_delay/four_stage_30/reward_std.npy", allow_pickle=True)
+NS4D30_profit = np.load("checkpoints/single_agent_noisy_delay/four_stage_30/profit.npy", allow_pickle=True)
+
+NS4D40_results = np.load("checkpoints/single_agent_noisy_delay/four_stage_40/results.npy", allow_pickle=True)
+NS4D40_time = np.load("checkpoints/single_agent_noisy_delay/four_stage_40/time.npy", allow_pickle=True)
+NS4D40_reward_mean = np.load("checkpoints/single_agent_noisy_delay/four_stage_40/reward_mean.npy", allow_pickle=True)
+NS4D40_reward_std = np.load("checkpoints/single_agent_noisy_delay/four_stage_40/reward_std.npy", allow_pickle=True)
+NS4D40_profit = np.load("checkpoints/single_agent_noisy_delay/four_stage_40/profit.npy", allow_pickle=True)
+
+NS4D50_results = np.load("checkpoints/single_agent_noisy_delay/four_stage_50/results.npy", allow_pickle=True)
+NS4D50_time = np.load("checkpoints/single_agent_noisy_delay/four_stage_50/time.npy", allow_pickle=True)
+NS4D50_reward_mean = np.load("checkpoints/single_agent_noisy_delay/four_stage_50/reward_mean.npy", allow_pickle=True)
+NS4D50_reward_std = np.load("checkpoints/single_agent_noisy_delay/four_stage_50/reward_std.npy", allow_pickle=True)
+NS4D50_profit = np.load("checkpoints/single_agent_noisy_delay/four_stage_50/profit.npy", allow_pickle=True)
 #%% Load MA Rl Data
 MA4_results = np.load("checkpoints/multi_agent/four_stage/results.npy", allow_pickle=True)
 MA4_time = np.load("checkpoints/multi_agent/four_stage/time.npy", allow_pickle=True)
@@ -249,31 +317,7 @@ MA8_customer_backlog_mean = np.load("checkpoints/multi_agent/eight_stage/custome
 MA8_customer_backlog_std = np.load("checkpoints/multi_agent/eight_stage/customer_backlog_std.npy", allow_pickle=True)
 MA8_profit = np.load("checkpoints/multi_agent/eight_stage/profit.npy", allow_pickle=True)
 
-MA4N2_results = np.load("checkpoints/multi_agent/four_stage_noise_2/results.npy", allow_pickle=True)
-MA4N2_time = np.load("checkpoints/multi_agent/four_stage_noise_2/time.npy", allow_pickle=True)
-MA4N2_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_2/reward_mean.npy", allow_pickle=True)
-MA4N2_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_2/reward_std.npy", allow_pickle=True)
-MA4N2_inventory_mean = np.load("checkpoints/multi_agent/four_stage_noise_2/inventory_mean.npy", allow_pickle=True)
-MA4N2_inventory_std = np.load("checkpoints/multi_agent/four_stage_noise_2/inventory_std.npy", allow_pickle=True)
-MA4N2_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise_2/backlog_mean.npy", allow_pickle=True)
-MA4N2_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_2/backlog_std.npy", allow_pickle=True)
-MA4N2_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise_2/customer_backlog_mean.npy", allow_pickle=True)
-MA4N2_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_2/customer_backlog_std.npy", allow_pickle=True)
-MA4N2_profit = np.load("checkpoints/multi_agent/four_stage_noise_2/profit.npy", allow_pickle=True)
 
-MA4N5_results = np.load("checkpoints/multi_agent/four_stage_noise_5/results.npy", allow_pickle=True)
-MA4N5_time = np.load("checkpoints/multi_agent/four_stage_noise_5/time.npy", allow_pickle=True)
-MA4N5_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_5/reward_mean.npy", allow_pickle=True)
-MA4N5_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_5/reward_std.npy", allow_pickle=True)
-MA4N5_inventory_mean = np.load("checkpoints/multi_agent/four_stage_noise_5/inventory_mean.npy", allow_pickle=True)
-MA4N5_inventory_std = np.load("checkpoints/multi_agent/four_stage_noise_5/inventory_std.npy", allow_pickle=True)
-MA4N5_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise_5/backlog_mean.npy", allow_pickle=True)
-MA4N5_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_5/backlog_std.npy", allow_pickle=True)
-MA4N5_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise_5/customer_backlog_mean.npy", allow_pickle=True)
-MA4N5_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_5/customer_backlog_std.npy", allow_pickle=True)
-MA4N5_profit = np.load("checkpoints/multi_agent/four_stage_noise_5/profit.npy", allow_pickle=True)
-
-MA4N10_results = np.load("checkpoints/multi_agent/four_stage_noise_10/results.npy", allow_pickle=True)
 MA4N10_time = np.load("checkpoints/multi_agent/four_stage_noise_10/time.npy", allow_pickle=True)
 MA4N10_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_10/reward_mean.npy", allow_pickle=True)
 MA4N10_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_10/reward_std.npy", allow_pickle=True)
@@ -285,7 +329,6 @@ MA4N10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise
 MA4N10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_10/customer_backlog_std.npy", allow_pickle=True)
 MA4N10_profit = np.load("checkpoints/multi_agent/four_stage_noise_10/profit.npy", allow_pickle=True)
 
-MA4N20_results = np.load("checkpoints/multi_agent/four_stage_noise_20/results.npy", allow_pickle=True)
 MA4N20_time = np.load("checkpoints/multi_agent/four_stage_noise_20/time.npy", allow_pickle=True)
 MA4N20_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_20/reward_mean.npy", allow_pickle=True)
 MA4N20_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_20/reward_std.npy", allow_pickle=True)
@@ -297,7 +340,6 @@ MA4N20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise
 MA4N20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_20/customer_backlog_std.npy", allow_pickle=True)
 MA4N20_profit = np.load("checkpoints/multi_agent/four_stage_noise_20/profit.npy", allow_pickle=True)
 
-MA4N30_results = np.load("checkpoints/multi_agent/four_stage_noise_30/results.npy", allow_pickle=True)
 MA4N30_time = np.load("checkpoints/multi_agent/four_stage_noise_30/time.npy", allow_pickle=True)
 MA4N30_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_30/reward_mean.npy", allow_pickle=True)
 MA4N30_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_30/reward_std.npy", allow_pickle=True)
@@ -309,7 +351,6 @@ MA4N30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise
 MA4N30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_30/customer_backlog_std.npy", allow_pickle=True)
 MA4N30_profit = np.load("checkpoints/multi_agent/four_stage_noise_30/profit.npy", allow_pickle=True)
 
-MA4N50_results = np.load("checkpoints/multi_agent/four_stage_noise_50/results.npy", allow_pickle=True)
 MA4N50_time = np.load("checkpoints/multi_agent/four_stage_noise_50/time.npy", allow_pickle=True)
 MA4N50_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_50/reward_mean.npy", allow_pickle=True)
 MA4N50_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_50/reward_std.npy", allow_pickle=True)
@@ -321,7 +362,6 @@ MA4N50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise
 MA4N50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_50/customer_backlog_std.npy", allow_pickle=True)
 MA4N50_profit = np.load("checkpoints/multi_agent/four_stage_noise_50/profit.npy", allow_pickle=True)
 
-MA4D10_results = np.load("checkpoints/multi_agent/four_stage_delay_10/results.npy", allow_pickle=True)
 MA4D10_time = np.load("checkpoints/multi_agent/four_stage_delay_10/time.npy", allow_pickle=True)
 MA4D10_reward_mean = np.load("checkpoints/multi_agent/four_stage_delay_10/reward_mean.npy", allow_pickle=True)
 MA4D10_reward_std = np.load("checkpoints/multi_agent/four_stage_delay_10/reward_std.npy", allow_pickle=True)
@@ -333,7 +373,6 @@ MA4D10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_delay
 MA4D10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_10/customer_backlog_std.npy", allow_pickle=True)
 MA4D10_profit = np.load("checkpoints/multi_agent/four_stage_delay_10/profit.npy", allow_pickle=True)
 
-MA4D20_results = np.load("checkpoints/multi_agent/four_stage_delay_20/results.npy", allow_pickle=True)
 MA4D20_time = np.load("checkpoints/multi_agent/four_stage_delay_20/time.npy", allow_pickle=True)
 MA4D20_reward_mean = np.load("checkpoints/multi_agent/four_stage_delay_20/reward_mean.npy", allow_pickle=True)
 MA4D20_reward_std = np.load("checkpoints/multi_agent/four_stage_delay_20/reward_std.npy", allow_pickle=True)
@@ -345,7 +384,6 @@ MA4D20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_delay
 MA4D20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_20/customer_backlog_std.npy", allow_pickle=True)
 MA4D20_profit = np.load("checkpoints/multi_agent/four_stage_delay_20/profit.npy", allow_pickle=True)
 
-MA4D30_results = np.load("checkpoints/multi_agent/four_stage_delay_30/results.npy", allow_pickle=True)
 MA4D30_time = np.load("checkpoints/multi_agent/four_stage_delay_30/time.npy", allow_pickle=True)
 MA4D30_reward_mean = np.load("checkpoints/multi_agent/four_stage_delay_30/reward_mean.npy", allow_pickle=True)
 MA4D30_reward_std = np.load("checkpoints/multi_agent/four_stage_delay_30/reward_std.npy", allow_pickle=True)
@@ -357,7 +395,6 @@ MA4D30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_delay
 MA4D30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_30/customer_backlog_std.npy", allow_pickle=True)
 MA4D30_profit = np.load("checkpoints/multi_agent/four_stage_delay_30/profit.npy", allow_pickle=True)
 
-MA4N40_results = np.load("checkpoints/multi_agent/four_stage_noise_40/results.npy", allow_pickle=True)
 MA4N40_time = np.load("checkpoints/multi_agent/four_stage_noise_40/time.npy", allow_pickle=True)
 MA4N40_reward_mean = np.load("checkpoints/multi_agent/four_stage_noise_40/reward_mean.npy", allow_pickle=True)
 MA4N40_reward_std = np.load("checkpoints/multi_agent/four_stage_noise_40/reward_std.npy", allow_pickle=True)
@@ -369,7 +406,6 @@ MA4N40_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_noise
 MA4N40_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_noise_40/customer_backlog_std.npy", allow_pickle=True)
 MA4N40_profit = np.load("checkpoints/multi_agent/four_stage_noise_40/profit.npy", allow_pickle=True)
 
-MA4D40_results = np.load("checkpoints/multi_agent/four_stage_delay_40/results.npy", allow_pickle=True)
 MA4D40_time = np.load("checkpoints/multi_agent/four_stage_delay_40/time.npy", allow_pickle=True)
 MA4D40_reward_mean = np.load("checkpoints/multi_agent/four_stage_delay_40/reward_mean.npy", allow_pickle=True)
 MA4D40_reward_std = np.load("checkpoints/multi_agent/four_stage_delay_40/reward_std.npy", allow_pickle=True)
@@ -381,7 +417,6 @@ MA4D40_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_delay
 MA4D40_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_40/customer_backlog_std.npy", allow_pickle=True)
 MA4D40_profit = np.load("checkpoints/multi_agent/four_stage_delay_40/profit.npy", allow_pickle=True)
 
-MA4D50_results = np.load("checkpoints/multi_agent/four_stage_delay_50/results.npy", allow_pickle=True)
 MA4D50_time = np.load("checkpoints/multi_agent/four_stage_delay_50/time.npy", allow_pickle=True)
 MA4D50_reward_mean = np.load("checkpoints/multi_agent/four_stage_delay_50/reward_mean.npy", allow_pickle=True)
 MA4D50_reward_std = np.load("checkpoints/multi_agent/four_stage_delay_50/reward_std.npy", allow_pickle=True)
@@ -392,6 +427,57 @@ MA4D50_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_50/backlo
 MA4D50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_delay_50/customer_backlog_mean.npy", allow_pickle=True)
 MA4D50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_delay_50/customer_backlog_std.npy", allow_pickle=True)
 MA4D50_profit = np.load("checkpoints/multi_agent/four_stage_delay_50/profit.npy", allow_pickle=True)
+
+#%% Load noise trained MA Rl Data
+NMA4N10_time = np.load("checkpoints/multi_agent_noisy_demand/four_stage_10/time.npy", allow_pickle=True)
+NMA4N10_reward_mean = np.load("checkpoints/multi_agent_noisy_demand/four_stage_10/reward_mean.npy", allow_pickle=True)
+NMA4N10_reward_std = np.load("checkpoints/multi_agent_noisy_demand/four_stage_10/reward_std.npy", allow_pickle=True)
+NMA4N10_profit = np.load("checkpoints/multi_agent_noisy_demand/four_stage_10/profit.npy", allow_pickle=True)
+
+NMA4N20_time = np.load("checkpoints/multi_agent_noisy_demand/four_stage_20/time.npy", allow_pickle=True)
+NMA4N20_reward_mean = np.load("checkpoints/multi_agent_noisy_demand/four_stage_20/reward_mean.npy", allow_pickle=True)
+NMA4N20_reward_std = np.load("checkpoints/multi_agent_noisy_demand/four_stage_20/reward_std.npy", allow_pickle=True)
+NMA4N20_profit = np.load("checkpoints/multi_agent_noisy_demand/four_stage_20/profit.npy", allow_pickle=True)
+
+NMA4N30_time = np.load("checkpoints/multi_agent_noisy_demand/four_stage_30/time.npy", allow_pickle=True)
+NMA4N30_reward_mean = np.load("checkpoints/multi_agent_noisy_demand/four_stage_30/reward_mean.npy", allow_pickle=True)
+NMA4N30_reward_std = np.load("checkpoints/multi_agent_noisy_demand/four_stage_30/reward_std.npy", allow_pickle=True)
+NMA4N30_profit = np.load("checkpoints/multi_agent_noisy_demand/four_stage_30/profit.npy", allow_pickle=True)
+
+NMA4N40_time = np.load("checkpoints/multi_agent_noisy_demand/four_stage_40/time.npy", allow_pickle=True)
+NMA4N40_reward_mean = np.load("checkpoints/multi_agent_noisy_demand/four_stage_40/reward_mean.npy", allow_pickle=True)
+NMA4N40_reward_std = np.load("checkpoints/multi_agent_noisy_demand/four_stage_40/reward_std.npy", allow_pickle=True)
+NMA4N40_profit = np.load("checkpoints/multi_agent_noisy_demand/four_stage_40/profit.npy", allow_pickle=True)
+
+NMA4N50_time = np.load("checkpoints/multi_agent_noisy_demand/four_stage_50/time.npy", allow_pickle=True)
+NMA4N50_reward_mean = np.load("checkpoints/multi_agent_noisy_demand/four_stage_50/reward_mean.npy", allow_pickle=True)
+NMA4N50_reward_std = np.load("checkpoints/multi_agent_noisy_demand/four_stage_50/reward_std.npy", allow_pickle=True)
+NMA4N50_profit = np.load("checkpoints/multi_agent_noisy_demand/four_stage_50/profit.npy", allow_pickle=True)
+
+NMA4D10_time = np.load("checkpoints/multi_agent_noisy_delay/four_stage_10/time.npy", allow_pickle=True)
+NMA4D10_reward_mean = np.load("checkpoints/multi_agent_noisy_delay/four_stage_10/reward_mean.npy", allow_pickle=True)
+NMA4D10_reward_std = np.load("checkpoints/multi_agent_noisy_delay/four_stage_10/reward_std.npy", allow_pickle=True)
+NMA4D10_profit = np.load("checkpoints/multi_agent_noisy_delay/four_stage_10/profit.npy", allow_pickle=True)
+
+NMA4D20_time = np.load("checkpoints/multi_agent_noisy_delay/four_stage_20/time.npy", allow_pickle=True)
+NMA4D20_reward_mean = np.load("checkpoints/multi_agent_noisy_delay/four_stage_20/reward_mean.npy", allow_pickle=True)
+NMA4D20_reward_std = np.load("checkpoints/multi_agent_noisy_delay/four_stage_20/reward_std.npy", allow_pickle=True)
+NMA4D20_profit = np.load("checkpoints/multi_agent_noisy_delay/four_stage_20/profit.npy", allow_pickle=True)
+
+NMA4D30_time = np.load("checkpoints/multi_agent_noisy_delay/four_stage_30/time.npy", allow_pickle=True)
+NMA4D30_reward_mean = np.load("checkpoints/multi_agent_noisy_delay/four_stage_30/reward_mean.npy", allow_pickle=True)
+NMA4D30_reward_std = np.load("checkpoints/multi_agent_noisy_delay/four_stage_30/reward_std.npy", allow_pickle=True)
+NMA4D30_profit = np.load("checkpoints/multi_agent_noisy_delay/four_stage_30/profit.npy", allow_pickle=True)
+
+NMA4D40_time = np.load("checkpoints/multi_agent_noisy_delay/four_stage_40/time.npy", allow_pickle=True)
+NMA4D40_reward_mean = np.load("checkpoints/multi_agent_noisy_delay/four_stage_40/reward_mean.npy", allow_pickle=True)
+NMA4D40_reward_std = np.load("checkpoints/multi_agent_noisy_delay/four_stage_40/reward_std.npy", allow_pickle=True)
+NMA4D40_profit = np.load("checkpoints/multi_agent_noisy_delay/four_stage_40/profit.npy", allow_pickle=True)
+
+NMA4D50_time = np.load("checkpoints/multi_agent_noisy_delay/four_stage_50/time.npy", allow_pickle=True)
+NMA4D50_reward_mean = np.load("checkpoints/multi_agent_noisy_delay/four_stage_50/reward_mean.npy", allow_pickle=True)
+NMA4D50_reward_std = np.load("checkpoints/multi_agent_noisy_delay/four_stage_50/reward_std.npy", allow_pickle=True)
+NMA4D50_profit = np.load("checkpoints/multi_agent_noisy_delay/four_stage_50/profit.npy", allow_pickle=True)
 
 #%% Load MA Shared Rl Data
 MAS4_results = np.load("checkpoints/multi_agent/four_stage_share/results.npy", allow_pickle=True)
@@ -442,31 +528,6 @@ MAS8_customer_backlog_mean = np.load("checkpoints/multi_agent/eight_stage_share/
 MAS8_customer_backlog_std = np.load("checkpoints/multi_agent/eight_stage_share/customer_backlog_std.npy", allow_pickle=True)
 MAS8_profit = np.load("checkpoints/multi_agent/eight_stage_share/profit.npy", allow_pickle=True)
 
-MAS4N2_results = np.load("checkpoints/multi_agent/four_stage_share_noise_2/results.npy", allow_pickle=True)
-MAS4N2_time = np.load("checkpoints/multi_agent/four_stage_share_noise_2/time.npy", allow_pickle=True)
-MAS4N2_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_2/reward_mean.npy", allow_pickle=True)
-MAS4N2_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_2/reward_std.npy", allow_pickle=True)
-MAS4N2_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_2/inventory_mean.npy", allow_pickle=True)
-MAS4N2_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_2/inventory_std.npy", allow_pickle=True)
-MAS4N2_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_2/backlog_mean.npy", allow_pickle=True)
-MAS4N2_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_2/backlog_std.npy", allow_pickle=True)
-MAS4N2_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_2/customer_backlog_mean.npy", allow_pickle=True)
-MAS4N2_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_2/customer_backlog_std.npy", allow_pickle=True)
-MAS4N2_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_2/profit.npy", allow_pickle=True)
-
-MAS4N5_results = np.load("checkpoints/multi_agent/four_stage_share_noise_5/results.npy", allow_pickle=True)
-MAS4N5_time = np.load("checkpoints/multi_agent/four_stage_share_noise_5/time.npy", allow_pickle=True)
-MAS4N5_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_5/reward_mean.npy", allow_pickle=True)
-MAS4N5_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_5/reward_std.npy", allow_pickle=True)
-MAS4N5_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_5/inventory_mean.npy", allow_pickle=True)
-MAS4N5_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_5/inventory_std.npy", allow_pickle=True)
-MAS4N5_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_5/backlog_mean.npy", allow_pickle=True)
-MAS4N5_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_5/backlog_std.npy", allow_pickle=True)
-MAS4N5_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_5/customer_backlog_mean.npy", allow_pickle=True)
-MAS4N5_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_5/customer_backlog_std.npy", allow_pickle=True)
-MAS4N5_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_5/profit.npy", allow_pickle=True)
-
-MAS4N10_results = np.load("checkpoints/multi_agent/four_stage_share_noise_10/results.npy", allow_pickle=True)
 MAS4N10_time = np.load("checkpoints/multi_agent/four_stage_share_noise_10/time.npy", allow_pickle=True)
 MAS4N10_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_10/reward_mean.npy", allow_pickle=True)
 MAS4N10_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/reward_std.npy", allow_pickle=True)
@@ -478,7 +539,6 @@ MAS4N10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4N10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/customer_backlog_std.npy", allow_pickle=True)
 MAS4N10_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_10/profit.npy", allow_pickle=True)
 
-MAS4N20_results = np.load("checkpoints/multi_agent/four_stage_share_noise_20/results.npy", allow_pickle=True)
 MAS4N20_time = np.load("checkpoints/multi_agent/four_stage_share_noise_20/time.npy", allow_pickle=True)
 MAS4N20_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_20/reward_mean.npy", allow_pickle=True)
 MAS4N20_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/reward_std.npy", allow_pickle=True)
@@ -490,7 +550,6 @@ MAS4N20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4N20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/customer_backlog_std.npy", allow_pickle=True)
 MAS4N20_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_20/profit.npy", allow_pickle=True)
 
-MAS4N30_results = np.load("checkpoints/multi_agent/four_stage_share_noise_30/results.npy", allow_pickle=True)
 MAS4N30_time = np.load("checkpoints/multi_agent/four_stage_share_noise_30/time.npy", allow_pickle=True)
 MAS4N30_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_30/reward_mean.npy", allow_pickle=True)
 MAS4N30_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/reward_std.npy", allow_pickle=True)
@@ -502,55 +561,6 @@ MAS4N30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4N30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/customer_backlog_std.npy", allow_pickle=True)
 MAS4N30_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_30/profit.npy", allow_pickle=True)
 
-MAS4N50_results = np.load("checkpoints/multi_agent/four_stage_share_noise_50/results.npy", allow_pickle=True)
-MAS4N50_time = np.load("checkpoints/multi_agent/four_stage_share_noise_50/time.npy", allow_pickle=True)
-MAS4N50_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_mean.npy", allow_pickle=True)
-MAS4N50_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_std.npy", allow_pickle=True)
-MAS4N50_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_mean.npy", allow_pickle=True)
-MAS4N50_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_std.npy", allow_pickle=True)
-MAS4N50_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_mean.npy", allow_pickle=True)
-MAS4N50_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_std.npy", allow_pickle=True)
-MAS4N50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_mean.npy", allow_pickle=True)
-MAS4N50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_std.npy", allow_pickle=True)
-MAS4N50_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_50/profit.npy", allow_pickle=True)
-
-MAS4D10_results = np.load("checkpoints/multi_agent/four_stage_share_delay_10/results.npy", allow_pickle=True)
-MAS4D10_time = np.load("checkpoints/multi_agent/four_stage_share_delay_10/time.npy", allow_pickle=True)
-MAS4D10_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/reward_mean.npy", allow_pickle=True)
-MAS4D10_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/reward_std.npy", allow_pickle=True)
-MAS4D10_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/inventory_mean.npy", allow_pickle=True)
-MAS4D10_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/inventory_std.npy", allow_pickle=True)
-MAS4D10_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/backlog_mean.npy", allow_pickle=True)
-MAS4D10_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/backlog_std.npy", allow_pickle=True)
-MAS4D10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/customer_backlog_mean.npy", allow_pickle=True)
-MAS4D10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/customer_backlog_std.npy", allow_pickle=True)
-MAS4D10_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_10/profit.npy", allow_pickle=True)
-
-MAS4D20_results = np.load("checkpoints/multi_agent/four_stage_share_delay_20/results.npy", allow_pickle=True)
-MAS4D20_time = np.load("checkpoints/multi_agent/four_stage_share_delay_20/time.npy", allow_pickle=True)
-MAS4D20_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/reward_mean.npy", allow_pickle=True)
-MAS4D20_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/reward_std.npy", allow_pickle=True)
-MAS4D20_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/inventory_mean.npy", allow_pickle=True)
-MAS4D20_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/inventory_std.npy", allow_pickle=True)
-MAS4D20_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/backlog_mean.npy", allow_pickle=True)
-MAS4D20_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/backlog_std.npy", allow_pickle=True)
-MAS4D20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/customer_backlog_mean.npy", allow_pickle=True)
-MAS4D20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/customer_backlog_std.npy", allow_pickle=True)
-MAS4D20_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_20/profit.npy", allow_pickle=True)
-
-MAS4D30_results = np.load("checkpoints/multi_agent/four_stage_share_delay_30/results.npy", allow_pickle=True)
-MAS4D30_time = np.load("checkpoints/multi_agent/four_stage_share_delay_30/time.npy", allow_pickle=True)
-MAS4D30_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/reward_mean.npy", allow_pickle=True)
-MAS4D30_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/reward_std.npy", allow_pickle=True)
-MAS4D30_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/inventory_mean.npy", allow_pickle=True)
-MAS4D30_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/inventory_std.npy", allow_pickle=True)
-MAS4D30_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/backlog_mean.npy", allow_pickle=True)
-MAS4D30_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/backlog_std.npy", allow_pickle=True)
-MAS4D30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/customer_backlog_mean.npy", allow_pickle=True)
-MAS4D30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/customer_backlog_std.npy", allow_pickle=True)
-MAS4D30_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_30/profit.npy", allow_pickle=True)
-
-MAS4N40_results = np.load("checkpoints/multi_agent/four_stage_share_noise_40/results.npy", allow_pickle=True)
 MAS4N40_time = np.load("checkpoints/multi_agent/four_stage_share_noise_40/time.npy", allow_pickle=True)
 MAS4N40_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_40/reward_mean.npy", allow_pickle=True)
 MAS4N40_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_40/reward_std.npy", allow_pickle=True)
@@ -562,7 +572,50 @@ MAS4N40_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4N40_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_40/customer_backlog_std.npy", allow_pickle=True)
 MAS4N40_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_40/profit.npy", allow_pickle=True)
 
-MAS4D40_results = np.load("checkpoints/multi_agent/four_stage_share_delay_40/results.npy", allow_pickle=True)
+MAS4N50_time = np.load("checkpoints/multi_agent/four_stage_share_noise_50/time.npy", allow_pickle=True)
+MAS4N50_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_mean.npy", allow_pickle=True)
+MAS4N50_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_std.npy", allow_pickle=True)
+MAS4N50_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_mean.npy", allow_pickle=True)
+MAS4N50_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_std.npy", allow_pickle=True)
+MAS4N50_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_mean.npy", allow_pickle=True)
+MAS4N50_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_std.npy", allow_pickle=True)
+MAS4N50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_mean.npy", allow_pickle=True)
+MAS4N50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_std.npy", allow_pickle=True)
+MAS4N50_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_50/profit.npy", allow_pickle=True)
+
+MAS4D10_time = np.load("checkpoints/multi_agent/four_stage_share_delay_10/time.npy", allow_pickle=True)
+MAS4D10_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/reward_mean.npy", allow_pickle=True)
+MAS4D10_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/reward_std.npy", allow_pickle=True)
+MAS4D10_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/inventory_mean.npy", allow_pickle=True)
+MAS4D10_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/inventory_std.npy", allow_pickle=True)
+MAS4D10_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/backlog_mean.npy", allow_pickle=True)
+MAS4D10_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/backlog_std.npy", allow_pickle=True)
+MAS4D10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_10/customer_backlog_mean.npy", allow_pickle=True)
+MAS4D10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_10/customer_backlog_std.npy", allow_pickle=True)
+MAS4D10_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_10/profit.npy", allow_pickle=True)
+
+MAS4D20_time = np.load("checkpoints/multi_agent/four_stage_share_delay_20/time.npy", allow_pickle=True)
+MAS4D20_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/reward_mean.npy", allow_pickle=True)
+MAS4D20_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/reward_std.npy", allow_pickle=True)
+MAS4D20_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/inventory_mean.npy", allow_pickle=True)
+MAS4D20_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/inventory_std.npy", allow_pickle=True)
+MAS4D20_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/backlog_mean.npy", allow_pickle=True)
+MAS4D20_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/backlog_std.npy", allow_pickle=True)
+MAS4D20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_20/customer_backlog_mean.npy", allow_pickle=True)
+MAS4D20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_20/customer_backlog_std.npy", allow_pickle=True)
+MAS4D20_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_20/profit.npy", allow_pickle=True)
+
+MAS4D30_time = np.load("checkpoints/multi_agent/four_stage_share_delay_30/time.npy", allow_pickle=True)
+MAS4D30_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/reward_mean.npy", allow_pickle=True)
+MAS4D30_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/reward_std.npy", allow_pickle=True)
+MAS4D30_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/inventory_mean.npy", allow_pickle=True)
+MAS4D30_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/inventory_std.npy", allow_pickle=True)
+MAS4D30_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/backlog_mean.npy", allow_pickle=True)
+MAS4D30_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/backlog_std.npy", allow_pickle=True)
+MAS4D30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_30/customer_backlog_mean.npy", allow_pickle=True)
+MAS4D30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_30/customer_backlog_std.npy", allow_pickle=True)
+MAS4D30_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_30/profit.npy", allow_pickle=True)
+
 MAS4D40_time = np.load("checkpoints/multi_agent/four_stage_share_delay_40/time.npy", allow_pickle=True)
 MAS4D40_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_40/reward_mean.npy", allow_pickle=True)
 MAS4D40_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_40/reward_std.npy", allow_pickle=True)
@@ -574,7 +627,6 @@ MAS4D40_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4D40_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_40/customer_backlog_std.npy", allow_pickle=True)
 MAS4D40_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_40/profit.npy", allow_pickle=True)
 
-MAS4D50_results = np.load("checkpoints/multi_agent/four_stage_share_delay_50/results.npy", allow_pickle=True)
 MAS4D50_time = np.load("checkpoints/multi_agent/four_stage_share_delay_50/time.npy", allow_pickle=True)
 MAS4D50_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_delay_50/reward_mean.npy", allow_pickle=True)
 MAS4D50_reward_std = np.load("checkpoints/multi_agent/four_stage_share_delay_50/reward_std.npy", allow_pickle=True)
@@ -586,6 +638,100 @@ MAS4D50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_shar
 MAS4D50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_delay_50/customer_backlog_std.npy", allow_pickle=True)
 MAS4D50_profit = np.load("checkpoints/multi_agent/four_stage_share_delay_50/profit.npy", allow_pickle=True)
 
+MAS4N10_time = np.load("checkpoints/multi_agent/four_stage_share_noise_10/time.npy", allow_pickle=True)
+MAS4N10_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_10/reward_mean.npy", allow_pickle=True)
+MAS4N10_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/reward_std.npy", allow_pickle=True)
+MAS4N10_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_10/inventory_mean.npy", allow_pickle=True)
+MAS4N10_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/inventory_std.npy", allow_pickle=True)
+MAS4N10_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_10/backlog_mean.npy", allow_pickle=True)
+MAS4N10_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/backlog_std.npy", allow_pickle=True)
+MAS4N10_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_10/customer_backlog_mean.npy", allow_pickle=True)
+MAS4N10_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_10/customer_backlog_std.npy", allow_pickle=True)
+MAS4N10_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_10/profit.npy", allow_pickle=True)
+
+MAS4N20_time = np.load("checkpoints/multi_agent/four_stage_share_noise_20/time.npy", allow_pickle=True)
+MAS4N20_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_20/reward_mean.npy", allow_pickle=True)
+MAS4N20_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/reward_std.npy", allow_pickle=True)
+MAS4N20_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_20/inventory_mean.npy", allow_pickle=True)
+MAS4N20_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/inventory_std.npy", allow_pickle=True)
+MAS4N20_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_20/backlog_mean.npy", allow_pickle=True)
+MAS4N20_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/backlog_std.npy", allow_pickle=True)
+MAS4N20_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_20/customer_backlog_mean.npy", allow_pickle=True)
+MAS4N20_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_20/customer_backlog_std.npy", allow_pickle=True)
+MAS4N20_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_20/profit.npy", allow_pickle=True)
+
+MAS4N30_time = np.load("checkpoints/multi_agent/four_stage_share_noise_30/time.npy", allow_pickle=True)
+MAS4N30_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_30/reward_mean.npy", allow_pickle=True)
+MAS4N30_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/reward_std.npy", allow_pickle=True)
+MAS4N30_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_30/inventory_mean.npy", allow_pickle=True)
+MAS4N30_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/inventory_std.npy", allow_pickle=True)
+MAS4N30_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_30/backlog_mean.npy", allow_pickle=True)
+MAS4N30_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/backlog_std.npy", allow_pickle=True)
+MAS4N30_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_30/customer_backlog_mean.npy", allow_pickle=True)
+MAS4N30_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_30/customer_backlog_std.npy", allow_pickle=True)
+MAS4N30_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_30/profit.npy", allow_pickle=True)
+
+MAS4N50_time = np.load("checkpoints/multi_agent/four_stage_share_noise_50/time.npy", allow_pickle=True)
+MAS4N50_reward_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_mean.npy", allow_pickle=True)
+MAS4N50_reward_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/reward_std.npy", allow_pickle=True)
+MAS4N50_inventory_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_mean.npy", allow_pickle=True)
+MAS4N50_inventory_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/inventory_std.npy", allow_pickle=True)
+MAS4N50_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_mean.npy", allow_pickle=True)
+MAS4N50_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/backlog_std.npy", allow_pickle=True)
+MAS4N50_customer_backlog_mean = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_mean.npy", allow_pickle=True)
+MAS4N50_customer_backlog_std = np.load("checkpoints/multi_agent/four_stage_share_noise_50/customer_backlog_std.npy", allow_pickle=True)
+MAS4N50_profit = np.load("checkpoints/multi_agent/four_stage_share_noise_50/profit.npy", allow_pickle=True)
+
+#%% Load noise trained MA Shared Rl Data
+NMAS4N10_time = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_10/time.npy", allow_pickle=True)
+NMAS4N10_reward_mean = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_10/reward_mean.npy", allow_pickle=True)
+NMAS4N10_reward_std = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_10/reward_std.npy", allow_pickle=True)
+NMAS4N10_profit = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_10/profit.npy", allow_pickle=True)
+
+NMAS4N20_time = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_20/time.npy", allow_pickle=True)
+NMAS4N20_reward_mean = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_20/reward_mean.npy", allow_pickle=True)
+NMAS4N20_reward_std = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_20/reward_std.npy", allow_pickle=True)
+NMAS4N20_profit = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_20/profit.npy", allow_pickle=True)
+
+NMAS4N30_time = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_30/time.npy", allow_pickle=True)
+NMAS4N30_reward_mean = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_30/reward_mean.npy", allow_pickle=True)
+NMAS4N30_reward_std = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_30/reward_std.npy", allow_pickle=True)
+NMAS4N30_profit = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_30/profit.npy", allow_pickle=True)
+
+NMAS4N40_time = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_40/time.npy", allow_pickle=True)
+NMAS4N40_reward_mean = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_40/reward_mean.npy", allow_pickle=True)
+NMAS4N40_reward_std = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_40/reward_std.npy", allow_pickle=True)
+NMAS4N40_profit = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_40/profit.npy", allow_pickle=True)
+
+NMAS4N50_time = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_50/time.npy", allow_pickle=True)
+NMAS4N50_reward_mean = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_50/reward_mean.npy", allow_pickle=True)
+NMAS4N50_reward_std = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_50/reward_std.npy", allow_pickle=True)
+NMAS4N50_profit = np.load("checkpoints/multi_agent_share_noisy_demand/four_stage_50/profit.npy", allow_pickle=True)
+
+NMAS4D10_time = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_10/time.npy", allow_pickle=True)
+NMAS4D10_reward_mean = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_10/reward_mean.npy", allow_pickle=True)
+NMAS4D10_reward_std = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_10/reward_std.npy", allow_pickle=True)
+NMAS4D10_profit = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_10/profit.npy", allow_pickle=True)
+
+NMAS4D20_time = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_20/time.npy", allow_pickle=True)
+NMAS4D20_reward_mean = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_20/reward_mean.npy", allow_pickle=True)
+NMAS4D20_reward_std = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_20/reward_std.npy", allow_pickle=True)
+NMAS4D20_profit = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_20/profit.npy", allow_pickle=True)
+
+NMAS4D30_time = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_30/time.npy", allow_pickle=True)
+NMAS4D30_reward_mean = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_30/reward_mean.npy", allow_pickle=True)
+NMAS4D30_reward_std = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_30/reward_std.npy", allow_pickle=True)
+NMAS4D30_profit = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_30/profit.npy", allow_pickle=True)
+
+NMAS4D40_time = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_40/time.npy", allow_pickle=True)
+NMAS4D40_reward_mean = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_40/reward_mean.npy", allow_pickle=True)
+NMAS4D40_reward_std = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_40/reward_std.npy", allow_pickle=True)
+NMAS4D40_profit = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_40/profit.npy", allow_pickle=True)
+
+NMAS4D50_time = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_50/time.npy", allow_pickle=True)
+NMAS4D50_reward_mean = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_50/reward_mean.npy", allow_pickle=True)
+NMAS4D50_reward_std = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_50/reward_std.npy", allow_pickle=True)
+NMAS4D50_profit = np.load("checkpoints/multi_agent_share_noisy_delay/four_stage_50/profit.npy", allow_pickle=True)
 #%% Load CC Rl Data
 CC4_results = np.load("checkpoints/cc_agent/four_stage/results.npy", allow_pickle=True)
 CC4_time = np.load("checkpoints/cc_agent/four_stage/time.npy", allow_pickle=True)
@@ -778,6 +924,67 @@ CC4D50_backlog_std = np.load("checkpoints/cc_agent/four_stage_delay_50/backlog_s
 CC4D50_customer_backlog_mean = np.load("checkpoints/cc_agent/four_stage_delay_50/customer_backlog_mean.npy", allow_pickle=True)
 CC4D50_customer_backlog_std = np.load("checkpoints/cc_agent/four_stage_delay_50/customer_backlog_std.npy", allow_pickle=True)
 CC4D50_profit = np.load("checkpoints/cc_agent/four_stage_delay_50/profit.npy", allow_pickle=True)
+
+#%% Load noise trained CC Rl Data
+NCC4N10_results = np.load("checkpoints/cc_agent_noisy_demand/four_stage_10/results.npy", allow_pickle=True)
+NCC4N10_time = np.load("checkpoints/cc_agent_noisy_demand/four_stage_10/time.npy", allow_pickle=True)
+NCC4N10_reward_mean = np.load("checkpoints/cc_agent_noisy_demand/four_stage_10/reward_mean.npy", allow_pickle=True)
+NCC4N10_reward_std = np.load("checkpoints/cc_agent_noisy_demand/four_stage_10/reward_std.npy", allow_pickle=True)
+NCC4N10_profit = np.load("checkpoints/cc_agent_noisy_demand/four_stage_10/profit.npy", allow_pickle=True)
+
+NCC4N20_results = np.load("checkpoints/cc_agent_noisy_demand/four_stage_20/results.npy", allow_pickle=True)
+NCC4N20_time = np.load("checkpoints/cc_agent_noisy_demand/four_stage_20/time.npy", allow_pickle=True)
+NCC4N20_reward_mean = np.load("checkpoints/cc_agent_noisy_demand/four_stage_20/reward_mean.npy", allow_pickle=True)
+NCC4N20_reward_std = np.load("checkpoints/cc_agent_noisy_demand/four_stage_20/reward_std.npy", allow_pickle=True)
+NCC4N20_profit = np.load("checkpoints/cc_agent_noisy_demand/four_stage_20/profit.npy", allow_pickle=True)
+
+NCC4N30_results = np.load("checkpoints/cc_agent_noisy_demand/four_stage_30/results.npy", allow_pickle=True)
+NCC4N30_time = np.load("checkpoints/cc_agent_noisy_demand/four_stage_30/time.npy", allow_pickle=True)
+NCC4N30_reward_mean = np.load("checkpoints/cc_agent_noisy_demand/four_stage_30/reward_mean.npy", allow_pickle=True)
+NCC4N30_reward_std = np.load("checkpoints/cc_agent_noisy_demand/four_stage_30/reward_std.npy", allow_pickle=True)
+NCC4N30_profit = np.load("checkpoints/cc_agent_noisy_demand/four_stage_30/profit.npy", allow_pickle=True)
+
+NCC4N40_results = np.load("checkpoints/cc_agent_noisy_demand/four_stage_40/results.npy", allow_pickle=True)
+NCC4N40_time = np.load("checkpoints/cc_agent_noisy_demand/four_stage_40/time.npy", allow_pickle=True)
+NCC4N40_reward_mean = np.load("checkpoints/cc_agent_noisy_demand/four_stage_40/reward_mean.npy", allow_pickle=True)
+NCC4N40_reward_std = np.load("checkpoints/cc_agent_noisy_demand/four_stage_40/reward_std.npy", allow_pickle=True)
+NCC4N40_profit = np.load("checkpoints/cc_agent_noisy_demand/four_stage_40/profit.npy", allow_pickle=True)
+
+NCC4N50_results = np.load("checkpoints/cc_agent_noisy_demand/four_stage_50/results.npy", allow_pickle=True)
+NCC4N50_time = np.load("checkpoints/cc_agent_noisy_demand/four_stage_50/time.npy", allow_pickle=True)
+NCC4N50_reward_mean = np.load("checkpoints/cc_agent_noisy_demand/four_stage_50/reward_mean.npy", allow_pickle=True)
+NCC4N50_reward_std = np.load("checkpoints/cc_agent_noisy_demand/four_stage_50/reward_std.npy", allow_pickle=True)
+NCC4N50_profit = np.load("checkpoints/cc_agent_noisy_demand/four_stage_50/profit.npy", allow_pickle=True)
+
+NCC4D10_results = np.load("checkpoints/cc_agent_noisy_delay/four_stage_10/results.npy", allow_pickle=True)
+NCC4D10_time = np.load("checkpoints/cc_agent_noisy_delay/four_stage_10/time.npy", allow_pickle=True)
+NCC4D10_reward_mean = np.load("checkpoints/cc_agent_noisy_delay/four_stage_10/reward_mean.npy", allow_pickle=True)
+NCC4D10_reward_std = np.load("checkpoints/cc_agent_noisy_delay/four_stage_10/reward_std.npy", allow_pickle=True)
+NCC4D10_profit = np.load("checkpoints/cc_agent_noisy_delay/four_stage_10/profit.npy", allow_pickle=True)
+
+NCC4D20_results = np.load("checkpoints/cc_agent_noisy_delay/four_stage_20/results.npy", allow_pickle=True)
+NCC4D20_time = np.load("checkpoints/cc_agent_noisy_delay/four_stage_20/time.npy", allow_pickle=True)
+NCC4D20_reward_mean = np.load("checkpoints/cc_agent_noisy_delay/four_stage_20/reward_mean.npy", allow_pickle=True)
+NCC4D20_reward_std = np.load("checkpoints/cc_agent_noisy_delay/four_stage_20/reward_std.npy", allow_pickle=True)
+NCC4D20_profit = np.load("checkpoints/cc_agent_noisy_delay/four_stage_20/profit.npy", allow_pickle=True)
+
+NCC4D30_results = np.load("checkpoints/cc_agent_noisy_delay/four_stage_30/results.npy", allow_pickle=True)
+NCC4D30_time = np.load("checkpoints/cc_agent_noisy_delay/four_stage_30/time.npy", allow_pickle=True)
+NCC4D30_reward_mean = np.load("checkpoints/cc_agent_noisy_delay/four_stage_30/reward_mean.npy", allow_pickle=True)
+NCC4D30_reward_std = np.load("checkpoints/cc_agent_noisy_delay/four_stage_30/reward_std.npy", allow_pickle=True)
+NCC4D30_profit = np.load("checkpoints/cc_agent_noisy_delay/four_stage_30/profit.npy", allow_pickle=True)
+
+NCC4D40_results = np.load("checkpoints/cc_agent_noisy_delay/four_stage_40/results.npy", allow_pickle=True)
+NCC4D40_time = np.load("checkpoints/cc_agent_noisy_delay/four_stage_40/time.npy", allow_pickle=True)
+NCC4D40_reward_mean = np.load("checkpoints/cc_agent_noisy_delay/four_stage_40/reward_mean.npy", allow_pickle=True)
+NCC4D40_reward_std = np.load("checkpoints/cc_agent_noisy_delay/four_stage_40/reward_std.npy", allow_pickle=True)
+NCC4D40_profit = np.load("checkpoints/cc_agent_noisy_delay/four_stage_40/profit.npy", allow_pickle=True)
+
+NCC4D50_results = np.load("checkpoints/cc_agent_noisy_delay/four_stage_50/results.npy", allow_pickle=True)
+NCC4D50_time = np.load("checkpoints/cc_agent_noisy_delay/four_stage_50/time.npy", allow_pickle=True)
+NCC4D50_reward_mean = np.load("checkpoints/cc_agent_noisy_delay/four_stage_50/reward_mean.npy", allow_pickle=True)
+NCC4D50_reward_std = np.load("checkpoints/cc_agent_noisy_delay/four_stage_50/reward_std.npy", allow_pickle=True)
+NCC4D50_profit = np.load("checkpoints/cc_agent_noisy_delay/four_stage_50/profit.npy", allow_pickle=True)
 #%% Load DFO Data
 DFO4_reward_mean = np.load("checkpoints/single_agent/four_stage/dfo_mean.npy", allow_pickle=True)
 DFO4_reward_std = np.load("checkpoints/single_agent/four_stage/dfo_std.npy", allow_pickle=True)
@@ -1255,12 +1462,162 @@ DecLP4D50_backlog_std = np.load("LP_results/four_stage_delay_50/DecLP/backlog_st
 DecLP4D50_customer_backlog_mean = np.load("LP_results/four_stage_delay_50/DecLP/customer_backlog_mean.npy", allow_pickle=True)
 DecLP4D50_customer_backlog_std = np.load("LP_results/four_stage_delay_50/DecLP/customer_backlog_std.npy", allow_pickle=True)
 DecLP4D50_profit = np.load("LP_results/four_stage_delay_50/DecLP/profit.npy", allow_pickle=True)
+#%% Load DSHLP Data
+DSHLP4_time = np.load("LP_results/four_stage/DSHLP/time.npy", allow_pickle=True)
+DSHLP4_reward_mean = np.load("LP_results/four_stage/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4_reward_std = np.load("LP_results/four_stage/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4_inventory_mean = np.load("LP_results/four_stage/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4_inventory_std = np.load("LP_results/four_stage/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4_backlog_mean = np.load("LP_results/four_stage/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4_backlog_std = np.load("LP_results/four_stage/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4_customer_backlog_mean = np.load("LP_results/four_stage/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4_customer_backlog_std = np.load("LP_results/four_stage/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4_profit = np.load("LP_results/four_stage/DSHLP/profit.npy", allow_pickle=True)
 
+DSHLP2_time = np.load("LP_results/two_stage/DSHLP/time.npy", allow_pickle=True)
+DSHLP2_reward_mean = np.load("LP_results/two_stage/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP2_reward_std = np.load("LP_results/two_stage/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP2_inventory_mean = np.load("LP_results/two_stage/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP2_inventory_std = np.load("LP_results/two_stage/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP2_backlog_mean = np.load("LP_results/two_stage/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP2_backlog_std = np.load("LP_results/two_stage/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP2_customer_backlog_mean = np.load("LP_results/two_stage/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP2_customer_backlog_std = np.load("LP_results/two_stage/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP2_profit = np.load("LP_results/two_stage/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP8_time = np.load("LP_results/eight_stage/DSHLP/time.npy", allow_pickle=True)
+DSHLP8_reward_mean = np.load("LP_results/eight_stage/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP8_reward_std = np.load("LP_results/eight_stage/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP8_inventory_mean = np.load("LP_results/eight_stage/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP8_inventory_std = np.load("LP_results/eight_stage/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP8_backlog_mean = np.load("LP_results/eight_stage/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP8_backlog_std = np.load("LP_results/eight_stage/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP8_customer_backlog_mean = np.load("LP_results/eight_stage/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP8_customer_backlog_std = np.load("LP_results/eight_stage/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP8_profit = np.load("LP_results/eight_stage/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4N10_time = np.load("LP_results/four_stage_noise_10/DSHLP/time.npy", allow_pickle=True)
+DSHLP4N10_reward_mean = np.load("LP_results/four_stage_noise_10/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4N10_reward_std = np.load("LP_results/four_stage_noise_10/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4N10_inventory_mean = np.load("LP_results/four_stage_noise_10/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4N10_inventory_std = np.load("LP_results/four_stage_noise_10/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4N10_backlog_mean = np.load("LP_results/four_stage_noise_10/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4N10_backlog_std = np.load("LP_results/four_stage_noise_10/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4N10_customer_backlog_mean = np.load("LP_results/four_stage_noise_10/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4N10_customer_backlog_std = np.load("LP_results/four_stage_noise_10/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4N10_profit = np.load("LP_results/four_stage_noise_10/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4N20_time = np.load("LP_results/four_stage_noise_20/DSHLP/time.npy", allow_pickle=True)
+DSHLP4N20_reward_mean = np.load("LP_results/four_stage_noise_20/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4N20_reward_std = np.load("LP_results/four_stage_noise_20/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4N20_inventory_mean = np.load("LP_results/four_stage_noise_20/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4N20_inventory_std = np.load("LP_results/four_stage_noise_20/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4N20_backlog_mean = np.load("LP_results/four_stage_noise_20/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4N20_backlog_std = np.load("LP_results/four_stage_noise_20/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4N20_customer_backlog_mean = np.load("LP_results/four_stage_noise_20/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4N20_customer_backlog_std = np.load("LP_results/four_stage_noise_20/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4N20_profit = np.load("LP_results/four_stage_noise_20/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4N30_time = np.load("LP_results/four_stage_noise_30/DSHLP/time.npy", allow_pickle=True)
+DSHLP4N30_reward_mean = np.load("LP_results/four_stage_noise_30/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4N30_reward_std = np.load("LP_results/four_stage_noise_30/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4N30_inventory_mean = np.load("LP_results/four_stage_noise_30/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4N30_inventory_std = np.load("LP_results/four_stage_noise_30/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4N30_backlog_mean = np.load("LP_results/four_stage_noise_30/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4N30_backlog_std = np.load("LP_results/four_stage_noise_30/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4N30_customer_backlog_mean = np.load("LP_results/four_stage_noise_30/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4N30_customer_backlog_std = np.load("LP_results/four_stage_noise_30/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4N30_profit = np.load("LP_results/four_stage_noise_30/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4N40_time = np.load("LP_results/four_stage_noise_40/DSHLP/time.npy", allow_pickle=True)
+DSHLP4N40_reward_mean = np.load("LP_results/four_stage_noise_40/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4N40_reward_std = np.load("LP_results/four_stage_noise_40/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4N40_inventory_mean = np.load("LP_results/four_stage_noise_40/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4N40_inventory_std = np.load("LP_results/four_stage_noise_40/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4N40_backlog_mean = np.load("LP_results/four_stage_noise_40/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4N40_backlog_std = np.load("LP_results/four_stage_noise_40/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4N40_customer_backlog_mean = np.load("LP_results/four_stage_noise_40/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4N40_customer_backlog_std = np.load("LP_results/four_stage_noise_40/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4N40_profit = np.load("LP_results/four_stage_noise_40/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4N50_time = np.load("LP_results/four_stage_noise_50/DSHLP/time.npy", allow_pickle=True)
+DSHLP4N50_reward_mean = np.load("LP_results/four_stage_noise_50/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4N50_reward_std = np.load("LP_results/four_stage_noise_50/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4N50_inventory_mean = np.load("LP_results/four_stage_noise_50/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4N50_inventory_std = np.load("LP_results/four_stage_noise_50/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4N50_backlog_mean = np.load("LP_results/four_stage_noise_50/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4N50_backlog_std = np.load("LP_results/four_stage_noise_50/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4N50_customer_backlog_mean = np.load("LP_results/four_stage_noise_50/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4N50_customer_backlog_std = np.load("LP_results/four_stage_noise_50/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4N50_profit = np.load("LP_results/four_stage_noise_50/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4D10_time = np.load("LP_results/four_stage_delay_10/DSHLP/time.npy", allow_pickle=True)
+DSHLP4D10_reward_mean = np.load("LP_results/four_stage_delay_10/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4D10_reward_std = np.load("LP_results/four_stage_delay_10/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4D10_inventory_mean = np.load("LP_results/four_stage_delay_10/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4D10_inventory_std = np.load("LP_results/four_stage_delay_10/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4D10_backlog_mean = np.load("LP_results/four_stage_delay_10/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4D10_backlog_std = np.load("LP_results/four_stage_delay_10/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4D10_customer_backlog_mean = np.load("LP_results/four_stage_delay_10/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4D10_customer_backlog_std = np.load("LP_results/four_stage_delay_10/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4D10_profit = np.load("LP_results/four_stage_delay_10/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4D20_time = np.load("LP_results/four_stage_delay_20/DSHLP/time.npy", allow_pickle=True)
+DSHLP4D20_reward_mean = np.load("LP_results/four_stage_delay_20/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4D20_reward_std = np.load("LP_results/four_stage_delay_20/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4D20_inventory_mean = np.load("LP_results/four_stage_delay_20/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4D20_inventory_std = np.load("LP_results/four_stage_delay_20/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4D20_backlog_mean = np.load("LP_results/four_stage_delay_20/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4D20_backlog_std = np.load("LP_results/four_stage_delay_20/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4D20_customer_backlog_mean = np.load("LP_results/four_stage_delay_20/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4D20_customer_backlog_std = np.load("LP_results/four_stage_delay_20/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4D20_profit = np.load("LP_results/four_stage_delay_20/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4D30_time = np.load("LP_results/four_stage_delay_30/DSHLP/time.npy", allow_pickle=True)
+DSHLP4D30_reward_mean = np.load("LP_results/four_stage_delay_30/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4D30_reward_std = np.load("LP_results/four_stage_delay_30/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4D30_inventory_mean = np.load("LP_results/four_stage_delay_30/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4D30_inventory_std = np.load("LP_results/four_stage_delay_30/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4D30_backlog_mean = np.load("LP_results/four_stage_delay_30/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4D30_backlog_std = np.load("LP_results/four_stage_delay_30/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4D30_customer_backlog_mean = np.load("LP_results/four_stage_delay_30/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4D30_customer_backlog_std = np.load("LP_results/four_stage_delay_30/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4D30_profit = np.load("LP_results/four_stage_delay_30/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4D40_time = np.load("LP_results/four_stage_delay_40/DSHLP/time.npy", allow_pickle=True)
+DSHLP4D40_reward_mean = np.load("LP_results/four_stage_delay_40/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4D40_reward_std = np.load("LP_results/four_stage_delay_40/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4D40_inventory_mean = np.load("LP_results/four_stage_delay_40/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4D40_inventory_std = np.load("LP_results/four_stage_delay_40/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4D40_backlog_mean = np.load("LP_results/four_stage_delay_40/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4D40_backlog_std = np.load("LP_results/four_stage_delay_40/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4D40_customer_backlog_mean = np.load("LP_results/four_stage_delay_40/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4D40_customer_backlog_std = np.load("LP_results/four_stage_delay_40/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4D40_profit = np.load("LP_results/four_stage_delay_40/DSHLP/profit.npy", allow_pickle=True)
+
+DSHLP4D50_time = np.load("LP_results/four_stage_delay_50/DSHLP/time.npy", allow_pickle=True)
+DSHLP4D50_reward_mean = np.load("LP_results/four_stage_delay_50/DSHLP/reward_mean.npy", allow_pickle=True)
+DSHLP4D50_reward_std = np.load("LP_results/four_stage_delay_50/DSHLP/reward_std.npy", allow_pickle=True)
+DSHLP4D50_inventory_mean = np.load("LP_results/four_stage_delay_50/DSHLP/inventory_mean.npy", allow_pickle=True)
+DSHLP4D50_inventory_std = np.load("LP_results/four_stage_delay_50/DSHLP/inventory_std.npy", allow_pickle=True)
+DSHLP4D50_backlog_mean = np.load("LP_results/four_stage_delay_50/DSHLP/backlog_mean.npy", allow_pickle=True)
+DSHLP4D50_backlog_std = np.load("LP_results/four_stage_delay_50/DSHLP/backlog_std.npy", allow_pickle=True)
+DSHLP4D50_customer_backlog_mean = np.load("LP_results/four_stage_delay_50/DSHLP/customer_backlog_mean.npy", allow_pickle=True)
+DSHLP4D50_customer_backlog_std = np.load("LP_results/four_stage_delay_50/DSHLP/customer_backlog_std.npy", allow_pickle=True)
+DSHLP4D50_profit = np.load("LP_results/four_stage_delay_50/DSHLP/profit.npy", allow_pickle=True)
+
+ORDSHLP_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP/reward_mean.npy", allow_pickle=True)
+ORDSHLPN10_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP_n10/reward_mean.npy", allow_pickle=True)
+ORDSHLPN20_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP_n20/reward_mean.npy", allow_pickle=True)
+ORDSHLPN30_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP_n30/reward_mean.npy", allow_pickle=True)
+ORDSHLPN40_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP_n40/reward_mean.npy", allow_pickle=True)
+ORDSHLPN50_reward_mean = np.load("LP_results/four_stage/Oracle_DSHLP_n50/reward_mean.npy", allow_pickle=True)
 #%% Plots
 colour_dict = {}
 colour_dict['OR'] = 'k'
 colour_dict['SHLP'] = 'tab:red'
-colour_dict['DecLP'] = 'tab:orange'
+colour_dict['DSHLP'] = 'tab:orange'
+colour_dict['DecLP'] = 'yellow'
 colour_dict['S'] = 'tab:blue'
 colour_dict['MA'] = 'salmon'
 colour_dict['MAS'] = 'tab:cyan'
@@ -1268,30 +1625,47 @@ colour_dict['CC'] = 'tab:green'
 colour_dict['DFO'] = 'indigo'
 
 #%% Demand Noise Plots
-demand_noise = [0, 2, 5, 10, 20, 30, 40, 50]
-OR_N_mean = np.array([OR4_reward_mean, OR4N2_reward_mean, OR4N5_reward_mean, OR4N10_reward_mean, OR4N20_reward_mean, OR4N30_reward_mean, OR4N40_reward_mean, OR4N50_reward_mean])
-OR_N_std = np.array([OR4_reward_std, OR4N2_reward_std, OR4N5_reward_std, OR4N10_reward_std, OR4N20_reward_std, OR4N30_reward_std, OR4N40_reward_std, OR4N50_reward_std])
+demand_noise = [0, 10, 20, 30, 40, 50]
+OR_N_mean = np.array([OR4_reward_mean, OR4N10_reward_mean, OR4N20_reward_mean, OR4N30_reward_mean, OR4N40_reward_mean, OR4N50_reward_mean])
+OR_N_std = np.array([OR4_reward_std, OR4N10_reward_std, OR4N20_reward_std, OR4N30_reward_std, OR4N40_reward_std, OR4N50_reward_std])
 
-DFO_N_mean = np.array([DFO4_reward_mean, DFO4N2_reward_mean, DFO4N5_reward_mean, DFO4N10_reward_mean, DFO4N20_reward_mean, DFO4N30_reward_mean, DFO4N40_reward_mean, DFO4N50_reward_mean])
-DFO_N_std = np.array([DFO4_reward_std, DFO4N2_reward_std, DFO4N5_reward_std, DFO4N10_reward_std, DFO4N20_reward_std, DFO4N30_reward_std, DFO4N40_reward_std, DFO4N50_reward_std])
+DFO_N_mean = np.array([DFO4_reward_mean, DFO4N10_reward_mean, DFO4N20_reward_mean, DFO4N30_reward_mean, DFO4N40_reward_mean, DFO4N50_reward_mean])
+DFO_N_std = np.array([DFO4_reward_std, DFO4N10_reward_std, DFO4N20_reward_std, DFO4N30_reward_std, DFO4N40_reward_std, DFO4N50_reward_std])
 
-SHLP_N_mean = np.array([SHLP4_reward_mean, SHLP4N2_reward_mean, SHLP4N5_reward_mean, SHLP4N10_reward_mean, SHLP4N20_reward_mean, SHLP4N30_reward_mean, SHLP4N40_reward_mean, SHLP4N50_reward_mean])
-SHLP_N_std = np.array([SHLP4_reward_std, SHLP4N2_reward_std, SHLP4N5_reward_std, SHLP4N10_reward_std, SHLP4N20_reward_std, SHLP4N30_reward_std, SHLP4N40_reward_std, SHLP4N50_reward_std])
+SHLP_N_mean = np.array([SHLP4_reward_mean, SHLP4N10_reward_mean, SHLP4N20_reward_mean, SHLP4N30_reward_mean, SHLP4N40_reward_mean, SHLP4N50_reward_mean])
+SHLP_N_std = np.array([SHLP4_reward_std, SHLP4N10_reward_std, SHLP4N20_reward_std, SHLP4N30_reward_std, SHLP4N40_reward_std, SHLP4N50_reward_std])
 
-DecLP_N_mean = np.array([DecLP4_reward_mean, DecLP4N2_reward_mean, DecLP4N5_reward_mean, DecLP4N10_reward_mean, DecLP4N20_reward_mean, DecLP4N30_reward_mean, DecLP4N40_reward_mean, DecLP4N50_reward_mean])
-DecLP_N_std = np.array([DecLP4_reward_std, DecLP4N2_reward_std, DecLP4N5_reward_std, DecLP4N10_reward_std, DecLP4N20_reward_std, DecLP4N30_reward_std, DecLP4N40_reward_std, DecLP4N50_reward_std])
+DecLP_N_mean = np.array([DecLP4_reward_mean, DecLP4N10_reward_mean, DecLP4N20_reward_mean, DecLP4N30_reward_mean, DecLP4N40_reward_mean, DecLP4N50_reward_mean])
+DecLP_N_std = np.array([DecLP4_reward_std, DecLP4N10_reward_std, DecLP4N20_reward_std, DecLP4N30_reward_std, DecLP4N40_reward_std, DecLP4N50_reward_std])
 
-S_N_mean = np.array([S4_reward_mean, S4N2_reward_mean, S4N5_reward_mean, S4N10_reward_mean, S4N20_reward_mean, S4N30_reward_mean, S4N40_reward_mean, S4N50_reward_mean])
-S_N_std = np.array([S4_reward_std, S4N2_reward_std, S4N5_reward_std, S4N10_reward_std, S4N20_reward_std, S4N30_reward_std, S4N40_reward_std, S4N50_reward_std])
+DSHLP_N_mean = np.array([DSHLP4_reward_mean, DSHLP4N10_reward_mean, DSHLP4N20_reward_mean, DSHLP4N30_reward_mean, DSHLP4N40_reward_mean, DSHLP4N50_reward_mean])
+DSHLP_N_std = np.array([DSHLP4_reward_std, DSHLP4N10_reward_std, DSHLP4N20_reward_std, DSHLP4N30_reward_std, DSHLP4N40_reward_std, DSHLP4N50_reward_std])
 
-MA_N_mean = np.array([MA4_reward_mean, MA4N2_reward_mean, MA4N5_reward_mean, MA4N10_reward_mean, MA4N20_reward_mean, MA4N30_reward_mean, MA4N40_reward_mean, MA4N50_reward_mean])
-MA_N_std = np.array([MA4_reward_std, MA4N2_reward_std, MA4N5_reward_std, MA4N10_reward_std, MA4N20_reward_std, MA4N30_reward_std, MA4N40_reward_std, MA4N50_reward_std])
+ORDSHLP_N_mean = np.array([ORDSHLP_reward_mean, ORDSHLPN10_reward_mean, ORDSHLPN20_reward_mean, ORDSHLPN30_reward_mean, ORDSHLPN40_reward_mean, ORDSHLPN50_reward_mean])
 
-MAS_N_mean = np.array([MAS4_reward_mean, MAS4N2_reward_mean, MAS4N5_reward_mean, MAS4N10_reward_mean, MAS4N20_reward_mean, MAS4N30_reward_mean, MAS4N40_reward_mean, MAS4N50_reward_mean])
-MAS_N_std = np.array([MAS4_reward_std, MAS4N2_reward_std, MAS4N5_reward_std, MAS4N10_reward_std, MAS4N20_reward_std, MAS4N30_reward_std, MAS4N40_reward_std, MAS4N50_reward_std])
+S_N_mean = np.array([S4_reward_mean, S4N10_reward_mean, S4N20_reward_mean, S4N30_reward_mean, S4N40_reward_mean, S4N50_reward_mean])
+S_N_std = np.array([S4_reward_std, S4N10_reward_std, S4N20_reward_std, S4N30_reward_std, S4N40_reward_std, S4N50_reward_std])
 
-CC_N_mean = np.array([CC4_reward_mean, CC4N2_reward_mean, CC4N5_reward_mean, CC4N10_reward_mean, CC4N20_reward_mean, CC4N30_reward_mean, CC4N40_reward_mean, CC4N50_reward_mean])
-CC_N_std = np.array([CC4_reward_std, CC4N2_reward_std, CC4N5_reward_std, CC4N10_reward_std, CC4N20_reward_std, CC4N30_reward_std, CC4N40_reward_std, CC4N50_reward_std])
+NS_N_mean = np.array([S4_reward_mean, NS4N10_reward_mean, NS4N20_reward_mean, NS4N30_reward_mean, NS4N40_reward_mean, NS4N50_reward_mean])
+NS_N_std = np.array([S4_reward_std, NS4N10_reward_std, NS4N20_reward_std, NS4N30_reward_std, NS4N40_reward_std, NS4N50_reward_std])
+
+MA_N_mean = np.array([MA4_reward_mean, MA4N10_reward_mean, MA4N20_reward_mean, MA4N30_reward_mean, MA4N40_reward_mean, MA4N50_reward_mean])
+MA_N_std = np.array([MA4_reward_std, MA4N10_reward_std, MA4N20_reward_std, MA4N30_reward_std, MA4N40_reward_std, MA4N50_reward_std])
+
+NMA_N_mean = np.array([MA4_reward_mean, NMA4N10_reward_mean, NMA4N20_reward_mean, NMA4N30_reward_mean, NMA4N40_reward_mean, NMA4N50_reward_mean])
+NMA_N_std = np.array([MA4_reward_std, NMA4N10_reward_std, NMA4N20_reward_std, NMA4N30_reward_std, NMA4N40_reward_std, NMA4N50_reward_std])
+
+MAS_N_mean = np.array([MAS4_reward_mean, MAS4N10_reward_mean, MAS4N20_reward_mean, MAS4N30_reward_mean, MAS4N40_reward_mean, MAS4N50_reward_mean])
+MAS_N_std = np.array([MAS4_reward_std, MAS4N10_reward_std, MAS4N20_reward_std, MAS4N30_reward_std, MAS4N40_reward_std, MAS4N50_reward_std])
+
+NMAS_N_mean = np.array([MAS4_reward_mean, NMAS4N10_reward_mean, NMAS4N20_reward_mean, NMAS4N30_reward_mean, NMAS4N40_reward_mean, NMAS4N50_reward_mean])
+NMAS_N_std = np.array([MAS4_reward_std, NMAS4N10_reward_std, NMAS4N20_reward_std, NMAS4N30_reward_std, NMAS4N40_reward_std, NMAS4N50_reward_std])
+
+CC_N_mean = np.array([CC4_reward_mean, CC4N10_reward_mean, CC4N20_reward_mean, CC4N30_reward_mean, CC4N40_reward_mean, CC4N50_reward_mean])
+CC_N_std = np.array([CC4_reward_std, CC4N10_reward_std, CC4N20_reward_std, CC4N30_reward_std, CC4N40_reward_std, CC4N50_reward_std])
+
+NCC_N_mean = np.array([CC4_reward_mean, NCC4N10_reward_mean, NCC4N20_reward_mean, NCC4N30_reward_mean, NCC4N40_reward_mean, NCC4N50_reward_mean])
+NCC_N_std = np.array([CC4_reward_std, NCC4N10_reward_std, NCC4N20_reward_std, NCC4N30_reward_std, NCC4N40_reward_std, NCC4N50_reward_std])
 
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
@@ -1300,13 +1674,18 @@ axs.plot(demand_noise, OR_N_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 axs.plot(demand_noise, SHLP_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, DFO_N_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(demand_noise, S_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(demand_noise, NS_N_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
 axs.plot(demand_noise, DecLP_N_mean, label='Decentralised SHLP', lw=2, color=colour_dict['DecLP'])
+axs.plot(demand_noise, DSHLP_N_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(demand_noise, MA_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(demand_noise, NMA_N_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
 axs.plot(demand_noise, MAS_N_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(demand_noise, NMAS_N_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
 axs.plot(demand_noise, CC_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(demand_noise, NCC_N_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Reward")
 axs.set_xlabel("Demand Noise (%)")
-axs.legend()
+axs.legend(loc="lower left")
 axs.set_xlim(0, 50)
 plt.savefig('report_figures/demand_noise.png', dpi=200, bbox_inches='tight')
 plt.show()
@@ -1319,10 +1698,15 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 axs.plot(demand_noise, SHLP_N_mean/OR_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, DFO_N_mean/OR_N_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(demand_noise, S_N_mean/OR_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(demand_noise, NS_N_mean/OR_N_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
 axs.plot(demand_noise, DecLP_N_mean/OR_N_mean, label='Decentralised SHLP', lw=2, color=colour_dict['DecLP'])
+axs.plot(demand_noise, DSHLP_N_mean/ORDSHLP_N_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(demand_noise, MA_N_mean/OR_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(demand_noise, NMA_N_mean/OR_N_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
 axs.plot(demand_noise, MAS_N_mean/OR_N_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(demand_noise, NMAS_N_mean/OR_N_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
 axs.plot(demand_noise, CC_N_mean/OR_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(demand_noise, NCC_N_mean/OR_N_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Performance relative to Oracle")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend()
@@ -1336,10 +1720,15 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 axs.plot(demand_noise, (SHLP_N_mean/OR_N_mean)/(SHLP_N_mean[0]/OR_N_mean[0]), label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, (DFO_N_mean/OR_N_mean)/(DFO_N_mean[0]/OR_N_mean[0]), label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(demand_noise, (S_N_mean/OR_N_mean)/(S_N_mean[0]/OR_N_mean[0]), label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(demand_noise, (NS_N_mean/OR_N_mean)/(NS_N_mean[0]/OR_N_mean[0]), label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
 axs.plot(demand_noise, (DecLP_N_mean/OR_N_mean)/(DecLP_N_mean[0]/OR_N_mean[0]), label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+axs.plot(demand_noise, (DSHLP_N_mean/ORDSHLP_N_mean)/(DSHLP_N_mean[0]/ORDSHLP_N_mean[0]), label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(demand_noise, (MA_N_mean/OR_N_mean)/(MA_N_mean[0]/OR_N_mean[0]), label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(demand_noise, (NMA_N_mean/OR_N_mean)/(NMA_N_mean[0]/OR_N_mean[0]), label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
 axs.plot(demand_noise, (MAS_N_mean/OR_N_mean)/(MAS_N_mean[0]/OR_N_mean[0]), label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(demand_noise, (NMAS_N_mean/OR_N_mean)/(NMAS_N_mean[0]/OR_N_mean[0]), label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
 axs.plot(demand_noise, (CC_N_mean/OR_N_mean)/(CC_N_mean[0]/OR_N_mean[0]), label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(demand_noise, (NCC_N_mean/OR_N_mean)/(NCC_N_mean[0]/OR_N_mean[0]), label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Performance Change")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend()
@@ -1359,17 +1748,32 @@ DFO_D_std = np.array([DFO4_reward_std, DFO4D10_reward_std, DFO4D20_reward_std, D
 DecLP_D_mean = np.array([DecLP4_reward_mean, DecLP4D10_reward_mean, DecLP4D20_reward_mean, DecLP4D30_reward_mean, DecLP4D40_reward_mean, DecLP4D50_reward_mean])
 DecLP_D_std = np.array([DecLP4_reward_std, DecLP4D10_reward_std, DecLP4D20_reward_std, DecLP4D30_reward_std, DecLP4D40_reward_std, DecLP4D50_reward_std])
 
+DSHLP_D_mean = np.array([DSHLP4_reward_mean, DSHLP4D10_reward_mean, DSHLP4D20_reward_mean, DSHLP4D30_reward_mean, DSHLP4D40_reward_mean, DSHLP4D50_reward_mean])
+DSHLP_D_std = np.array([DSHLP4_reward_std, DSHLP4D10_reward_std, DSHLP4D20_reward_std, DSHLP4D30_reward_std, DSHLP4D40_reward_std, DSHLP4D50_reward_std])
+
 S_D_mean = np.array([S4_reward_mean, S4D10_reward_mean, S4D20_reward_mean, S4D30_reward_mean, S4D40_reward_mean, S4D50_reward_mean])
 S_D_std = np.array([S4_reward_std, S4D10_reward_std, S4D20_reward_std, S4D30_reward_std, S4D40_reward_std, S4D50_reward_std])
+
+NS_D_mean = np.array([S4_reward_mean, NS4D10_reward_mean, NS4D20_reward_mean, NS4D30_reward_mean, NS4D40_reward_mean, NS4D50_reward_mean])
+NS_D_std = np.array([S4_reward_std, NS4D10_reward_std, NS4D20_reward_std, NS4D30_reward_std, NS4D40_reward_std, NS4D50_reward_std])
 
 MA_D_mean = np.array([MA4_reward_mean, MA4D10_reward_mean, MA4D20_reward_mean, MA4D30_reward_mean, MA4D40_reward_mean, MA4D50_reward_mean])
 MA_D_std = np.array([MA4_reward_std, MA4D10_reward_std, MA4D20_reward_std, MA4D30_reward_std, MA4D40_reward_std, MA4D50_reward_std])
 
+NMA_D_mean = np.array([MA4_reward_mean, NMA4D10_reward_mean, NMA4D20_reward_mean, NMA4D30_reward_mean, NMA4D40_reward_mean, NMA4D50_reward_mean])
+NMA_D_std = np.array([MA4_reward_std, NMA4D10_reward_std, NMA4D20_reward_std, NMA4D30_reward_std, NMA4D40_reward_std, NMA4D50_reward_std])
+
 MAS_D_mean = np.array([MAS4_reward_mean, MAS4D10_reward_mean, MAS4D20_reward_mean, MAS4D30_reward_mean, MAS4D40_reward_mean, MAS4D50_reward_mean])
 MAS_D_std = np.array([MAS4_reward_std, MAS4D10_reward_std, MAS4D20_reward_std, MAS4D30_reward_std, MAS4D40_reward_std, MAS4D50_reward_std])
 
+NMAS_D_mean = np.array([MAS4_reward_mean, NMAS4D10_reward_mean, NMAS4D20_reward_mean, NMAS4D30_reward_mean, NMAS4D40_reward_mean, NMAS4D50_reward_mean])
+NMAS_D_std = np.array([MAS4_reward_std, NMAS4D10_reward_std, NMAS4D20_reward_std, NMAS4D30_reward_std, NMAS4D40_reward_std, NMAS4D50_reward_std])
+
 CC_D_mean = np.array([CC4_reward_mean, CC4D10_reward_mean, CC4D20_reward_mean, CC4D30_reward_mean, CC4D40_reward_mean, CC4D50_reward_mean])
 CC_D_std = np.array([CC4_reward_std, CC4D10_reward_std, CC4D20_reward_std, CC4D30_reward_std, CC4D40_reward_std, CC4D50_reward_std])
+
+NCC_D_mean = np.array([CC4_reward_mean, NCC4D10_reward_mean, NCC4D20_reward_mean, NCC4D30_reward_mean, NCC4D40_reward_mean, NCC4D50_reward_mean])
+NCC_D_std = np.array([CC4_reward_std, NCC4D10_reward_std, NCC4D20_reward_std, NCC4D30_reward_std, NCC4D40_reward_std, NCC4D50_reward_std])
 
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
@@ -1377,10 +1781,15 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 axs.plot(delay_noise, SHLP_D_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(delay_noise, DFO_D_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(delay_noise, S_D_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(delay_noise, NS_D_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
+axs.plot(delay_noise, DSHLP_D_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(delay_noise, DecLP_D_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
 axs.plot(delay_noise, MA_D_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(delay_noise, NMA_D_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
 axs.plot(delay_noise, MAS_D_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(delay_noise, NMAS_D_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
 axs.plot(delay_noise, CC_D_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(delay_noise, NCC_D_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Reward")
 axs.set_xlabel("Delay Noise (%)")
 axs.legend()
@@ -1394,10 +1803,15 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 axs.plot(delay_noise, SHLP_D_mean/SHLP4_reward_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(delay_noise, DFO_D_mean/DFO4_reward_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(delay_noise, S_D_mean/S4_reward_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(delay_noise, NS_D_mean/S4_reward_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
+axs.plot(delay_noise, DSHLP_D_mean/DSHLP4_reward_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(delay_noise, DecLP_D_mean/DecLP4_reward_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
 axs.plot(delay_noise, MA_D_mean/MA4_reward_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(delay_noise, NMA_D_mean/MA4_reward_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
 axs.plot(delay_noise, MAS_D_mean/MAS4_reward_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(delay_noise, NMAS_D_mean/MAS4_reward_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
 axs.plot(delay_noise, CC_D_mean/CC4_reward_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(delay_noise, NCC_D_mean/CC4_reward_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Performance Change")
 axs.set_xlabel("Delay Noise (%)")
 axs.legend()
@@ -1421,6 +1835,9 @@ SHLP_S_std = np.array([SHLP2_reward_std, SHLP4_reward_std, SHLP8_reward_std])
 DecLP_S_mean = np.array([DecLP2_reward_mean, DecLP4_reward_mean, DecLP8_reward_mean])
 DecLP_S_std = np.array([DecLP2_reward_std, DecLP4_reward_std, DecLP8_reward_std])
 
+DSHLP_S_mean = np.array([DSHLP2_reward_mean, DSHLP4_reward_mean, DSHLP8_reward_mean])
+DSHLP_S_std = np.array([DSHLP2_reward_std, DSHLP4_reward_std, DSHLP8_reward_std])
+
 S_S_mean = np.array([S2_reward_mean, S4_reward_mean, S8_reward_mean])
 S_S_std = np.array([S2_reward_std, S4_reward_std, S8_reward_std])
 
@@ -1440,6 +1857,7 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 #axs.plot(stages, DFO_S_mean/OR_S_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(stages, (S_S_mean/OR_S_mean), label='Single Agent', lw=2, color=colour_dict['S'])
 #axs.plot(stages, DecLP_S_mean/OR_S_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+#axs.plot(stages, DSHLP_S_mean/OR_S_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(stages, (MA_S_mean/OR_S_mean), label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(stages, (MAS_S_mean/OR_S_mean), label='IPPO shared network', lw=2, color=colour_dict['MAS'])
 axs.plot(stages, (CC_S_mean/OR_S_mean), label='MAPPO', lw=2, color=colour_dict['CC'])
@@ -1458,6 +1876,7 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 #axs.plot(stages, DFO_S_mean/OR_S_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 axs.plot(stages, (S_S_mean/OR_S_mean)/(S_S_mean[1]/OR_S_mean[1]), label='Single Agent', lw=2, color=colour_dict['S'])
 #axs.plot(stages, DecLP_S_mean/OR_S_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+#axs.plot(stages, DSHLP_S_mean/OR_S_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(stages, (MA_S_mean/OR_S_mean)/(MA_S_mean[1]/OR_S_mean[1]), label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(stages, (MAS_S_mean/OR_S_mean)/(MAS_S_mean[1]/OR_S_mean[1]), label='IPPO shared network', lw=2, color=colour_dict['MAS'])
 axs.plot(stages, (CC_S_mean/OR_S_mean)/(CC_S_mean[1]/OR_S_mean[1]), label='MAPPO', lw=2, color=colour_dict['CC'])
@@ -1479,6 +1898,9 @@ SHLP4_profit_std = np.std(np.cumsum(SHLP4_profit, axis=1), axis=0)
 DecLP4_profit_mean = np.mean(np.cumsum(DecLP4_profit, axis=1), axis=0)
 DecLP4_profit_std = np.std(np.cumsum(DecLP4_profit, axis=1), axis=0)
 
+DSHLP4_profit_mean = np.mean(np.cumsum(DSHLP4_profit, axis=1), axis=0)
+DSHLP4_profit_std = np.std(np.cumsum(DSHLP4_profit, axis=1), axis=0)
+
 S4_profit_mean = np.mean(np.cumsum(S4_profit, axis=1), axis=0)
 S4_profit_std = np.std(np.cumsum(S4_profit, axis=1), axis=0)
 
@@ -1499,6 +1921,7 @@ axs.plot(OR4_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 #axs.plot(SHLP4_profit_mean, label='SHILP', lw=2, color=colour_dict['SHLP'])
 axs.plot(S4_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 #axs.plot(DecLP4_profit_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+axs.plot(DSHLP4_profit_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(MA4_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(MAS4_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
 axs.plot(CC4_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
@@ -1547,6 +1970,9 @@ SHLP8_profit_std = np.std(np.cumsum(SHLP8_profit, axis=1), axis=0)
 DecLP8_profit_mean = np.mean(np.cumsum(DecLP8_profit, axis=1), axis=0)
 DecLP8_profit_std = np.std(np.cumsum(DecLP8_profit, axis=1), axis=0)
 
+DSHLP8_profit_mean = np.mean(np.cumsum(DSHLP8_profit, axis=1), axis=0)
+DSHLP8_profit_std = np.std(np.cumsum(DSHLP8_profit, axis=1), axis=0)
+
 S8_profit_mean = np.mean(np.cumsum(S8_profit, axis=1), axis=0)
 S8_profit_std = np.std(np.cumsum(S8_profit, axis=1), axis=0)
 
@@ -1567,6 +1993,7 @@ axs.plot(OR8_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 axs.plot(SHLP8_profit_mean, label='SHILP', lw=2, color=colour_dict['SHLP'])
 axs.plot(S8_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 #axs.plot(DecLP8_profit_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+axs.plot(DSHLP8_profit_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(MA8_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(MAS8_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
 axs.plot(CC8_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
@@ -1586,6 +2013,9 @@ SHLP2_profit_std = np.std(np.cumsum(SHLP2_profit, axis=1), axis=0)
 
 DecLP2_profit_mean = np.mean(np.cumsum(DecLP2_profit, axis=1), axis=0)
 DecLP2_profit_std = np.std(np.cumsum(DecLP2_profit, axis=1), axis=0)
+
+DSHLP2_profit_mean = np.mean(np.cumsum(DSHLP2_profit, axis=1), axis=0)
+DSHLP2_profit_std = np.std(np.cumsum(DSHLP2_profit, axis=1), axis=0)
 
 S2_profit_mean = np.mean(np.cumsum(S2_profit, axis=1), axis=0)
 S2_profit_std = np.std(np.cumsum(S2_profit, axis=1), axis=0)
@@ -1607,6 +2037,7 @@ axs.plot(OR2_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 axs.plot(SHLP2_profit_mean, label='SHILP', lw=2, color=colour_dict['SHLP'])
 axs.plot(S2_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 axs.plot(DecLP2_profit_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
+axs.plot(DSHLP2_profit_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(MA2_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(MAS2_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
 axs.plot(CC2_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
@@ -1627,14 +2058,14 @@ S4_Mean_rewards = np.array([np.mean(S4_rewards[i - p:i + 1]) if i >= p else np.m
 S4_Std_rewards = np.array([np.std(S4_rewards[i - p:i + 1]) if i >= p else np.std(S4_rewards[:i + 1])
                         for i, _ in enumerate(S4_rewards)])
 
-MA4_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MA4_results])
+MA4_rewards = np.hstack([i['episode_reward'] for i in MA4_results])
 MA4_Mean_rewards = np.array([np.mean(MA4_rewards[i - p:i + 1]) if i >= p else np.mean(MA4_rewards[:i + 1])
                          for i, _ in enumerate(MA4_rewards)])
 MA4_Std_rewards = np.array([np.std(MA4_rewards[i - p:i + 1]) if i >= p else np.std(MA4_rewards[:i + 1])
                         for i, _ in enumerate(MA4_rewards)])
 
 
-MAS4_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MAS4_results])
+MAS4_rewards = np.hstack([i['episode_reward'] for i in MAS4_results])
 MAS4_Mean_rewards = np.array([np.mean(MAS4_rewards[i - p:i + 1]) if i >= p else np.mean(MAS4_rewards[:i + 1])
                          for i, _ in enumerate(MAS4_rewards)])
 MAS4_Std_rewards = np.array([np.std(MAS4_rewards[i - p:i + 1]) if i >= p else np.std(MAS4_rewards[:i + 1])
@@ -1646,14 +2077,14 @@ CC4_Mean_rewards = np.array([np.mean(CC4_rewards[i - p:i + 1]) if i >= p else np
 CC4_Std_rewards = np.array([np.std(CC4_rewards[i - p:i + 1]) if i >= p else np.std(CC4_rewards[:i + 1])
                         for i, _ in enumerate(CC4_rewards)])
 
-MA4I_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MA4I_results])
+MA4I_rewards = np.hstack([i['episode_reward'] for i in MA4I_results])
 MA4I_Mean_rewards = np.array([np.mean(MA4I_rewards[i - p:i + 1]) if i >= p else np.mean(MA4I_rewards[:i + 1])
                          for i, _ in enumerate(MA4I_rewards)])
 MA4I_Std_rewards = np.array([np.std(MA4I_rewards[i - p:i + 1]) if i >= p else np.std(MA4I_rewards[:i + 1])
                         for i, _ in enumerate(MA4I_rewards)])
 
 
-MAS4I_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MAS4I_results])
+MAS4I_rewards = np.hstack([i['episode_reward'] for i in MAS4I_results])
 MAS4I_Mean_rewards = np.array([np.mean(MAS4I_rewards[i - p:i + 1]) if i >= p else np.mean(MAS4I_rewards[:i + 1])
                          for i, _ in enumerate(MAS4I_rewards)])
 MAS4I_Std_rewards = np.array([np.std(MAS4I_rewards[i - p:i + 1]) if i >= p else np.std(MAS4I_rewards[:i + 1])
@@ -1672,14 +2103,14 @@ S8_Mean_rewards = np.array([np.mean(S8_rewards[i - p:i + 1]) if i >= p else np.m
 S8_Std_rewards = np.array([np.std(S8_rewards[i - p:i + 1]) if i >= p else np.std(S8_rewards[:i + 1])
                         for i, _ in enumerate(S8_rewards)])
 
-MA8_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MA8_results])
+MA8_rewards = np.hstack([i['episode_reward'] for i in MA8_results])
 MA8_Mean_rewards = np.array([np.mean(MA8_rewards[i - p:i + 1]) if i >= p else np.mean(MA8_rewards[:i + 1])
                          for i, _ in enumerate(MA8_rewards)])
 MA8_Std_rewards = np.array([np.std(MA8_rewards[i - p:i + 1]) if i >= p else np.std(MA8_rewards[:i + 1])
                         for i, _ in enumerate(MA8_rewards)])
 
 
-MAS8_rewards = np.hstack([i['hist_stats']['episode_reward'] for i in MAS8_results])
+MAS8_rewards = np.hstack([i['episode_reward'] for i in MAS8_results])
 MAS8_Mean_rewards = np.array([np.mean(MAS8_rewards[i - p:i + 1]) if i >= p else np.mean(MAS8_rewards[:i + 1])
                          for i, _ in enumerate(MAS8_rewards)])
 MAS8_Std_rewards = np.array([np.std(MAS8_rewards[i - p:i + 1]) if i >= p else np.std(MAS8_rewards[:i + 1])
@@ -1752,11 +2183,12 @@ axs.fill_between(np.arange(len(CC4_Mean_rewards)),
                  alpha=0.1)
 axs.plot(CC4_Mean_rewards, label='Mean MAPPO rewards', lw=2)
 
+
 axs.fill_between(np.arange(len(CC4_Mean_rewards)),
-                 np.ones(len(CC4_Mean_rewards)) * (DecLP4_reward_mean - DecLP4_reward_std),
-                 np.ones(len(CC4_Mean_rewards)) * (DecLP4_reward_mean + DecLP4_reward_std),
+                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean - DSHLP4_reward_std),
+                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean + DSHLP4_reward_std),
                  alpha=0.1)
-axs.plot(np.arange(len(CC4_Mean_rewards)), np.ones(len(CC4_Mean_rewards)) * (DecLP4_reward_mean), label='Mean DecLP rewards', lw=2)
+axs.plot(np.arange(len(CC4_Mean_rewards)), np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean), label='Mean DSHLP rewards', lw=2)
 
 axs.set_ylabel("Rewards")
 axs.set_xlabel("Episode")
@@ -1844,10 +2276,16 @@ axs.fill_between(np.arange(len(CC8_Mean_rewards)),
                  alpha=0.1, color=colour_dict['CC'])
 axs.plot(CC8_Mean_rewards, label='Mean MAPPO rewards', lw=2, color=colour_dict['CC'])
 
+axs.fill_between(np.arange(len(CC8_Mean_rewards)),
+                 np.ones(len(CC8_Mean_rewards)) * (DSHLP8_reward_mean - DSHLP8_reward_std),
+                 np.ones(len(CC8_Mean_rewards)) * (DSHLP8_reward_mean + DSHLP8_reward_std),
+                 alpha=0.1)
+axs.plot(np.arange(len(CC8_Mean_rewards)), np.ones(len(CC8_Mean_rewards)) * (DSHLP8_reward_mean), label='Mean DSHLP rewards', lw=2)
+
 axs.set_ylabel("Rewards")
 axs.set_xlabel("Episode")
 axs.legend()
-axs.set_xlim(0, 70000)
+axs.set_xlim(0, 50000)
 axs.set_ylim(-1200, 1500)
 plt.savefig('report_figures/stage_8_learning_curves.png', dpi=200, bbox_inches='tight')
 plt.show()
@@ -1858,6 +2296,9 @@ print(f'Oracle std reward: {OR4_reward_std}, std Inventory: {OR4_inventory_std},
 
 print(f'SHLP Mean reward: {SHLP4_reward_mean}, Mean Inventory: {SHLP4_inventory_mean}, Mean Backlog: {SHLP4_backlog_mean}, Mean Customer Backlog: {SHLP4_customer_backlog_mean}')
 print(f'SHLP std reward: {SHLP4_reward_std}, std Inventory: {SHLP4_inventory_std}, std Backlog: {SHLP4_backlog_std}, std Customer Backlog: {SHLP4_customer_backlog_std} \n')
+
+print(f'Distributed Mean reward: {DSHLP4_reward_mean}, Mean Inventory: {DSHLP4_inventory_mean}, Mean Backlog: {DSHLP4_backlog_mean}, Mean Customer Backlog: {DSHLP4_customer_backlog_mean}')
+print(f'Distributed std reward: {DSHLP4_reward_std}, std Inventory: {DSHLP4_inventory_std}, std Backlog: {DSHLP4_backlog_std}, std Customer Backlog: {DSHLP4_customer_backlog_std} \n')
 
 print(f'Decentralised Mean reward: {DecLP4_reward_mean}, Mean Inventory: {DecLP4_inventory_mean}, Mean Backlog: {DecLP4_backlog_mean}, Mean Customer Backlog: {DecLP4_customer_backlog_mean}')
 print(f'Decentralised std reward: {DecLP4_reward_std}, std Inventory: {DecLP4_inventory_std}, std Backlog: {DecLP4_backlog_std}, std Customer Backlog: {DecLP4_customer_backlog_std} \n')
@@ -1881,6 +2322,9 @@ print(f'Oracle std reward: {OR8_reward_std}, std Inventory: {OR8_inventory_std},
 print(f'SHLP Mean reward: {SHLP8_reward_mean}, Mean Inventory: {SHLP8_inventory_mean}, Mean Backlog: {SHLP8_backlog_mean}, Mean Customer Backlog: {SHLP8_customer_backlog_mean}')
 print(f'SHLP std reward: {SHLP8_reward_std}, std Inventory: {SHLP8_inventory_std}, std Backlog: {SHLP8_backlog_std}, std Customer Backlog: {SHLP8_customer_backlog_std}\n')
 
+print(f'Distributed Mean reward: {DSHLP8_reward_mean}, Mean Inventory: {DSHLP8_inventory_mean}, Mean Backlog: {DSHLP8_backlog_mean}, Mean Customer Backlog: {DSHLP8_customer_backlog_mean}')
+print(f'Distributed std reward: {DSHLP8_reward_std}, std Inventory: {DSHLP8_inventory_std}, std Backlog: {DSHLP8_backlog_std}, std Customer Backlog: {DSHLP8_customer_backlog_std}\n')
+
 print(f'Decentralised Mean reward: {DecLP8_reward_mean}, Mean Inventory: {DecLP8_inventory_mean}, Mean Backlog: {DecLP8_backlog_mean}, Mean Customer Backlog: {DecLP8_customer_backlog_mean}')
 print(f'Decentralised std reward: {DecLP8_reward_std}, std Inventory: {DecLP8_inventory_std}, std Backlog: {DecLP8_backlog_std}, std Customer Backlog: {DecLP8_customer_backlog_std}\n')
 
@@ -1903,6 +2347,9 @@ print(f'Oracle std reward: {OR2_reward_std}, std Inventory: {OR2_inventory_std},
 print(f'SHLP Mean reward: {SHLP2_reward_mean}, Mean Inventory: {SHLP2_inventory_mean}, Mean Backlog: {SHLP2_backlog_mean}, Mean Customer Backlog: {SHLP2_customer_backlog_mean}')
 print(f'SHLP std reward: {SHLP2_reward_std}, std Inventory: {SHLP2_inventory_std}, std Backlog: {SHLP2_backlog_std}, std Customer Backlog: {SHLP2_customer_backlog_std}\n')
 
+print(f'Distributed Mean reward: {DSHLP2_reward_mean}, Mean Inventory: {DSHLP2_inventory_mean}, Mean Backlog: {DSHLP2_backlog_mean}, Mean Customer Backlog: {DSHLP2_customer_backlog_mean}')
+print(f'Distributed std reward: {DSHLP2_reward_std}, std Inventory: {DSHLP2_inventory_std}, std Backlog: {DSHLP2_backlog_std}, std Customer Backlog: {DSHLP2_customer_backlog_std}\n')
+
 print(f'Decentralised Mean reward: {DecLP2_reward_mean}, Mean Inventory: {DecLP2_inventory_mean}, Mean Backlog: {DecLP2_backlog_mean}, Mean Customer Backlog: {DecLP2_customer_backlog_mean}')
 print(f'Decentralised std reward: {DecLP2_reward_std}, std Inventory: {DecLP2_inventory_std}, std Backlog: {DecLP2_backlog_std}, std Customer Backlog: {DecLP2_customer_backlog_std}\n')
 
@@ -1917,11 +2364,10 @@ print(f'MAS std reward: {MAS2_reward_std}, std Inventory: {MAS2_inventory_std}, 
 
 print(f'CC Mean reward: {CC2_reward_mean}, Mean Inventory: {CC2_inventory_mean}, Mean Backlog: {CC2_backlog_mean}, Mean Customer Backlog: {CC2_customer_backlog_mean}')
 print(f'CC std reward: {CC2_reward_std}, std Inventory: {CC2_inventory_std}, std Backlog: {CC2_backlog_std}, std Customer Backlog: {CC2_customer_backlog_std}\n')
-
-
 #%%%
 
 print(f'SHLP reward delay noise 10: {SHLP4D10_reward_mean}, 20:{SHLP4D20_reward_mean}, 30:{SHLP4D30_reward_mean}, 40:{SHLP4D40_reward_mean}, 50:{SHLP4D50_reward_mean}\n')
+print(f'DSHLP reward delay noise 10: {DSHLP4D10_reward_mean}, 20:{DSHLP4D20_reward_mean}, 30:{DSHLP4D30_reward_mean}, 40:{DSHLP4D40_reward_mean}, 50:{DSHLP4D50_reward_mean}\n')
 print(f'DecLP reward delay noise 10: {DecLP4D10_reward_mean}, 20:{DecLP4D20_reward_mean}, 30:{DecLP4D30_reward_mean}, 40:{DecLP4D40_reward_mean}, 50:{DecLP4D50_reward_mean}\n')
 print(f'Single Agent reward delay noise 10: {S4D10_reward_mean}, 20:{S4D20_reward_mean}, 30:{S4D30_reward_mean}, 40:{S4D40_reward_mean}, 50:{S4D50_reward_mean}\n')
 print(f'MA reward delay noise 10: {MA4D10_reward_mean}, 20:{MA4D20_reward_mean}, 30:{MA4D30_reward_mean}, 40:{MA4D40_reward_mean}, 50:{MA4D50_reward_mean}\n')
@@ -1930,7 +2376,8 @@ print(f'CC reward delay noise 10: {CC4D10_reward_mean}, 20:{CC4D20_reward_mean},
 
 print(f'OR reward demand noise 10: {OR4N10_reward_mean}, 20:{OR4N20_reward_mean}, 30:{OR4N30_reward_mean}, 40:{OR4N40_reward_mean}, 50:{OR4N50_reward_mean}\n')
 print(f'SHLP reward demand noise 10: {SHLP4N10_reward_mean}, 20:{SHLP4N20_reward_mean}, 30:{SHLP4N30_reward_mean}, 40:{SHLP4N40_reward_mean}, 50:{SHLP4N50_reward_mean}\n')
-print(f'NecLP reward demand noise 10: {DecLP4N10_reward_mean}, 20:{DecLP4N20_reward_mean}, 30:{DecLP4N30_reward_mean}, 40:{DecLP4N40_reward_mean}, 50:{DecLP4N50_reward_mean}\n')
+print(f'DSHLP reward demand noise 10: {DSHLP4N10_reward_mean}, 20:{DSHLP4N20_reward_mean}, 30:{DSHLP4N30_reward_mean}, 40:{DSHLP4N40_reward_mean}, 50:{DSHLP4N50_reward_mean}\n')
+print(f'DecLP reward demand noise 10: {DecLP4N10_reward_mean}, 20:{DecLP4N20_reward_mean}, 30:{DecLP4N30_reward_mean}, 40:{DecLP4N40_reward_mean}, 50:{DecLP4N50_reward_mean}\n')
 print(f'Single Agent reward demand noise 10: {S4N10_reward_mean}, 20:{S4N20_reward_mean}, 30:{S4N30_reward_mean}, 40:{S4N40_reward_mean}, 50:{S4N50_reward_mean}\n')
 print(f'MA reward demand noise 10: {MA4N10_reward_mean}, 20:{MA4N20_reward_mean}, 30:{MA4N30_reward_mean}, 40:{MA4N40_reward_mean}, 50:{MA4N50_reward_mean}\n')
 print(f'MAS reward demand noise 10: {MAS4N10_reward_mean}, 20:{MAS4N20_reward_mean}, 30:{MAS4N30_reward_mean}, 40:{MAS4N40_reward_mean}, 50:{MAS4N50_reward_mean}\n')
@@ -1938,6 +2385,8 @@ print(f'CC reward demand noise 10: {CC4N10_reward_mean}, 20:{CC4N20_reward_mean}
 #%% Time print
 
 print(f'SHLP 4: {SHLP4_time}, 2: {SHLP2_time}, 8: {SHLP8_time}\n')
+
+print(f'Distrubuted 4: {DSHLP4_time}, 2: {DSHLP2_time}, 8: {DSHLP8_time}\n')
 
 print(f'Decentralised 4: {DecLP4_time}, 2: {DecLP2_time}, 8: {DecLP8_time}\n')
 

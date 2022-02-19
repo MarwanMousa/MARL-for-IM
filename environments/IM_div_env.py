@@ -11,11 +11,11 @@ class InvManagementDiv(gym.Env):
         self.config = config.copy()
 
         # Number of Periods in Episode
-        self.num_periods = config.pop("num_periods", 50)
+        self.num_periods = config.get("num_periods", 50)
 
         # Structure
-        self.num_nodes = config.pop("num_nodes", 3)
-        self.connections = config.pop("connections", {0: [1], 1: [2], 2: []})
+        self.num_nodes = config.get("num_nodes", 3)
+        self.connections = config.get("connections", {0: [1], 1: [2], 2: []})
         self.network = create_network(self.connections)
         self.order_network = np.transpose(self.network)
         self.retailers = get_retailers(self.network)
@@ -28,23 +28,27 @@ class InvManagementDiv(gym.Env):
             self.upstream_node[i] = np.where(self.order_network[i] == 1)[0][0]
 
         self.num_stages = get_stage(node=int(self.num_nodes - 1), network=self.network) + 1
-        self.inv_init = config.pop("init_inv", np.ones(self.num_nodes) * 20)
-        self.delay = config.pop("delay", np.ones(self.num_nodes, dtype=np.int8))
-        self.standardise_state = config.pop("standardise_state", True)
-        self.standardise_actions = config.pop("standardise_actions", True)
+        self.inv_init = config.get("init_inv", np.ones(self.num_nodes) * 20)
+        self.delay = config.get("delay", np.ones(self.num_nodes, dtype=np.int8))
+        self.standardise_state = config.get("standardise_state", True)
+        self.standardise_actions = config.get("standardise_actions", True)
         self.a = -1
         self.b = 1
-        self.time_dependency = config.pop("time_dependency", False)
-        self.prev_actions = config.pop("prev_actions", False)
-        self.prev_demand = config.pop("prev_demand", False)
-        self.prev_length = config.pop("prev_length", 1)
+        self.time_dependency = config.get("time_dependency", False)
+        self.prev_actions = config.get("prev_actions", False)
+        self.prev_demand = config.get("prev_demand", False)
+        self.prev_length = config.get("prev_length", 1)
         self.max_delay = np.max(self.delay)
         if self.max_delay == 0:
             self.time_dependency = False
 
-        # Delay uncertainty
-        self.noisy_delay = False
-        self.noisy_delay_threshold = 0
+        # Customer demand noise
+        self.noisy_demand = config.get("noisy_demand", False)
+        self.noisy_demand_threshold = config.get("noisy_demand_threshold", 0)
+
+        # Lead time noise
+        self.noisy_delay = config.get("noisy_delay", False)
+        self.noisy_delay_threshold = config.get("noisy_delay_threshold", 0)
 
         # Price of goods
         stage_price = np.arange(self.num_stages) + 2
@@ -56,23 +60,23 @@ class InvManagementDiv(gym.Env):
             self.node_cost[i] = stage_cost[get_stage(i, self.network)]
 
         # Stock Holding and Backlog cost
-        self.inv_target = config.pop("inv_target", np.ones(self.num_nodes) * 10)
-        self.stock_cost = config.pop("stock_cost", np.ones(self.num_nodes) * 0.5)
-        self.backlog_cost = config.pop("backlog_cost", np.ones(self.num_nodes))
+        self.inv_target = config.get("inv_target", np.ones(self.num_nodes) * 10)
+        self.stock_cost = config.get("stock_cost", np.ones(self.num_nodes) * 0.5)
+        self.backlog_cost = config.get("backlog_cost", np.ones(self.num_nodes))
 
         # Customer demand
-        self.demand_dist = config.pop("demand_dist", "custom")
-        self.SEED = config.pop("seed", 52)
+        self.demand_dist = config.get("demand_dist", "custom")
+        self.SEED = config.get("seed", 52)
         np.random.seed(seed=int(self.SEED))
 
 
         # Capacity
-        self.inv_max = config.pop("inv_max", np.ones(self.num_nodes, dtype=np.int16) * 100)
+        self.inv_max = config.get("inv_max", np.ones(self.num_nodes, dtype=np.int16) * 100)
         order_max = np.zeros(self.num_nodes)
         for i in range(1, self.num_nodes):
             order_max[i] = self.inv_max[np.where(self.order_network[i] == 1)]
         order_max[0] = self.inv_max[0]
-        self.order_max = config.pop("order_max", order_max)
+        self.order_max = config.get("order_max", order_max)
         inv_max_obs = np.max(self.inv_max)
 
         # Number of downstream nodes of a given node
@@ -219,16 +223,16 @@ class InvManagementDiv(gym.Env):
         else:
             # Custom customer demand
             if self.demand_dist == "custom":
-                self.customer_demand = self.config.pop("customer_demand", np.ones((len(self.retailers), self.num_periods), dtype=np.int16) * 5)
+                self.customer_demand = self.config.get("customer_demand", np.ones((len(self.retailers), self.num_periods), dtype=np.int16) * 5)
             # Poisson distribution
             elif self.demand_dist == "poisson":
-                self.mu = self.config.pop("mu", 5)
+                self.mu = self.config.get("mu", 5)
                 self.dist = poisson
                 self.dist_param = {'mu': self.mu}
                 self.customer_demand = self.dist.rvs(size=(len(self.retailers), self.num_periods), **self.dist_param)
             # Uniform distribution
             elif self.demand_dist == "uniform":
-                lower_upper = self.config.pop("lower_upper", (1, 5))
+                lower_upper = self.config.get("lower_upper", (1, 5))
                 lower = lower_upper[0]
                 upper = lower_upper[1]
                 self.dist = randint
@@ -238,6 +242,17 @@ class InvManagementDiv(gym.Env):
                 self.customer_demand = self.dist.rvs(size=(len(self.retailers), self.num_periods), **self.dist_param)
             else:
                 raise Exception('Unrecognised, Distribution Not Implemented')
+
+            if self.noisy_demand:
+                #print("Im here")
+                for k in range(len(self.retailers)):
+                    for j in range(self.num_periods):
+                        double_demand = np.random.uniform(0, 1)
+                        zero_demand = np.random.uniform(0, 1)
+                        if double_demand <= self.noisy_demand_threshold:
+                            self.customer_demand[k, j] = 2 * self.customer_demand[k, j]
+                        if zero_demand <= self.noisy_demand_threshold:
+                            self.customer_demand[k, j] = 0
 
         # Assign customer demand to each retailer
         self.retailer_demand = dict()
@@ -406,7 +421,10 @@ class InvManagementDiv(gym.Env):
 
                             # Counter to escape while loop with error if infinite
                             while_counter += 1
-                            if while_counter > self.demand_max[i]:
+                            if while_counter > self.demand_max[i]*4:
+                                print(self.backlog_to[i])
+                                print(sum(list(self.backlog_to[i].values())))
+                                print(ship_amount)
                                 raise Exception("Infinite Loop 1")
 
                         # If there is still left-over shipped goods fulfill current demand if any
@@ -428,7 +446,7 @@ class InvManagementDiv(gym.Env):
 
                                 # Counter to escape while loop with error if infinite
                                 while_counter += 1
-                                if while_counter > self.demand_max[i]:
+                                if while_counter > self.demand_max[i]*2:
                                     raise Exception("Infinite Loop 2")
 
                             # Update backlog if some outstanding order unfulfilled
@@ -462,7 +480,7 @@ class InvManagementDiv(gym.Env):
 
                             # Counter to escape while loop with error if infinite
                             while_counter += 1
-                            if while_counter > self.demand_max[i]:
+                            if while_counter > self.demand_max[i]*2:
                                 raise Exception("Infinite Loop 3")
 
                     else:
@@ -476,7 +494,7 @@ class InvManagementDiv(gym.Env):
 
                             # Counter to escape while loop with error if infinite
                             while_counter += 1
-                            if while_counter > self.demand_max[i]:
+                            if while_counter > self.demand_max[i]*2:
                                 raise Exception("Infinite Loop 4")
 
                     # Log unfulfilled order amount as backlog

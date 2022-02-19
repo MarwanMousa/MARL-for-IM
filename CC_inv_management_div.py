@@ -5,30 +5,32 @@ from ray import tune
 from ray.rllib.models import ModelCatalog
 import numpy as np
 import time
-from utils import get_config, get_trainer, ensure_dir
+from utils import get_config, get_trainer, ensure_dir, check_connections, create_network
 from models.CC_Model import CentralizedCriticModel, CentralizedCriticModelRNN, FillInActions, central_critic_observer
 from gym.spaces import Dict, Box
 from hyperparams import get_hyperparams
 import matplotlib.pyplot as plt
 from matplotlib import rc
-#%% Environment and Agent Configuration
-
-train_agent = True
-save_agent = True
-save_path = "checkpoints/cc_agent/div_1_independent"
-load_path = "checkpoints/cc_agent/div_1_independent"
-LP_load_path = "LP_results/div_1/"
-load_iteration = str(600)
-load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
 # Define plot settings
 rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 plt.rcParams["figure.dpi"] = 200
+#%% Environment and Agent Configuration
+
+train_agent = True
+save_agent = True
+save_path = "checkpoints/cc_agent/four_stage_55"
+ensure_dir(save_path)
+load_path = "checkpoints/cc_agent/four_stage_55"
+LP_load_path = "LP_results/four_stage/"
+load_iteration = str(500)
+load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
+
 
 # Set script seed
-SEED = 52
+SEED = 55
 np.random.seed(seed=SEED)
 
 # Environment creator function for environment registration
@@ -40,10 +42,12 @@ def env_creator(configuration):
 num_nodes = 4
 connections = {
     0: [1],
-    1: [2, 3],
-    2: [],
+    1: [2],
+    2: [3],
     3: [],
     }
+check_connections(connections)
+network = create_network(connections)
 num_periods = 30
 customer_demand = np.ones(num_periods) * 5
 mu = 5
@@ -51,10 +55,13 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_nodes)*10
 inv_target = np.ones(num_nodes) * 0
 inv_max = np.ones(num_nodes) * 30
-stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
-backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
-delay = np.array([1, 2, 1, 1], dtype=np.int8)
-independent = True
+stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
+delay = np.array([1, 2, 3, 1], dtype=np.int8)
+independent = False
+# Loading in hyperparameters from hyperparameter search
+use_optimal = True
+configuration_name = "CC_5"
 time_dependency = True
 use_lstm = False
 prev_actions = True
@@ -95,7 +102,7 @@ env_config = {
     "inv_max": inv_max,
     "delay": delay,
     "independent": independent,
-    "seed": 52,
+    "seed": SEED,
     parameter: parameter_value,
     "time_dependency": time_dependency,
     "prev_demand": prev_demand,
@@ -103,9 +110,7 @@ env_config = {
     "prev_length": prev_length,
 }
 
-# Loading in hyperparameters from hyperparameter search
-use_optimal = True
-configuration_name = "CC_5"
+
 
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
@@ -121,6 +126,7 @@ if use_optimal:
 
 
 CONFIG = env_config.copy()
+
 
 # Test environment
 test_env = MultiAgentInvManagementDiv(env_config)
@@ -156,6 +162,36 @@ ModelCatalog.register_custom_model(
 ModelCatalog.register_custom_model(
         "cc_rnn_model", CentralizedCriticModelRNN)
 
+#
+num_tests = 200
+noisy_demand = False
+noise_threshold = 50/100
+noisy_delay = False
+noisy_delay_threshold = 50/100
+test_seed = 420
+np.random.seed(seed=test_seed)
+test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods),
+                                **test_env.dist_param)
+if noisy_demand:
+    for i in range(num_tests):
+        for k in range(len(test_env.retailers)):
+            for j in range(num_periods):
+                double_demand = np.random.uniform(0, 1)
+                zero_demand = np.random.uniform(0, 1)
+                if double_demand <= noise_threshold:
+                    test_demand[i, k, j] = 2 * test_demand[i, k, j]
+                if zero_demand <= noise_threshold:
+                    test_demand[i, k, j] = 0
+
+train_with_noise = False
+if train_with_noise:
+    CONFIG["noisy_demand"] = noisy_demand
+    CONFIG["noisy_demand_threshold"] = noise_threshold
+    CONFIG["noisy_delay"] = noisy_delay
+    CONFIG["noisy_delay_threshold"] = noisy_delay_threshold
+
+
+## Set up algorithm
 # Algorithm used
 algorithm = 'ppo'
 # Training Set-up
@@ -304,28 +340,10 @@ plt.show()
 
 #%% Test rollout
 
-num_tests = 1000
+
 # run until episode ends
 episode_reward = 0
 done = False
-test_seed = 420
-np.random.seed(seed=test_seed)
-test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
-noisy_demand = False
-noise_threshold = 40/100
-
-noisy_delay = False
-noisy_delay_threshold = 50/100
-
-if noisy_demand:
-    for i in range(num_tests):
-        for j in range(num_periods):
-            double_demand = np.random.uniform(0, 1)
-            zero_demand = np.random.uniform(0, 1)
-            if double_demand <= noise_threshold:
-                test_demand[i, j] = 2 * test_demand[i, j]
-            if zero_demand <= noise_threshold:
-                test_demand[i, j] = 0
 
 
 obs = test_env.reset(customer_demand=test_demand[0, :], noisy_delay=noisy_delay, noisy_delay_threshold=noisy_delay_threshold)
@@ -554,7 +572,7 @@ for m in range(num_nodes):
     print(f"\nFor node {m}, the mean profit is: {node_test_reward_mean[m]}, "
           f"with standard deviation {node_test_reward_std[m]}")
 
-if train_agent:
+if save_agent:
     np.save(save_path+'/reward_mean.npy', cc_reward_mean)
     np.save(save_path+'/reward_std.npy', cc_reward_std)
     np.save(save_path+'/inventory_mean.npy', inventory_level_mean)

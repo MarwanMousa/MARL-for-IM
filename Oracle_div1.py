@@ -97,21 +97,23 @@ test_env = InvManagementDiv(env_config)
 DFO_env = InvManagementDiv(DFO_CONFIG)
 
 #%% Linear Programming Pyomo
-num_tests = 1000
+path = 'LP_results/div_1/Oracle/'
+num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
 noisy_demand = False
-noise_threshold = 40/100
+noise_threshold = 50/100
 if noisy_demand:
     for i in range(num_tests):
-        for j in range(num_periods):
-            double_demand = np.random.uniform(0, 1)
-            zero_demand = np.random.uniform(0, 1)
-            if double_demand <= noise_threshold:
-                LP_demand[i, j] = 2 * LP_demand[i, j]
-            if zero_demand <= noise_threshold:
-                LP_demand[i, j] = 0
+        for k in range(len(DFO_env.retailers)):
+            for j in range(num_periods):
+                double_demand = np.random.uniform(0, 1)
+                zero_demand = np.random.uniform(0, 1)
+                if double_demand <= noise_threshold:
+                    LP_demand[i, k, j] = 2 * LP_demand[i, k, j]
+                if zero_demand <= noise_threshold:
+                    LP_demand[i, k, j] = 0
 
 inventory_list = []
 backlog_list = []
@@ -424,7 +426,7 @@ print(f'Mean inventory level is: {inventory_level_mean} with std: {inventory_lev
 print(f'Mean backlog level is: {backlog_level_mean} with std: {backlog_level_std}')
 print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {customer_backlog_std}')
 
-path = 'LP_results/div_1/Oracle/'
+
 ensure_dir(path)
 np.save(path+'reward_mean.npy', lp_reward_mean)
 np.save(path+'reward_std.npy', lp_reward_std)
