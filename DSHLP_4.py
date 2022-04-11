@@ -90,16 +90,16 @@ test_env = InvManagementDiv(env_config)
 LP_env = InvManagementDiv(LP_CONFIG)
 
 #%%
-path = 'LP_results/four_stage_delay_50/DSHLP/'
+path = 'LP_results/four_stage_noise_10/DSHLP/'
 save_results = True
 num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_Customer_Demand = LP_env.dist.rvs(size=(num_tests, (len(LP_env.retailers)), LP_env.num_periods), **LP_env.dist_param)
 
-noisy_demand = False
-noise_threshold = 50/100
-noisy_delay = True
+noisy_demand = True
+noise_threshold = 10/100
+noisy_delay = False
 noisy_delay_threshold = 50/100
 if noisy_demand:
     for i in range(num_tests):
@@ -116,11 +116,12 @@ if noisy_demand:
 rho = 1e-1
 rho_tgt = rho * 1000
 Rho = rho
-N_iter = 50
+N_iter = 80
 use_variable_rho = False
 use_scaled_rho = False
 act_rho = np.linspace(rho, rho_tgt, N_iter)
 ADMM = True
+dual_r_threshold = 1/100
 
 
 # Maximum inventory and Maximum order amount
@@ -312,8 +313,6 @@ def obj_rule_4(m):
                for t in m.T)
 
 
-
-
 # Get solver
 solver = pyo.SolverFactory('gurobi', solver_io='python')
 
@@ -337,7 +336,9 @@ failed_tests = list()
 ft_prim_r_dict = dict()
 ft_dual_r_dict = dict()
 
-
+test_dual_r_dict = {}
+test_prim_r_dict = {}
+test_actual_iter_dict = {}
 
 for j in range(num_tests):
     print(f"test no. {j + 1}")
@@ -373,7 +374,11 @@ for j in range(num_tests):
     skip_test = False
     prim_r_dict = {}
     dual_r_dict = {}
+    actual_iter_dict = {}
     for d in range(num_periods):
+
+        #if LP_Customer_Demand[j][0][d] == 0:
+        #    print(f"Zero customer demand {LP_Customer_Demand[j][0][d]} at timestep: {d}")
 
         # Get initial acquisition at each stage
         if d - d1 < 0:
@@ -477,11 +482,13 @@ for j in range(num_tests):
 
         # Global variables between nodes 1 and 2
         model_1.z12_1 = pyo.Param(model_1.T, initialize=mu, mutable=True)
+        model_1.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_1.u12_1 = pyo.Param(model_1.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_1.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_1.z12_2 = pyo.Param(model_1.T12, initialize=mu, mutable=True)
+            model_1.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_1.u12_2 = pyo.Param(model_1.T12, initialize=0, mutable=True)
 
         model_1.obj = pyo.Objective(rule=obj_rule_1, sense=pyo.maximize)
@@ -508,20 +515,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 1 and 2
         model_2.z12_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+        model_2.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_2.u12_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_2.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_2.z12_2 = pyo.Param(model_2.T12, initialize=mu, mutable=True)
+            model_2.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_2.u12_2 = pyo.Param(model_2.T12, initialize=0, mutable=True)
 
         # Global variables between nodes 2 and 3
         model_2.z23_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+        model_2.z23_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_2.u23_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
 
         if d + d3 <= num_periods - 1:
             model_2.T23 = pyo.RangeSet(d + d3, num_periods - 1)
             model_2.z23_2 = pyo.Param(model_2.T23, initialize=mu, mutable=True)
+            model_2.z23_2[d + d3] = LP_Customer_Demand[j][0][d]  # <---
             model_2.u23_2 = pyo.Param(model_2.T23, initialize=0, mutable=True)
 
         model_2.obj = pyo.Objective(rule=obj_rule_2, sense=pyo.maximize)
@@ -549,20 +560,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 2 and 3
         model_3.z23_1 = pyo.Param(model_3.T, initialize=mu, mutable=True)
+        model_3.z23_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_3.u23_1 = pyo.Param(model_3.T, initialize=0, mutable=True)
 
         if d + d3 <= num_periods - 1:
             model_3.T23 = pyo.RangeSet(d + d3, num_periods - 1)
             model_3.z23_2 = pyo.Param(model_3.T23, initialize=mu, mutable=True)
+            model_3.z23_2[d + d3] = LP_Customer_Demand[j][0][d]  # <---
             model_3.u23_2 = pyo.Param(model_3.T23, initialize=0, mutable=True)
 
         # Global variables between nodes 3 and 4
         model_3.z34_1 = pyo.Param(model_3.T, initialize=mu, mutable=True)
+        model_3.z34_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_3.u34_1 = pyo.Param(model_3.T, initialize=0, mutable=True)
 
         if d + d4 <= num_periods - 1:
             model_3.T34 = pyo.RangeSet(d + d4, num_periods - 1)
             model_3.z34_2 = pyo.Param(model_3.T34, initialize=mu, mutable=True)
+            model_3.z34_2[d + d4] = LP_Customer_Demand[j][0][d]  # <---
             model_3.u34_2 = pyo.Param(model_3.T34, initialize=0, mutable=True)
 
         model_3.obj = pyo.Objective(rule=obj_rule_3, sense=pyo.maximize)
@@ -591,19 +606,22 @@ for j in range(num_tests):
         model_4.max_inventory = pyo.Constraint(model_4.T, rule=max_inventory_rule)
 
         model_4.z34_1 = pyo.Param(model_4.T, initialize=mu, mutable=True)
+        model_4.z34_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_4.u34_1 = pyo.Param(model_4.T, initialize=0, mutable=True)
 
         if d + d4 <= num_periods - 1:
             model_4.T34 = pyo.RangeSet(d + d4, num_periods - 1)
             model_4.z34_2 = pyo.Param(model_4.T34, initialize=mu, mutable=True)
+            model_4.z34_2[d + d4] = LP_Customer_Demand[j][0][d]  # <---
             model_4.u34_2 = pyo.Param(model_4.T34, initialize=0, mutable=True)
 
         model_4.obj = pyo.Objective(rule=obj_rule_4, sense=pyo.maximize)
 
-
         # Iterations
         prim_r = []
         dual_r = []
+
+        old_dual_r = 20
         for i in range(N_iter):
 
             # set rho
@@ -628,6 +646,8 @@ for j in range(num_tests):
             if any(solution):
                 skip_test = True
                 failed_tests.append(j)
+                print(f"Failed at time-step: {d} with demand: {LP_Customer_Demand[j][0][d]}")
+                print(f"demand at d-1: {LP_Customer_Demand[j][0][d-1]} and d+1: {LP_Customer_Demand[j][0][d+1]}")
                 break
 
 
@@ -807,8 +827,22 @@ for j in range(num_tests):
             # primal residual
             prim_r_z = [item for sublist in prim_r_z for item in sublist]
             prim_r += [np.linalg.norm(prim_r_z)]
+            iter_prim_r = np.linalg.norm(prim_r_z)
             # dual residual
             dual_r += [rho * np.linalg.norm(z-old_z)]
+            iter_dual_r = rho * np.linalg.norm(z-old_z)
+
+            if iter_dual_r == 0:
+                break
+
+            delta_dual_r = abs(iter_dual_r - old_dual_r)
+
+            if (delta_dual_r/old_dual_r) < dual_r_threshold:
+                break
+
+            old_dual_r = iter_dual_r
+
+
 
         # If current test failed at a time-step go to next test
         if skip_test:
@@ -845,8 +879,15 @@ for j in range(num_tests):
         if use_scaled_rho:
             rho = Rho * ((num_periods - d - 1)/(num_periods))
 
+
         dual_r_dict[d] = dual_r
         prim_r_dict[d] = prim_r
+        actual_iter_dict[d] = i
+        print(f'actual iter at time step {d} is: {i}, with dual_r: {iter_dual_r}')
+
+    test_dual_r_dict[j] = dual_r_dict
+    test_prim_r_dict[j] = prim_r_dict
+    test_actual_iter_dict[j] = actual_iter_dict
 
 #%% Testing actions in RL environment
     if skip_test:
@@ -918,6 +959,9 @@ if save_results:
     np.save(path+'failed_tests', failed_tests)
     np.save(path + 'ft_dual_r', ft_dual_r_dict)
     np.save(path + 'ft_prim_r', ft_prim_r_dict)
+    np.save(path + 'test_dual_r', test_dual_r_dict)
+    np.save(path + 'test_prim_r', test_prim_r_dict)
+    np.save(path + 'test_actual_iter', test_actual_iter_dict)
     np.save(path+'profit', profit)
     np.save(path+'time', dshlp_time)
 
