@@ -14,11 +14,11 @@ from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = True
-save_agent = True
-save_path = "checkpoints/single_agent/four_stage_delay_train"
-load_path = "checkpoints/single_agent/four_stage_delay_train"
-LP_load_path = "LP_results/eight_stage/"
+train_agent = False
+save_agent = False
+save_path = "checkpoints/single_agent/four_stage"
+load_path = "checkpoints/single_agent/four_stage"
+LP_load_path = "LP_results/four_stage/"
 load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 

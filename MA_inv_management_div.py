@@ -18,13 +18,13 @@ plt.rcParams['ps.fonttype'] = 42
 plt.rcParams["figure.dpi"] = 200
 #%% Environment configuration
 
-train_agent = True
+train_agent = False
 save_agent = True
-save_path = "checkpoints/multi_agent/four_stage_53"
-load_path = "checkpoints/multi_agent/four_stage_53"
-share_network = False
+save_path = "checkpoints/multi_agent/div_1"
+load_path = "checkpoints/multi_agent/div_1"
+share_network = True
 independent = False
-LP_load_path = "LP_results/four_stage/"
+LP_load_path = "LP_results/div_1/"
 load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
@@ -46,8 +46,8 @@ def env_creator(configuration):
 num_nodes = 4
 connections = {
     0: [1],
-    1: [2],
-    2: [3],
+    1: [2, 3],
+    2: [],
     3: [],
     }
 check_connections(connections)
@@ -59,15 +59,14 @@ lower_upper = (1, 5)
 init_inv = np.ones(num_nodes)*10
 inv_target = np.ones(num_nodes) * 0
 inv_max = np.ones(num_nodes) * 30
-stock_cost = np.array([0.35, 0.3, 0.4, 0.2])
-backlog_cost = np.array([0.5, 0.7, 0.6, 0.9])
-delay = np.array([1, 2, 3, 1], dtype=np.int8)
+stock_cost = np.array([0.35, 0.3, 0.4, 0.4])
+backlog_cost = np.array([0.5, 0.7, 0.6, 0.6])
+delay = np.array([1, 2, 1, 1], dtype=np.int8)
 time_dependency = True
 use_lstm = False
 prev_actions = False
 prev_demand = True
 prev_length = 1
-
 
 demand_distribution = "poisson"
 
@@ -103,7 +102,7 @@ env_config = {
     "inv_max": inv_max,
     "delay": delay,
     "independent": independent,
-    "seed": 52,
+    "seed": SEED,
     parameter: parameter_value,
     "time_dependency": time_dependency,
     "prev_demand": prev_demand,
@@ -218,6 +217,7 @@ if use_lstm:
 if use_optimal:
     rl_config = o_config
     rl_config["env_config"] = CONFIG
+    rl_config["seed"] = SEED
     if share_network:
         rl_config["multiagent"] = {
             "policies": policy_graph_single,
@@ -319,6 +319,8 @@ ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (DSHLP_reward
 
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
+ax.set_ylim(bottom=-2000)
+ax.set_xlim(left=0, right=len(mean_rewards))
 ax.legend()
 
 if save_agent:
@@ -451,7 +453,7 @@ for i in range(num_nodes):
     sp = agent_ids[i]
     axs[i].plot(dict_obs[sp]['inventory'], label='Inventory', lw=2)
     axs[i].plot(dict_obs[sp]['backlog'], label='Backlog', color='tab:red', lw=2)
-    title = 'Stage ' + str(i + 1)
+    title = 'Node ' + str(i + 1)
     axs[i].set_title(title)
     axs[i].set_xlim(0, num_periods)
     axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)

@@ -95,8 +95,8 @@ test_env = InvManagement(env_config)
 DFO_env = InvManagement(DFO_CONFIG)
 
 #%% Linear Programming Pyomo
-path = 'LP_results/four_stage/Oracle_DSHLP_n50/'
-failed_tests = np.load("LP_results/four_stage_noise_50/DSHLP/failed_tests.npy", allow_pickle=True)
+path = 'LP_results/four_stage_noise_50/Oracle/'
+#failed_tests = np.load("LP_results/four_stage_noise_50/DSHLP/failed_tests.npy", allow_pickle=True)
 num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
@@ -377,11 +377,11 @@ for j in range(num_tests):
             array_acquisition[:, t - 1] = info['acquisition']
         t += 1
 
-    if j not in failed_tests:
-        lp_reward_list.append(lp_reward)
-        inventory_list.append(total_inventory)
-        backlog_list.append(total_backlog)
-        customer_backlog_list.append(customer_backlog)
+    #if j not in failed_tests:
+    lp_reward_list.append(lp_reward)
+    inventory_list.append(total_inventory)
+    backlog_list.append(total_backlog)
+    customer_backlog_list.append(customer_backlog)
     if j % 10 == 0:
         print(f'reward at {j} is {lp_reward}')
 
@@ -401,6 +401,7 @@ print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {cust
 
 ensure_dir(path)
 np.save(path+'reward_mean.npy', lp_reward_mean)
+np.save(path+'reward_list.npy', lp_reward_list)
 np.save(path+'reward_std.npy', lp_reward_std)
 np.save(path+'inventory_mean.npy', inventory_level_mean)
 np.save(path+'inventory_std.npy', inventory_level_std)

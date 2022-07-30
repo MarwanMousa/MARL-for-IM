@@ -367,11 +367,13 @@ for j in range(num_tests):
 
         # Global variables between nodes 1 and 2
         model_1.z12_1 = pyo.Param(model_1.T, initialize=mu, mutable=True)
+        model_1.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_1.u12_1 = pyo.Param(model_1.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_1.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_1.z12_2 = pyo.Param(model_1.T12, initialize=mu, mutable=True)
+            model_1.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_1.u12_2 = pyo.Param(model_1.T12, initialize=0, mutable=True)
 
         model_1.obj = pyo.Objective(rule=obj_rule_1, sense=pyo.maximize)
@@ -400,11 +402,13 @@ for j in range(num_tests):
         model_2.max_inventory = pyo.Constraint(model_2.T, rule=max_inventory_rule)
 
         model_2.z12_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+        model_2.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_2.u12_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_2.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_2.z12_2 = pyo.Param(model_2.T12, initialize=mu, mutable=True)
+            model_2.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_2.u12_2 = pyo.Param(model_2.T12, initialize=0, mutable=True)
 
         model_2.obj = pyo.Objective(rule=obj_rule_2, sense=pyo.maximize)
@@ -597,6 +601,7 @@ print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {cust
 ensure_dir(path)
 if save_results:
     np.save(path+'reward_mean.npy', lp_reward_mean)
+    np.save(path + 'reward_list.npy', lp_reward_list)
     np.save(path+'reward_std.npy', lp_reward_std)
     np.save(path+'inventory_mean.npy', inventory_level_mean)
     np.save(path+'inventory_std.npy', inventory_level_std)

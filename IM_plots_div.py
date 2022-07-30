@@ -1477,6 +1477,7 @@ colour_dict['S'] = 'tab:blue'
 colour_dict['MA'] = 'salmon'
 colour_dict['MAS'] = 'tab:cyan'
 colour_dict['CC'] = 'tab:green'
+colour_dict['DFO'] = 'indigo'
 colour_dict['MAI'] = 'indigo'
 colour_dict['MASI'] = 'tab:purple'
 colour_dict['CCI'] = 'tab:olive'
@@ -1516,15 +1517,15 @@ fig.subplots_adjust(hspace=0.1, wspace=.3)
 
 axs.plot(OR1_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 #axs.fill_between(np.arange(0, 30), OR1_profit_mean-OR1_profit_std, OR1_profit_mean+OR1_profit_std, alpha=0.3)
-axs.plot(SHLP1_profit_mean, label='SHILP', lw=2, color=colour_dict['SHLP'])
-axs.plot(DSHLP1_profit_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
+axs.plot(SHLP1_profit_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+axs.plot(DSHLP1_profit_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 axs.plot(S1_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 axs.plot(MA1_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-#axs.plot(MA1_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(MA1I_profit_mean, label='IPPO Independent', lw=2, color=colour_dict['MAI'])
+axs.plot(MAS1_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+#axs.plot(MA1I_profit_mean, label='IPPO Independent', lw=2, color=colour_dict['MAI'])
 #axs.plot(MA1I_profit_mean, label='IPPO shared network Independent', lw=2, color=colour_dict['MASI'])
 axs.plot(CC1_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-axs.plot(CC1I_profit_mean, label='MAPPO Independent', lw=2, color=colour_dict['CCI'])
+#axs.plot(CC1I_profit_mean, label='MAPPO Independent', lw=2, color=colour_dict['CCI'])
 axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()

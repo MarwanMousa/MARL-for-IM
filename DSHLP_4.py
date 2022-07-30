@@ -90,16 +90,16 @@ test_env = InvManagementDiv(env_config)
 LP_env = InvManagementDiv(LP_CONFIG)
 
 #%%
-path = 'LP_results/four_stage_noise_10/DSHLP/'
+path = 'LP_results/four_stage_delay_50/DSHLP/'
 save_results = True
 num_tests = 200
 test_seed = 420
 np.random.seed(seed=test_seed)
 LP_Customer_Demand = LP_env.dist.rvs(size=(num_tests, (len(LP_env.retailers)), LP_env.num_periods), **LP_env.dist_param)
 
-noisy_demand = True
-noise_threshold = 10/100
-noisy_delay = False
+noisy_demand = False
+noise_threshold = 50/100
+noisy_delay = True
 noisy_delay_threshold = 50/100
 if noisy_demand:
     for i in range(num_tests):
@@ -116,12 +116,12 @@ if noisy_demand:
 rho = 1e-1
 rho_tgt = rho * 1000
 Rho = rho
-N_iter = 80
+N_iter = 50
 use_variable_rho = False
 use_scaled_rho = False
 act_rho = np.linspace(rho, rho_tgt, N_iter)
 ADMM = True
-dual_r_threshold = 1/100
+dual_r_threshold = 0/100
 
 
 # Maximum inventory and Maximum order amount
@@ -949,6 +949,7 @@ print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {cust
 ensure_dir(path)
 if save_results:
     np.save(path+'reward_mean.npy', lp_reward_mean)
+    np.save(path + 'reward_list.npy', lp_reward_list)
     np.save(path+'reward_std.npy', lp_reward_std)
     np.save(path+'inventory_mean.npy', inventory_level_mean)
     np.save(path+'inventory_std.npy', inventory_level_std)

@@ -14,11 +14,11 @@ from matplotlib import rc
 
 #%% Environment Configuration
 
-train_agent = True
+train_agent = False
 save_agent = True
-save_path = "checkpoints/single_agent_noisy_delay/four_stage_50"
-load_path = "checkpoints/single_agent_noisy_delay/four_stage_50"
-LP_load_path = "LP_results/div_1/"
+save_path = "checkpoints/single_agent/four_stage"
+load_path = "checkpoints/single_agent/four_stage"
+LP_load_path = "LP_results/four_stage/"
 load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
@@ -139,10 +139,10 @@ np.random.seed(seed=test_seed)
 test_demand = test_env.dist.rvs(size=(num_tests, (len(test_env.retailers)), test_env.num_periods), **test_env.dist_param)
 noisy_demand = False
 noise_threshold = 10/100
-noisy_delay = True
-noisy_delay_threshold = 50/100
+noisy_delay = False
+noisy_delay_threshold = 10/100
 
-train_with_noise = True
+train_with_noise = False
 if train_with_noise:
     CONFIG["noisy_demand"] = noisy_demand
     CONFIG["noisy_demand_threshold"] = noise_threshold
@@ -156,7 +156,7 @@ if noisy_demand:
                 double_demand = np.random.uniform(0, 1)
                 zero_demand = np.random.uniform(0, 1)
                 if double_demand <= noise_threshold:
-                    test_demand[i, k, j] = 2 *test_demand[i, k, j]
+                    test_demand[i, k, j] = 2 * test_demand[i, k, j]
                 if zero_demand <= noise_threshold:
                     test_demand[i, k, j] = 0
 
@@ -187,7 +187,7 @@ agent = get_trainer(algorithm, rl_config, "InventoryManagementDiv")
 
 if train_agent:
     # Training
-    iters = 700  # Number of training iterations
+    iters = 500  # Number of training iterations
     min_iter_save = 300
     checkpoint_interval = 20
     results = []
@@ -272,6 +272,7 @@ ax.fill_between(np.arange(len(mean_rewards)),
                  alpha=0.3)
 ax.plot(mean_rewards, label='Mean RL rewards')
 
+'''
 # Plot DFO rewards
 ax.fill_between(np.arange(len(mean_rewards)),
                  np.ones(len(mean_rewards)) * (dfo_rewards_mean - dfo_rewards_std),
@@ -285,6 +286,7 @@ ax.fill_between(np.arange(len(mean_rewards)),
                  np.ones(len(mean_rewards)) * (oracle_rewards_mean + oracle_rewards_std),
                  alpha=0.3)
 ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (oracle_rewards_mean), label='Mean Oracle rewards')
+'''
 
 # Plot SHLP rewards
 ax.fill_between(np.arange(len(mean_rewards)),
@@ -296,6 +298,8 @@ ax.plot(np.arange(len(mean_rewards)), np.ones(len(mean_rewards)) * (SHLP_rewards
 
 ax.set_ylabel('Rewards')
 ax.set_xlabel('Episode')
+ax.set_ylim(bottom=-2000)
+ax.set_xlim(left=0, right=len(mean_rewards))
 ax.legend()
 
 if save_agent:
@@ -462,7 +466,7 @@ axs = axs.ravel()
 for i in range(num_nodes):
     axs[i].plot(array_obs[i, 0, :], label='Inventory', lw=2)
     axs[i].plot(array_obs[i, 1, :], label='Backlog', color='tab:red', lw=2)
-    title = 'Node ' + str(i)
+    title = 'Node ' + str(i + 1)
     axs[i].set_title(title)
     axs[i].set_xlim(0, num_periods)
     axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)

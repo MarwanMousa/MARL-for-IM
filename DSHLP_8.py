@@ -622,11 +622,13 @@ for j in range(num_tests):
 
         # Global variables between nodes 1 and 2
         model_1.z12_1 = pyo.Param(model_1.T, initialize=mu, mutable=True)
+        model_1.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_1.u12_1 = pyo.Param(model_1.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_1.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_1.z12_2 = pyo.Param(model_1.T12, initialize=mu, mutable=True)
+            model_1.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_1.u12_2 = pyo.Param(model_1.T12, initialize=0, mutable=True)
 
         model_1.obj = pyo.Objective(rule=obj_rule_1, sense=pyo.maximize)
@@ -653,20 +655,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 1 and 2
         model_2.z12_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+        model_2.z12_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_2.u12_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
 
         if d + d2 <= num_periods - 1:
             model_2.T12 = pyo.RangeSet(d + d2, num_periods - 1)
             model_2.z12_2 = pyo.Param(model_2.T12, initialize=mu, mutable=True)
+            model_2.z12_2[d + d2] = LP_Customer_Demand[j][0][d]  # <---
             model_2.u12_2 = pyo.Param(model_2.T12, initialize=0, mutable=True)
 
         # Global variables between nodes 2 and 3
         model_2.z23_1 = pyo.Param(model_2.T, initialize=mu, mutable=True)
+        model_2.z23_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_2.u23_1 = pyo.Param(model_2.T, initialize=0, mutable=True)
 
         if d + d3 <= num_periods - 1:
             model_2.T23 = pyo.RangeSet(d + d3, num_periods - 1)
             model_2.z23_2 = pyo.Param(model_2.T23, initialize=mu, mutable=True)
+            model_2.z23_2[d + d3] = LP_Customer_Demand[j][0][d]  # <---
             model_2.u23_2 = pyo.Param(model_2.T23, initialize=0, mutable=True)
 
         model_2.obj = pyo.Objective(rule=obj_rule_2, sense=pyo.maximize)
@@ -694,20 +700,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 2 and 3
         model_3.z23_1 = pyo.Param(model_3.T, initialize=mu, mutable=True)
+        model_3.z23_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_3.u23_1 = pyo.Param(model_3.T, initialize=0, mutable=True)
 
         if d + d3 <= num_periods - 1:
             model_3.T23 = pyo.RangeSet(d + d3, num_periods - 1)
             model_3.z23_2 = pyo.Param(model_3.T23, initialize=mu, mutable=True)
+            model_3.z23_2[d + d3] = LP_Customer_Demand[j][0][d]  # <---
             model_3.u23_2 = pyo.Param(model_3.T23, initialize=0, mutable=True)
 
         # Global variables between nodes 3 and 4
         model_3.z34_1 = pyo.Param(model_3.T, initialize=mu, mutable=True)
+        model_3.z34_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_3.u34_1 = pyo.Param(model_3.T, initialize=0, mutable=True)
 
         if d + d4 <= num_periods - 1:
             model_3.T34 = pyo.RangeSet(d + d4, num_periods - 1)
             model_3.z34_2 = pyo.Param(model_3.T34, initialize=mu, mutable=True)
+            model_3.z34_2[d + d4] = LP_Customer_Demand[j][0][d]  # <---
             model_3.u34_2 = pyo.Param(model_3.T34, initialize=0, mutable=True)
 
         model_3.obj = pyo.Objective(rule=obj_rule_3, sense=pyo.maximize)
@@ -734,20 +744,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 3 and 4
         model_4.z34_1 = pyo.Param(model_4.T, initialize=mu, mutable=True)
+        model_4.z34_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_4.u34_1 = pyo.Param(model_4.T, initialize=0, mutable=True)
 
         if d + d4 <= num_periods - 1:
             model_4.T34 = pyo.RangeSet(d + d4, num_periods - 1)
             model_4.z34_2 = pyo.Param(model_4.T34, initialize=mu, mutable=True)
+            model_4.z34_2[d + d4] = LP_Customer_Demand[j][0][d]  # <---
             model_4.u34_2 = pyo.Param(model_4.T34, initialize=0, mutable=True)
 
         # Global variables between nodes 4 and 5
         model_4.z45_1 = pyo.Param(model_4.T, initialize=mu, mutable=True)
+        model_4.z45_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_4.u45_1 = pyo.Param(model_4.T, initialize=0, mutable=True)
 
         if d + d5 <= num_periods - 1:
             model_4.T45 = pyo.RangeSet(d + d5, num_periods - 1)
             model_4.z45_2 = pyo.Param(model_4.T45, initialize=mu, mutable=True)
+            model_4.z45_2[d + d5] = LP_Customer_Demand[j][0][d]  # <---
             model_4.u45_2 = pyo.Param(model_4.T45, initialize=0, mutable=True)
 
         model_4.obj = pyo.Objective(rule=obj_rule_4, sense=pyo.maximize)
@@ -774,20 +788,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 4 and 5
         model_5.z45_1 = pyo.Param(model_5.T, initialize=mu, mutable=True)
+        model_5.z45_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_5.u45_1 = pyo.Param(model_5.T, initialize=0, mutable=True)
 
         if d + d5 <= num_periods - 1:
             model_5.T45 = pyo.RangeSet(d + d5, num_periods - 1)
             model_5.z45_2 = pyo.Param(model_5.T45, initialize=mu, mutable=True)
+            model_5.z45_2[d + d5] = LP_Customer_Demand[j][0][d]  # <---
             model_5.u45_2 = pyo.Param(model_5.T45, initialize=0, mutable=True)
 
         # Global variables between nodes 5 and 6
         model_5.z56_1 = pyo.Param(model_5.T, initialize=mu, mutable=True)
+        model_5.z56_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_5.u56_1 = pyo.Param(model_5.T, initialize=0, mutable=True)
 
         if d + d6 <= num_periods - 1:
             model_5.T56 = pyo.RangeSet(d + d6, num_periods - 1)
             model_5.z56_2 = pyo.Param(model_5.T56, initialize=mu, mutable=True)
+            model_5.z56_2[d + d6] = LP_Customer_Demand[j][0][d]  # <---
             model_5.u56_2 = pyo.Param(model_5.T56, initialize=0, mutable=True)
 
         model_5.obj = pyo.Objective(rule=obj_rule_5, sense=pyo.maximize)
@@ -814,20 +832,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 5 and 6
         model_6.z56_1 = pyo.Param(model_6.T, initialize=mu, mutable=True)
+        model_6.z56_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_6.u56_1 = pyo.Param(model_6.T, initialize=0, mutable=True)
 
         if d + d6 <= num_periods - 1:
             model_6.T56 = pyo.RangeSet(d + d6, num_periods - 1)
             model_6.z56_2 = pyo.Param(model_6.T56, initialize=mu, mutable=True)
+            model_6.z56_2[d + d6] = LP_Customer_Demand[j][0][d]  # <---
             model_6.u56_2 = pyo.Param(model_6.T56, initialize=0, mutable=True)
 
         # Global variables between nodes 6 and 7
         model_6.z67_1 = pyo.Param(model_6.T, initialize=mu, mutable=True)
+        model_6.z67_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_6.u67_1 = pyo.Param(model_6.T, initialize=0, mutable=True)
 
         if d + d7 <= num_periods - 1:
             model_6.T67 = pyo.RangeSet(d + d7, num_periods - 1)
             model_6.z67_2 = pyo.Param(model_6.T67, initialize=mu, mutable=True)
+            model_6.z67_2[d + d7] = LP_Customer_Demand[j][0][d]  # <---
             model_6.u67_2 = pyo.Param(model_6.T67, initialize=0, mutable=True)
 
         model_6.obj = pyo.Objective(rule=obj_rule_6, sense=pyo.maximize)
@@ -854,20 +876,24 @@ for j in range(num_tests):
 
         # Global variables between nodes 6 and 7
         model_7.z67_1 = pyo.Param(model_7.T, initialize=mu, mutable=True)
+        model_7.z67_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_7.u67_1 = pyo.Param(model_7.T, initialize=0, mutable=True)
 
         if d + d7 <= num_periods - 1:
             model_7.T67 = pyo.RangeSet(d + d7, num_periods - 1)
             model_7.z67_2 = pyo.Param(model_7.T67, initialize=mu, mutable=True)
+            model_7.z67_2[d + d7] = LP_Customer_Demand[j][0][d]  # <---
             model_7.u67_2 = pyo.Param(model_7.T67, initialize=0, mutable=True)
 
         # Global variables between nodes 7 and 8
         model_7.z78_1 = pyo.Param(model_7.T, initialize=mu, mutable=True)
+        model_7.z78_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_7.u78_1 = pyo.Param(model_7.T, initialize=0, mutable=True)
 
         if d + d8 <= num_periods - 1:
             model_7.T78 = pyo.RangeSet(d + d8, num_periods - 1)
             model_7.z78_2 = pyo.Param(model_7.T78, initialize=mu, mutable=True)
+            model_7.z78_2[d + d8] = LP_Customer_Demand[j][0][d]  # <---
             model_7.u78_2 = pyo.Param(model_7.T78, initialize=0, mutable=True)
 
         model_7.obj = pyo.Objective(rule=obj_rule_7, sense=pyo.maximize)
@@ -896,11 +922,13 @@ for j in range(num_tests):
         model_8.max_inventory = pyo.Constraint(model_8.T, rule=max_inventory_rule)
 
         model_8.z78_1 = pyo.Param(model_8.T, initialize=mu, mutable=True)
+        model_8.z78_1[d] = LP_Customer_Demand[j][0][d]  # <---
         model_8.u78_1 = pyo.Param(model_8.T, initialize=0, mutable=True)
 
         if d + d8 <= num_periods - 1:
             model_8.T78 = pyo.RangeSet(d + d8, num_periods - 1)
             model_8.z78_2 = pyo.Param(model_8.T78, initialize=mu, mutable=True)
+            model_8.z78_2[d + d8] = LP_Customer_Demand[j][0][d]  # <---
             model_8.u78_2 = pyo.Param(model_8.T78, initialize=0, mutable=True)
 
         model_8.obj = pyo.Objective(rule=obj_rule_8, sense=pyo.maximize)
@@ -1456,6 +1484,7 @@ print(f'Mean customer backlog level is: {customer_backlog_mean } with std: {cust
 ensure_dir(path)
 if save_results:
     np.save(path+'reward_mean.npy', lp_reward_mean)
+    np.save(path + 'reward_list.npy', lp_reward_list)
     np.save(path+'reward_std.npy', lp_reward_std)
     np.save(path+'inventory_mean.npy', inventory_level_mean)
     np.save(path+'inventory_std.npy', inventory_level_std)

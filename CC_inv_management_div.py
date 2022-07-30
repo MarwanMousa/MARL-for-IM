@@ -21,16 +21,15 @@ plt.rcParams["figure.dpi"] = 200
 
 train_agent = True
 save_agent = True
-save_path = "checkpoints/cc_agent/four_stage_55"
+save_path = "checkpoints/cc_agent/four_stage"
 ensure_dir(save_path)
-load_path = "checkpoints/cc_agent/four_stage_55"
+load_path = "checkpoints/cc_agent/four_stage"
 LP_load_path = "LP_results/four_stage/"
 load_iteration = str(500)
 load_agent_path = load_path + '/checkpoint_000' + load_iteration + '/checkpoint-' + load_iteration
 
-
 # Set script seed
-SEED = 55
+SEED = 52
 np.random.seed(seed=SEED)
 
 # Environment creator function for environment registration
@@ -110,8 +109,6 @@ env_config = {
     "prev_length": prev_length,
 }
 
-
-
 if use_optimal:
     o_config = get_hyperparams(configuration_name)
     temp_env = o_config["env_config"]
@@ -124,9 +121,7 @@ if use_optimal:
     env_config["prev_actions"] = prev_actions
     env_config["prev_length"] = prev_length
 
-
 CONFIG = env_config.copy()
-
 
 # Test environment
 test_env = MultiAgentInvManagementDiv(env_config)
@@ -224,6 +219,7 @@ else:
 if use_optimal:
     rl_config = o_config
     rl_config["env_config"] = CONFIG
+    rl_config["seed"] = SEED
     rl_config["num_workers"] = 2
     rl_config["num_gpus"] = 0
     rl_config["multiagent"] = {
@@ -445,7 +441,7 @@ for i in range(num_nodes):
     sp = agent_ids[i]
     axs[i].plot(dict_obs[sp]['inventory'], label='Inventory', lw=2)
     axs[i].plot(dict_obs[sp]['backlog'], label='Backlog', color='tab:red', lw=2)
-    title = 'Stage ' + str(i + 1)
+    title = 'Node ' + str(i + 1)
     axs[i].set_title(title)
     axs[i].set_xlim(0, num_periods)
     axs[i].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
