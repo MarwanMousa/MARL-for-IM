@@ -4,10 +4,10 @@ from matplotlib import rc
 
 
 # Define plot settings
-rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
+rc('font', **{'family': 'serif', 'serif': ['Arial'], 'size': 16})
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
-plt.rcParams["figure.dpi"] = 200
+plt.rcParams["figure.dpi"] = 1000
 
 
 #%% Load Single Rl Data
@@ -1515,23 +1515,23 @@ CC1I_profit_std = np.std(np.cumsum(CCI1_profit, axis=1), axis=0)
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(OR1_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
+#axs.plot(OR1_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
 #axs.fill_between(np.arange(0, 30), OR1_profit_mean-OR1_profit_std, OR1_profit_mean+OR1_profit_std, alpha=0.3)
-axs.plot(SHLP1_profit_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
-axs.plot(DSHLP1_profit_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
-axs.plot(S1_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(MA1_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(MAS1_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-#axs.plot(MA1I_profit_mean, label='IPPO Independent', lw=2, color=colour_dict['MAI'])
-#axs.plot(MA1I_profit_mean, label='IPPO shared network Independent', lw=2, color=colour_dict['MASI'])
-axs.plot(CC1_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-#axs.plot(CC1I_profit_mean, label='MAPPO Independent', lw=2, color=colour_dict['CCI'])
+#axs.plot(SHLP1_profit_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(DSHLP1_profit_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
+#axs.plot(S1_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(MA1_profit_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
+axs.plot(MAS1_profit_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
+axs.plot(MA1I_profit_mean, label='', lw=1.5, color=colour_dict['MA'], linestyle=":")
+axs.plot(MASI1_profit_mean, label='', lw=1.5, color=colour_dict['MAS'], linestyle=":")
+axs.plot(CC1_profit_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
+axs.plot(CC1I_profit_mean, label='', lw=1.5, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()
 axs.set_xlim(0, 29)
-plt.savefig('report_figures/div1_profit.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/div1_profit_independent.eps', dpi=1000, bbox_inches='tight', format='eps')
+#plt.show()
 
 
 #%% Learning curves
@@ -1584,6 +1584,7 @@ CC1I_Std_rewards = np.array([np.std(CC1I_rewards[i - p:i + 1]) if i >= p else np
 
 
 #%% MA Learning Curve plots
+'''
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -1620,8 +1621,9 @@ axs.set_xlim(0, 50000)
 #axs.set_ylim(250, 550)
 plt.savefig('report_figures/MA_learning_curves_div1.png', dpi=200, bbox_inches='tight')
 plt.show()
-
+'''
 #%% MA I Learning Curve plots
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -1659,7 +1661,7 @@ axs.set_xlim(0, 50000)
 #axs.set_ylim(250, 550)
 plt.savefig('report_figures/MA_learning_curves_independent_div1.png', dpi=200, bbox_inches='tight')
 plt.show()
-
+"""
 
 #%% Demand Noise Plots
 demand_noise = [0, 10, 20, 30, 40, 50]
@@ -1709,7 +1711,7 @@ NCC_N_std = np.array([CC1_reward_std, NCC1N10_reward_std, NCC1N20_reward_std, NC
 
 CCI_N_mean = np.array([CCI1_reward_mean, CCI1N10_reward_mean, CCI1N20_reward_mean, CCI1N30_reward_mean, CCI1N40_reward_mean, CCI1N50_reward_mean])
 CCI_N_std = np.array([CCI1_reward_std, CCI1N10_reward_std, CCI1N20_reward_std, CCI1N30_reward_std, CCI1N40_reward_std, CCI1N50_reward_std])
-
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -1784,7 +1786,7 @@ axs.legend()
 axs.set_xlim(0, 40)
 plt.savefig('report_figures/demand_noise_relative_change_div1.png', dpi=200, bbox_inches='tight')
 plt.show()
-
+"""
 #%% Delay Plots
 delay_noise = [0, 10, 20, 30, 40, 50]
 
@@ -1833,6 +1835,7 @@ CCI_D_std = np.array([CCI1_reward_std, CCI1D10_reward_std, CCI1D20_reward_std, C
 ACC_D_mean = np.array([ACC1_reward_mean, ACC1D10_reward_mean, ACC1D20_reward_mean, ACC1D30_reward_mean, ACC1D40_reward_mean, ACC1D50_reward_mean])
 ACC_D_std = np.array([ACC1_reward_std, ACC1D10_reward_std, ACC1D20_reward_std, ACC1D30_reward_std, ACC1D40_reward_std, ACC1D50_reward_std])
 
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -1884,7 +1887,7 @@ axs.legend()
 axs.set_xlim(0, 50)
 plt.savefig('report_figures/delay_noise_change_div.png', dpi=200, bbox_inches='tight')
 plt.show()
-
+"""
 
 #%% Printing Results
 print('Div 1')

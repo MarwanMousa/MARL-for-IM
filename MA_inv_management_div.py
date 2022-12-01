@@ -18,11 +18,11 @@ plt.rcParams['ps.fonttype'] = 42
 plt.rcParams["figure.dpi"] = 200
 #%% Environment configuration
 
-train_agent = False
+train_agent = True
 save_agent = True
 save_path = "checkpoints/multi_agent/div_1"
 load_path = "checkpoints/multi_agent/div_1"
-share_network = True
+share_network = False
 independent = False
 LP_load_path = "LP_results/div_1/"
 load_iteration = str(500)
@@ -236,7 +236,7 @@ agent = get_trainer(algorithm, rl_config, "MultiAgentInventoryManagementDiv")
 #%% Training
 if train_agent:
     # Training
-    iters = 500
+    iters = 490
     min_iter_save = 300
     checkpoint_interval = 20
     results = []

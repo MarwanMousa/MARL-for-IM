@@ -4,10 +4,10 @@ from matplotlib import rc
 import pickle
 
 # Define plot settings
-rc('font', **{'family': 'serif', 'serif': ['Palatino'], 'size': 13})
+rc('font', **{'family': 'sans-serif', 'serif': ['Arial'], 'size': 16})
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
-plt.rcParams["figure.dpi"] = 200
+plt.rcParams["figure.dpi"] = 1000
 
 #%% For pickle load
 def policy_mapping_fn(agent_id, episode, **kwargs):
@@ -1472,6 +1472,7 @@ colour_dict['DFO'] = 'indigo'
 
 #%% Demand Noise Plots
 demand_noise = [0, 10, 20, 30, 40, 50]
+demand_noise_2 = [0, 10, 20, 30]
 
 OR_DSHLP = [OR4_reward_list[i] for i in DSHLP4_success]
 OR_DSHLPN10 = [OR4N10_reward_list[i] for i in DSHLP4N10_success]
@@ -1488,65 +1489,83 @@ OR_DSHLPN50_ratio = np.mean(np.array(DSHLP4N50_reward_list) / np.array(OR_DSHLPN
 DSHLP_fail = np.array([OR4_reward_list[i] for i in DSHLP4_failed_tests]) * OR_DSHLP_ratio
 DSHLPN10_fail = np.array([OR4N10_reward_list[i] for i in DSHLP4N10_failed_tests]) * OR_DSHLPN10_ratio
 DSHLPN20_fail = np.array([OR4N20_reward_list[i] for i in DSHLP4N20_failed_tests]) * OR_DSHLPN20_ratio
-DSHLPN30_fail = np.array([OR4N30_reward_list[i] for i in DSHLP4N30_failed_tests]) * 0.55 #OR_DSHLPN30_ratio
-DSHLPN40_fail = np.array([OR4N40_reward_list[i] for i in DSHLP4N40_failed_tests]) * 0.52 #OR_DSHLPN40_ratio
-DSHLPN50_fail = np.array([OR4N50_reward_list[i] for i in DSHLP4N50_failed_tests]) * 0.5 #OR_DSHLPN50_ratio
+DSHLPN30_fail = np.array([OR4N30_reward_list[i] for i in DSHLP4N30_failed_tests]) * OR_DSHLPN30_ratio
+DSHLPN40_fail = np.array([OR4N40_reward_list[i] for i in DSHLP4N40_failed_tests]) * OR_DSHLPN40_ratio
+DSHLPN50_fail = np.array([OR4N50_reward_list[i] for i in DSHLP4N50_failed_tests]) * OR_DSHLPN50_ratio
+
 
 DSHLP4_synth_mean = np.mean(list(DSHLP_fail) + list(DSHLP4_reward_list))
 DSHLP4N10_synth_mean = np.mean(list(DSHLPN10_fail) + list(DSHLP4N10_reward_list))
 DSHLP4N20_synth_mean = np.mean(list(DSHLPN20_fail) + list(DSHLP4N20_reward_list))
 DSHLP4N30_synth_mean = np.mean(list(DSHLPN30_fail) + list(DSHLP4N30_reward_list))
-DSHLP4N40_synth_mean = np.mean(list(DSHLPN40_fail) + list(DSHLP4N40_reward_list))
-DSHLP4N50_synth_mean = np.mean(list(DSHLPN50_fail) + list(DSHLP4N50_reward_list))
 
-OR_DSHLP_mean = [np.mean(OR_DSHLP), np.mean(OR_DSHLPN10), np.mean(OR_DSHLPN20), np.mean(OR_DSHLPN30), np.mean(OR_DSHLPN40), np.mean(OR_DSHLPN50)]
+OR_DSHLP_mean = [np.mean(OR_DSHLP), np.mean(OR_DSHLPN10), np.mean(OR_DSHLPN20), np.mean(OR_DSHLPN30),
+                 np.mean(OR_DSHLPN40), np.mean(OR_DSHLPN50)]
 
-OR_N_mean = np.array([OR4_reward_mean, OR4N10_reward_mean, OR4N20_reward_mean, OR4N30_reward_mean, OR4N40_reward_mean, OR4N50_reward_mean])
-OR_N_std = np.array([OR4_reward_std, OR4N10_reward_std, OR4N20_reward_std, OR4N30_reward_std, OR4N40_reward_std, OR4N50_reward_std])
+OR_N_mean = np.array([OR4_reward_mean, OR4N10_reward_mean, OR4N20_reward_mean, OR4N30_reward_mean,
+                      OR4N40_reward_mean, OR4N50_reward_mean
+                      ])
 
-DFO_N_mean = np.array([DFO4_reward_mean, DFO4N10_reward_mean, DFO4N20_reward_mean, DFO4N30_reward_mean, DFO4N40_reward_mean, DFO4N50_reward_mean])
-DFO_N_std = np.array([DFO4_reward_std, DFO4N10_reward_std, DFO4N20_reward_std, DFO4N30_reward_std, DFO4N40_reward_std, DFO4N50_reward_std])
+OR_N_mean2 = np.array([OR4_reward_mean, OR4N10_reward_mean, OR4N20_reward_mean, OR4N30_reward_mean,])
 
-SHLP_N_mean = np.array([SHLP4_reward_mean, SHLP4N10_reward_mean, SHLP4N20_reward_mean, SHLP4N30_reward_mean, SHLP4N40_reward_mean, SHLP4N50_reward_mean])
-SHLP_N_std = np.array([SHLP4_reward_std, SHLP4N10_reward_std, SHLP4N20_reward_std, SHLP4N30_reward_std, SHLP4N40_reward_std, SHLP4N50_reward_std])
+OR_N_std = np.array([OR4_reward_std, OR4N10_reward_std, OR4N20_reward_std, OR4N30_reward_std])
 
-DSHLP_N_mean = np.array([DSHLP4_reward_mean, DSHLP4N10_reward_mean, DSHLP4N20_reward_mean, DSHLP4N30_reward_mean, DSHLP4N40_reward_mean, DSHLP4N50_reward_mean])
-DSHLP_N_std = np.array([DSHLP4_reward_std, DSHLP4N10_reward_std, DSHLP4N20_reward_std, DSHLP4N30_reward_std, DSHLP4N40_reward_std, DSHLP4N50_reward_std])
-DSHLP_N_synth_mean = np.array([DSHLP4_synth_mean, DSHLP4N10_synth_mean, DSHLP4N20_synth_mean, DSHLP4N30_synth_mean, DSHLP4N40_synth_mean, DSHLP4N50_synth_mean])
+DFO_N_mean = np.array([DFO4_reward_mean, DFO4N10_reward_mean, DFO4N20_reward_mean, DFO4N30_reward_mean,
+                       DFO4N40_reward_mean, DFO4N50_reward_mean])
+DFO_N_std = np.array([DFO4_reward_std, DFO4N10_reward_std, DFO4N20_reward_std, DFO4N30_reward_std])
+
+SHLP_N_mean = np.array([SHLP4_reward_mean, SHLP4N10_reward_mean, SHLP4N20_reward_mean, SHLP4N30_reward_mean,
+                        SHLP4N40_reward_mean, SHLP4N50_reward_mean])
+SHLP_N_std = np.array([SHLP4_reward_std, SHLP4N10_reward_std, SHLP4N20_reward_std, SHLP4N30_reward_std])
+
+DSHLP_N_mean = np.array([DSHLP4_reward_mean, DSHLP4N10_reward_mean, DSHLP4N20_reward_mean, DSHLP4N30_reward_mean,
+                         DSHLP4N40_reward_mean, DSHLP4N50_reward_mean])
+DSHLP_N_std = np.array([DSHLP4_reward_std, DSHLP4N10_reward_std, DSHLP4N20_reward_std, DSHLP4N30_reward_std,
+                        DSHLP4N40_reward_std, DSHLP4N50_reward_std])
+DSHLP_N_synth_mean = np.array([DSHLP4_synth_mean, DSHLP4N10_synth_mean, DSHLP4N20_synth_mean, DSHLP4N30_synth_mean])
 #DSHLP_N_synth_mean = (SHLP_N_mean/OR_N_mean)/(SHLP_N_mean[0]/OR_N_mean[0]) * DSHLP4_synth_mean
 #ORDSHLP_N_mean = np.array([ORDSHLP_reward_mean, ORDSHLPN10_reward_mean, ORDSHLPN20_reward_mean, ORDSHLPN30_reward_mean, ORDSHLPN40_reward_mean, ORDSHLPN50_reward_mean])
 
-S_N_mean = np.array([S4_reward_mean, S4N10_reward_mean, S4N20_reward_mean, S4N30_reward_mean, S4N40_reward_mean, S4N50_reward_mean])
-S_N_std = np.array([S4_reward_std, S4N10_reward_std, S4N20_reward_std, S4N30_reward_std, S4N40_reward_std, S4N50_reward_std])
+S_N_mean = np.array([S4_reward_mean, S4N10_reward_mean, S4N20_reward_mean, S4N30_reward_mean, S4N40_reward_mean,
+                     S4N50_reward_mean])
+S_N_std = np.array([S4_reward_std, S4N10_reward_std, S4N20_reward_std, S4N30_reward_std])
 
-NS_N_mean = np.array([S4_reward_mean, NS4N10_reward_mean, NS4N20_reward_mean, NS4N30_reward_mean, NS4N40_reward_mean, NS4N50_reward_mean])
-NS_N_std = np.array([S4_reward_std, NS4N10_reward_std, NS4N20_reward_std, NS4N30_reward_std, NS4N40_reward_std, NS4N50_reward_std])
+NS_N_mean = np.array([S4_reward_mean, NS4N10_reward_mean, NS4N20_reward_mean, NS4N30_reward_mean, NS4N40_reward_mean,
+                      NS4N50_reward_mean])
+NS_N_std = np.array([S4_reward_std, NS4N10_reward_std, NS4N20_reward_std, NS4N30_reward_std])
 
-MA_N_mean = np.array([MA4_reward_mean, MA4N10_reward_mean, MA4N20_reward_mean, MA4N30_reward_mean, MA4N40_reward_mean, MA4N50_reward_mean])
-MA_N_std = np.array([MA4_reward_std, MA4N10_reward_std, MA4N20_reward_std, MA4N30_reward_std, MA4N40_reward_std, MA4N50_reward_std])
+MA_N_mean = np.array([MA4_reward_mean, MA4N10_reward_mean, MA4N20_reward_mean, MA4N30_reward_mean, MA4N40_reward_mean,
+                      MA4N50_reward_mean])
+MA_N_std = np.array([MA4_reward_std, MA4N10_reward_std, MA4N20_reward_std, MA4N30_reward_std])
 
-NMA_N_mean = np.array([MA4_reward_mean, NMA4N10_reward_mean, NMA4N20_reward_mean, NMA4N30_reward_mean, NMA4N40_reward_mean, NMA4N50_reward_mean])
-NMA_N_std = np.array([MA4_reward_std, NMA4N10_reward_std, NMA4N20_reward_std, NMA4N30_reward_std, NMA4N40_reward_std, NMA4N50_reward_std])
+NMA_N_mean = np.array([MA4_reward_mean, NMA4N10_reward_mean, NMA4N20_reward_mean, NMA4N30_reward_mean,
+                       NMA4N40_reward_mean, NMA4N50_reward_mean])
+NMA_N_std = np.array([MA4_reward_std, NMA4N10_reward_std, NMA4N20_reward_std, NMA4N30_reward_std])
 
-MAS_N_mean = np.array([MAS4_reward_mean, MAS4N10_reward_mean, MAS4N20_reward_mean, MAS4N30_reward_mean, MAS4N40_reward_mean, MAS4N50_reward_mean])
-MAS_N_std = np.array([MAS4_reward_std, MAS4N10_reward_std, MAS4N20_reward_std, MAS4N30_reward_std, MAS4N40_reward_std, MAS4N50_reward_std])
+MAS_N_mean = np.array([MAS4_reward_mean, MAS4N10_reward_mean, MAS4N20_reward_mean, MAS4N30_reward_mean,
+                       MAS4N40_reward_mean, MAS4N50_reward_mean])
+MAS_N_std = np.array([MAS4_reward_std, MAS4N10_reward_std, MAS4N20_reward_std, MAS4N30_reward_std])
 
-NMAS_N_mean = np.array([MAS4_reward_mean, NMAS4N10_reward_mean, NMAS4N20_reward_mean, NMAS4N30_reward_mean, NMAS4N40_reward_mean, NMAS4N50_reward_mean])
-NMAS_N_std = np.array([MAS4_reward_std, NMAS4N10_reward_std, NMAS4N20_reward_std, NMAS4N30_reward_std, NMAS4N40_reward_std, NMAS4N50_reward_std])
+NMAS_N_mean = np.array([MAS4_reward_mean, NMAS4N10_reward_mean, NMAS4N20_reward_mean, NMAS4N30_reward_mean,
+                        NMAS4N40_reward_mean,  NMAS4N50_reward_mean])
+NMAS_N_std = np.array([MAS4_reward_std, NMAS4N10_reward_std, NMAS4N20_reward_std, NMAS4N30_reward_std])
 
-CC_N_mean = np.array([CC4_reward_mean, CC4N10_reward_mean, CC4N20_reward_mean, CC4N30_reward_mean, CC4N40_reward_mean, CC4N50_reward_mean])
-CC_N_std = np.array([CC4_reward_std, CC4N10_reward_std, CC4N20_reward_std, CC4N30_reward_std, CC4N40_reward_std, CC4N50_reward_std])
+CC_N_mean = np.array([CC4_reward_mean, CC4N10_reward_mean, CC4N20_reward_mean, CC4N30_reward_mean,
+                      CC4N40_reward_mean, CC4N50_reward_mean])
+CC_N_std = np.array([CC4_reward_std, CC4N10_reward_std, CC4N20_reward_std, CC4N30_reward_std])
 
-NCC_N_mean = np.array([CC4_reward_mean, NCC4N10_reward_mean, NCC4N20_reward_mean, NCC4N30_reward_mean, NCC4N40_reward_mean, NCC4N50_reward_mean])
-NCC_N_std = np.array([CC4_reward_std, NCC4N10_reward_std, NCC4N20_reward_std, NCC4N30_reward_std, NCC4N40_reward_std, NCC4N50_reward_std])
+NCC_N_mean = np.array([CC4_reward_mean, NCC4N10_reward_mean, NCC4N20_reward_mean, NCC4N30_reward_mean,
+                       NCC4N40_reward_mean, NCC4N50_reward_mean])
+NCC_N_std = np.array([CC4_reward_std, NCC4N10_reward_std, NCC4N20_reward_std, NCC4N30_reward_std])
 
+'''
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
 axs.plot(demand_noise, OR_N_mean, label='Oracle', lw=2, color=colour_dict['OR'])
-axs.plot(demand_noise, SHLP_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(demand_noise, SHLP_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, S_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(demand_noise, NS_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+#axs.plot(demand_noise, NS_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 axs.plot(demand_noise, DSHLP_N_synth_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(demand_noise, MA_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(demand_noise, NMA_N_mean, label='IPPO ', lw=2, color=colour_dict['MA'])
@@ -1557,36 +1576,47 @@ axs.plot(demand_noise, NCC_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
 axs.set_ylabel("Reward")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend(loc="lower left")
-axs.set_xlim(0, 50)
+axs.set_xlim(0, 30)
+axs.set_xticks([0, 10, 20, 30])
 plt.savefig('report_figures/demand_noise.png', dpi=200, bbox_inches='tight')
-plt.show()
+#plt.show()
+
+'''
+
+
 
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(demand_noise, SHLP_N_mean/OR_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(demand_noise, SHLP_N_mean/OR_N_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, S_N_mean/OR_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(demand_noise, NS_N_mean/OR_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(demand_noise, DSHLP_N_synth_mean/OR_N_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
+#axs.plot(demand_noise, NS_N_mean/OR_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(demand_noise_2, DSHLP_N_synth_mean/OR_N_mean2, label='DSHLP', lw=1.5, color=colour_dict['DSHLP'])
 #axs.plot(demand_noise, MA_N_mean/OR_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(demand_noise, NMA_N_mean/OR_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(demand_noise, NMA_N_mean/OR_N_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
 #axs.plot(demand_noise, MAS_N_mean/OR_N_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(demand_noise, NMAS_N_mean/OR_N_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(demand_noise, NMAS_N_mean/OR_N_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
 #axs.plot(demand_noise, CC_N_mean/OR_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-axs.plot(demand_noise, NCC_N_mean/OR_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(demand_noise, NCC_N_mean/OR_N_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
 axs.set_ylabel("Performance relative to Oracle")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend()
-axs.set_xlim(0, 50)
-plt.savefig('report_figures/demand_noise_relative.png', dpi=200, bbox_inches='tight')
-plt.show()
+axs.set_xlim(0, 30)
+axs.set_xticks([0, 10, 20, 30])
+plt.savefig('report_figures/demand_noise_relative.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
+
+
+'''
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(demand_noise, (SHLP_N_mean/OR_N_mean)/(SHLP_N_mean[0]/OR_N_mean[0]), label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(demand_noise, (SHLP_N_mean/OR_N_mean)/(SHLP_N_mean[0]/OR_N_mean[0]), label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(demand_noise, (S_N_mean/OR_N_mean)/(S_N_mean[0]/OR_N_mean[0]), label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(demand_noise, (NS_N_mean/OR_N_mean)/(NS_N_mean[0]/OR_N_mean[0]), label='Single Agent', lw=2, color=colour_dict['S'])
+#axs.plot(demand_noise, (NS_N_mean/OR_N_mean)/(NS_N_mean[0]/OR_N_mean[0]), label='Single Agent', lw=2, color=colour_dict['S'])
 axs.plot(demand_noise, (DSHLP_N_synth_mean/OR_N_mean)/(DSHLP_N_synth_mean[0]/OR_N_mean[0]), label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(demand_noise, (MA_N_mean/OR_N_mean)/(MA_N_mean[0]/OR_N_mean[0]), label='IPPO', lw=2, color=colour_dict['MA'])
 axs.plot(demand_noise, (NMA_N_mean/OR_N_mean)/(NMA_N_mean[0]/OR_N_mean[0]), label='IPPO', lw=2, color=colour_dict['MA'])
@@ -1597,27 +1627,32 @@ axs.plot(demand_noise, (NCC_N_mean/OR_N_mean)/(NCC_N_mean[0]/OR_N_mean[0]), labe
 axs.set_ylabel("Performance Change")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend()
-axs.set_xlim(0, 50)
+axs.set_xlim(0, 30)
+axs.set_xticks([0, 10, 20, 30])
 plt.savefig('report_figures/demand_noise_relative_change.png', dpi=200, bbox_inches='tight')
-plt.show()
+#plt.show()
+'''
 
-
+'''
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
-axs.plot(demand_noise, S_N_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(demand_noise, NS_N_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
-axs.plot(demand_noise, MA_N_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(demand_noise, NMA_N_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
-axs.plot(demand_noise, MAS_N_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(demand_noise, NMAS_N_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
-axs.plot(demand_noise, CC_N_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-axs.plot(demand_noise, NCC_N_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
+axs.plot(demand_noise, S_N_mean, label='', lw=1.5, color=colour_dict['S'], linestyle=":")
+axs.plot(demand_noise, NS_N_mean, label='Single Agent', lw=1.5, color=colour_dict['S'])
+axs.plot(demand_noise, MA_N_mean, label='', lw=1.5, color=colour_dict['MA'], linestyle=":")
+axs.plot(demand_noise, NMA_N_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
+axs.plot(demand_noise, MAS_N_mean, label='', lw=1.5, color=colour_dict['MAS'], linestyle=":")
+axs.plot(demand_noise, NMAS_N_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
+axs.plot(demand_noise, CC_N_mean, label='', lw=1.5, color=colour_dict['CC'], linestyle=":")
+axs.plot(demand_noise, NCC_N_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
 axs.set_ylabel("Reward")
 axs.set_xlabel("Demand Noise (%)")
 axs.legend(loc="lower left")
 axs.set_xlim(0, 50)
-plt.savefig('report_figures/demand_noise_trained_comparison.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/demand_noise_trained_comparison.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
+'''
 
 #%% Delay Noise Plots
 delay_noise = [0, 10, 20, 30, 40, 50]
@@ -1659,32 +1694,35 @@ NCC_D_std = np.array([CC4_reward_std, NCC4D10_reward_std, NCC4D20_reward_std, NC
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(delay_noise, SHLP_D_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(delay_noise, SHLP_D_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(delay_noise, DFO_D_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 #axs.plot(delay_noise, S_D_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(delay_noise, NS_D_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(delay_noise, DSHLP_D_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
+#axs.plot(delay_noise, NS_D_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+axs.plot(delay_noise, DSHLP_D_mean, label='DSHLP', lw=1.5, color=colour_dict['DSHLP'])
 #axs.plot(delay_noise, DecLP_D_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
 #axs.plot(delay_noise, MA_D_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(delay_noise, NMA_D_mean, label='IPPO', lw=2, color=colour_dict['MA'])
+axs.plot(delay_noise, NMA_D_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
 #axs.plot(delay_noise, MAS_D_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(delay_noise, NMAS_D_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
+axs.plot(delay_noise, NMAS_D_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
 #axs.plot(delay_noise, CC_D_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-axs.plot(delay_noise, NCC_D_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(delay_noise, NCC_D_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
 axs.set_ylabel("Reward")
 axs.set_xlabel("Delay Noise (%)")
 axs.legend()
 axs.set_xlim(0, 50)
-plt.savefig('report_figures/delay_noise.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/delay_noise.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(delay_noise, SHLP_D_mean/SHLP4_reward_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
+#axs.plot(delay_noise, SHLP_D_mean/SHLP4_reward_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(delay_noise, DFO_D_mean/DFO4_reward_mean, label='DFO', lw=2, color=colour_dict['DFO'])
 #axs.plot(delay_noise, S_D_mean/S4_reward_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(delay_noise, NS_D_mean/S4_reward_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+#axs.plot(delay_noise, NS_D_mean/S4_reward_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 axs.plot(delay_noise, DSHLP_D_mean/DSHLP4_reward_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(delay_noise, DecLP_D_mean/DecLP4_reward_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
 #axs.plot(delay_noise, MA_D_mean/MA4_reward_mean, label='IPPO', lw=2, color=colour_dict['MA'])
@@ -1697,34 +1735,38 @@ axs.set_ylabel("Performance Change")
 axs.set_xlabel("Delay Noise (%)")
 axs.legend()
 axs.set_xlim(0, 50)
-plt.savefig('report_figures/delay_noise_change.png', dpi=200, bbox_inches='tight')
-plt.show()
-
+plt.savefig('report_figures/delay_noise_change.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
 #axs.plot(delay_noise, SHLP_D_mean/SHLP4_reward_mean, label='SHLP', lw=2, color=colour_dict['SHLP'])
 #axs.plot(delay_noise, DFO_D_mean/DFO4_reward_mean, label='DFO', lw=2, color=colour_dict['DFO'])
-axs.plot(delay_noise, S_D_mean, label='Single Agent', lw=2, color=colour_dict['S'])
-axs.plot(delay_noise, NS_D_mean, label='Single Agent noise trained', lw=2, color=colour_dict['S'], linestyle=":")
+axs.plot(delay_noise, S_D_mean, label='', lw=1.5, color=colour_dict['S'], linestyle=":")
+axs.plot(delay_noise, NS_D_mean, label='Single Agent', lw=1.5, color=colour_dict['S'])
 #axs.plot(delay_noise, DSHLP_D_mean/DSHLP4_reward_mean, label='DSHLP', lw=2, color=colour_dict['DSHLP'])
 #axs.plot(delay_noise, DecLP_D_mean/DecLP4_reward_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
-axs.plot(delay_noise, MA_D_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(delay_noise, NMA_D_mean, label='IPPO noise trained', lw=2, color=colour_dict['MA'], linestyle=":")
-axs.plot(delay_noise, MAS_D_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(delay_noise, NMAS_D_mean, label='IPPO shared network noise trained', lw=2, color=colour_dict['MAS'], linestyle=":")
-axs.plot(delay_noise, CC_D_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
-axs.plot(delay_noise, NCC_D_mean, label='MAPPO noise trained', lw=2, color=colour_dict['CC'], linestyle=":")
+axs.plot(delay_noise, MA_D_mean, label='', lw=1.5, color=colour_dict['MA'], linestyle=":")
+axs.plot(delay_noise, NMA_D_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
+axs.plot(delay_noise, MAS_D_mean, label='', lw=1.5, color=colour_dict['MAS'], linestyle=":")
+axs.plot(delay_noise, NMAS_D_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
+axs.plot(delay_noise, CC_D_mean, label='', lw=1.5, color=colour_dict['CC'], linestyle=":")
+axs.plot(delay_noise, NCC_D_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
 axs.set_ylabel("Reward")
 axs.set_xlabel("Delay Noise (%)")
 axs.legend()
 axs.set_xlim(0, 50)
-plt.savefig('report_figures/delay_noise_trained_comparison.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/delay_noise_trained_comparison.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
 #%% Stage plots
 
-stages = np.array([2, 4, 8])
+stages = np.array([2, 4, 6])
 
 OR_S_mean = np.array([OR2_reward_mean, OR4_reward_mean, OR8_reward_mean])
 OR_S_std = np.array([OR2_reward_std, OR4_reward_std, OR8_reward_std])
@@ -1763,17 +1805,25 @@ axs.errorbar(x=stages+0.2, y=(CC_S_mean/OR_S_mean), color=colour_dict['CC'], ls=
 axs.set_ylabel("Performance relative to Oracle")
 axs.set_xlabel("Number of Stages")
 axs.legend()
-axs.set_xlim(1.5, 8.5)
+axs.set_xlim(1.5, 6.5)
 axs.set_ylim(0.3, 0.9)
-axs.set_xticks(ticks=[2, 4, 8])
+axs.set_xticks(ticks=[2, 4, 6])
+labels = [item.get_text() for item in axs.get_xticklabels()]
+labels[0] = '2'
+labels[1] = '4'
+labels[2] = '8'
+
+axs.set_xticklabels(labels)
 # get handles
 handles, labels = axs.get_legend_handles_labels()
 # remove the errorbars
 handles = [h[0] for h in handles]
 # use them in the legend
 axs.legend(handles, labels)
-plt.savefig('report_figures/stages.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stages.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
 '''
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
@@ -1792,10 +1842,11 @@ axs.set_xlabel("Number of Stages")
 axs.legend()
 axs.set_xlim(2, 8)
 #axs.set_ylim(0.4, 0.8)
-plt.savefig('report_figures/stages_relative.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stages_relative.svg', dpi=200, bbox_inches='tight')
+#plt.show()
 '''
 #%% Stage 4 profit
+
 OR4_profit_mean = np.mean(np.cumsum(OR4_profit, axis=1), axis=0)
 OR4_profit_std = np.std(np.cumsum(OR4_profit, axis=1), axis=0)
 
@@ -1820,21 +1871,23 @@ CC4_profit_std = np.std(np.cumsum(CC4_profit, axis=1), axis=0)
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(OR4_profit_mean, label='Oracle', lw=2, color=colour_dict['OR'])
+axs.plot(OR4_profit_mean, label='Oracle', lw=1.5, color=colour_dict['OR'])
 #axs.fill_between(np.arange(0, 30), OR4_profit_mean-OR4_profit_std, OR4_profit_mean+OR4_profit_std, alpha=0.3)
 #axs.plot(SHLP4_profit_mean, label='SHILP', lw=2, color=colour_dict['SHLP'])
-axs.plot(S4_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
+#axs.plot(S4_profit_mean, label='Single Agent', lw=2, color=colour_dict['S'])
 #axs.plot(DecLP4_profit_mean, label='Decentralised SHILP', lw=2, color=colour_dict['DecLP'])
-axs.plot(DSHLP4_profit_mean, label='DSHILP', lw=2, color=colour_dict['DSHLP'])
-axs.plot(MA4_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(MAS4_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(CC4_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(DSHLP4_profit_mean, label='DSHLP', lw=1.5, color=colour_dict['DSHLP'])
+axs.plot(MA4_profit_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
+axs.plot(MAS4_profit_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
+axs.plot(CC4_profit_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
 axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()
 axs.set_xlim(0, 29)
-plt.savefig('report_figures/stage_4_profit.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stage_4_profit.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
 #%% Stage 4 Independent profit
 MA4I_profit_mean = np.mean(np.cumsum(MA4I_profit, axis=1), axis=0)
@@ -1849,17 +1902,23 @@ CC4I_profit_std = np.std(np.cumsum(CC4I_profit, axis=1), axis=0)
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.plot(MA4I_profit_mean, label='IPPO', lw=2, color=colour_dict['MA'])
-axs.plot(MAS4I_profit_mean, label='IPPO shared network', lw=2, color=colour_dict['MAS'])
-axs.plot(CC4I_profit_mean, label='MAPPO', lw=2, color=colour_dict['CC'])
+axs.plot(MA4_profit_mean, label='IPPO', lw=1.5, color=colour_dict['MA'])
+axs.plot(MAS4_profit_mean, label='IPPO shared network', lw=1.5, color=colour_dict['MAS'])
+axs.plot(CC4_profit_mean, label='MAPPO', lw=1.5, color=colour_dict['CC'])
+axs.plot(MA4I_profit_mean, label='', lw=1.5, color=colour_dict['MA'], linestyle=":")
+axs.plot(MAS4I_profit_mean, label='', lw=1.5, color=colour_dict['MAS'], linestyle=":")
+axs.plot(CC4I_profit_mean, label='', lw=1.5, color=colour_dict['CC'], linestyle=":")
 axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()
 axs.set_xlim(0, 29)
-plt.savefig('report_figures/stage_4_independent_profit.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stage_4_independent_profit.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+##plt.show()
 
 #%% Stage 8 profit
+'''
 OR8_profit_mean = np.mean(np.cumsum(OR8_profit, axis=1), axis=0)
 OR8_profit_std = np.std(np.cumsum(OR8_profit, axis=1), axis=0)
 
@@ -1897,8 +1956,11 @@ axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()
 axs.set_xlim(0, 29)
-plt.savefig('report_figures/stage_8_profit.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stage_8_profit.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+'''
 
 #%% Stage 2 profit
 OR2_profit_mean = np.mean(np.cumsum(OR2_profit, axis=1), axis=0)
@@ -1921,7 +1983,7 @@ MAS2_profit_std = np.std(np.cumsum(MAS2_profit, axis=1), axis=0)
 
 CC2_profit_mean = np.mean(np.cumsum(CC2_profit, axis=1), axis=0)
 CC2_profit_std = np.std(np.cumsum(CC2_profit, axis=1), axis=0)
-
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -1937,9 +1999,11 @@ axs.set_ylabel("Cumulative Profit")
 axs.set_xlabel("Period")
 axs.legend()
 axs.set_xlim(0, 29)
-plt.savefig('report_figures/stage_2_profit.png', dpi=200, bbox_inches='tight')
-plt.show()
-
+plt.savefig('report_figures/stage_2_profit.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+"""
 #%% Learning curves
 
 p = 100
@@ -2015,6 +2079,7 @@ CC8_Std_rewards = np.array([np.std(CC8_rewards[i - p:i + 1]) if i >= p else np.s
                         for i, _ in enumerate(CC8_rewards)])
 
 #%% Single Agent Learning Curve plots
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -2024,7 +2089,7 @@ axs.fill_between(np.arange(len(S4_Mean_rewards)),
                  alpha=0.1)
 axs.plot(S4_Mean_rewards, label='Mean single RL agent rewards')
 
-"""
+
 # Plot DFO rewards
 axs.fill_between(np.arange(len(S4_Mean_rewards)),
                  np.ones(len(S4_Mean_rewards)) * (DFO4_reward_mean - DFO4_reward_std),
@@ -2041,6 +2106,7 @@ axs.plot(np.arange(len(S4_Mean_rewards)), np.ones(len(S4_Mean_rewards)) * (OR4_r
 """
 
 # Plot SHLP rewards
+"""
 axs.fill_between(np.arange(len(S4_Mean_rewards)),
                  np.ones(len(S4_Mean_rewards)) * (SHLP4_reward_mean - SHLP4_reward_std),
                  np.ones(len(S4_Mean_rewards)) * (SHLP4_reward_mean + SHLP4_reward_std),
@@ -2053,36 +2119,38 @@ axs.set_xlabel("Episode")
 axs.legend()
 axs.set_xlim(0, 40000)
 axs.set_ylim(-2000, 800)
-plt.savefig('report_figures/single_agent_learning_curve.png', dpi=200, bbox_inches='tight')
-plt.show()
-
+plt.savefig('report_figures/single_agent_learning_curve.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+"""
 #%% MA Learning Curve plots
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
-axs.fill_between(np.arange(len(MA4_Mean_rewards)),
-                 MA4_Mean_rewards - MA4_Std_rewards,
-                 MA4_Mean_rewards + MA4_Std_rewards,
-                 alpha=0.1)
-axs.plot(MA4_Mean_rewards, label='Mean IPPO rewards', lw=2)
+#axs.fill_between(np.arange(len(MA4_Mean_rewards)),
+#                 MA4_Mean_rewards - MA4_Std_rewards,
+#                 MA4_Mean_rewards + MA4_Std_rewards,
+#                 alpha=0.1)
+axs.plot(MA4_Mean_rewards, label='Mean IPPO rewards', lw=1.5)
 
-axs.fill_between(np.arange(len(MAS4_Mean_rewards)),
-                 MAS4_Mean_rewards - MAS4_Std_rewards,
-                 MAS4_Mean_rewards + MAS4_Std_rewards,
-                 alpha=0.1)
-axs.plot(MAS4_Mean_rewards, label='Mean IPPO shared network rewards', lw=2)
+#axs.fill_between(np.arange(len(MAS4_Mean_rewards)),
+#                 MAS4_Mean_rewards - MAS4_Std_rewards,
+#                 MAS4_Mean_rewards + MAS4_Std_rewards,
+#                 alpha=0.1)
+axs.plot(MAS4_Mean_rewards, label='Mean IPPO shared network rewards', lw=1.5)
 
-axs.fill_between(np.arange(len(CC4_Mean_rewards)),
-                 CC4_Mean_rewards - CC4_Std_rewards,
-                 CC4_Mean_rewards + CC4_Std_rewards,
-                 alpha=0.1)
-axs.plot(CC4_Mean_rewards, label='Mean MAPPO rewards', lw=2)
+#axs.fill_between(np.arange(len(CC4_Mean_rewards)),
+#                 CC4_Mean_rewards - CC4_Std_rewards,
+#                 CC4_Mean_rewards + CC4_Std_rewards,
+#                 alpha=0.1)
+axs.plot(CC4_Mean_rewards, label='Mean MAPPO rewards', lw=1.5)
 
 
-axs.fill_between(np.arange(len(CC4_Mean_rewards)),
-                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean - DSHLP4_reward_std),
-                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean + DSHLP4_reward_std),
-                 alpha=0.1)
+#axs.fill_between(np.arange(len(CC4_Mean_rewards)),
+#                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean - DSHLP4_reward_std),
+#                 np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean + DSHLP4_reward_std),
+#                 alpha=0.1)
 axs.plot(np.arange(len(CC4_Mean_rewards)), np.ones(len(CC4_Mean_rewards)) * (DSHLP4_reward_mean), label='Mean DSHLP rewards', lw=2)
 
 axs.set_ylabel("Rewards")
@@ -2090,10 +2158,13 @@ axs.set_xlabel("Episode")
 axs.legend()
 axs.set_xlim(0, 50000)
 #axs.set_ylim(250, 550)
-plt.savefig('report_figures/MA_learning_curves.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/MA_learning_curves.eps', dpi=1000, bbox_inches='tight',
+            format='eps'
+            )
+#plt.show()
 
 #%% MA I Learning Curve plots
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -2120,10 +2191,13 @@ axs.set_xlabel("Episode")
 axs.legend()
 axs.set_xlim(0, 50000)
 #axs.set_ylim(250, 550)
-plt.savefig('report_figures/MA_learning_curves_independent.png', dpi=200, bbox_inches='tight')
-plt.show()
-
+plt.savefig('report_figures/MA_learning_curves_independent.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+"""
 #%% 8 stage
+"""
 fig, axs = plt.subplots(1, 1, figsize=(12, 6), facecolor='w', edgecolor='k')
 fig.subplots_adjust(hspace=0.1, wspace=.3)
 
@@ -2176,8 +2250,11 @@ axs.set_xlabel("Episode")
 axs.legend()
 axs.set_xlim(0, 50000)
 axs.set_ylim(-1200, 1500)
-plt.savefig('report_figures/stage_8_learning_curves.png', dpi=200, bbox_inches='tight')
-plt.show()
+plt.savefig('report_figures/stage_8_learning_curves.svg', dpi=1000, bbox_inches='tight',
+            format='svg'
+            )
+#plt.show()
+"""
 #%% Printing Results
 print('Four stage')
 print(f'Oracle Mean reward: {OR4_reward_mean}, Mean Inventory: {OR4_inventory_mean}, Mean Backlog: {OR4_backlog_mean}, Mean Customer Backlog: {OR4_customer_backlog_mean}')
